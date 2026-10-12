@@ -1,0 +1,25 @@
+{
+  "name": "windband-inventory-frontend",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Mobile-first inventory app for wind bands (screen 01: band selection). SPA — React + TypeScript, Vite.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit -p tsconfig.json && vite build",
+    "preview": "vite preview",
+    "ci": "npm run build"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.4.1",
+    "typescript": "~5.6.2",
+    "vite": "^6.3.5"
+  }
+}
