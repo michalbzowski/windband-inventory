@@ -127,8 +127,12 @@ ul.notes li b{color:var(--ink)}
 .bb-ok{background:var(--ok);border-color:var(--ok);color:#fff}
 .bb-miss{background:var(--surface);border-color:var(--danger);color:var(--danger)}
 .bb-broken{background:var(--surface);border-color:var(--warn);color:var(--warn)}
-.otherlink{align-self:center;font-size:12.5px;font-weight:700;color:var(--muted);border:0;background:none;cursor:pointer;min-height:36px;padding:6px 12px}
-.otherlink:hover{color:var(--primary)}
+.otherchips{justify-content:center;gap:8px;margin-top:-2px}
+.chip.oth{min-height:44px;font-size:12.5px}
+.chip.oth:active{transform:scale(.97)}
+.note-panel.inny{border-color:var(--primary);background:var(--primary-soft)}
+.toast{position:absolute;left:14px;right:14px;bottom:86px;background:var(--ink);color:#fff;border-radius:12px;padding:10px 14px;font-size:13px;font-weight:700;align-items:center;justify-content:space-between;gap:10px;z-index:6;box-shadow:0 8px 24px rgba(0,0,0,.30)}
+.toast button{background:none;border:1px solid #6B7280;color:#C7D2FE;border-radius:8px;min-height:38px;padding:6px 12px;font:inherit;font-size:12px;font-weight:800;cursor:pointer}
 .note-panel{border:1.5px dashed var(--danger);border-radius:14px;padding:12px;background:var(--danger-soft);display:flex;flex-direction:column;gap:10px}
 .note-panel.uszk{border-color:var(--warn);background:var(--warn-soft)}
 .note-panel label{font-size:12px;font-weight:800}
@@ -197,7 +201,7 @@ footer.doc{margin-top:64px;color:var(--muted);font-size:12.5px;border-top:1px so
 
 <header class="doc">
   <h1>windband-inventory — makieta widoków · aplikacja mobilna v1</h1>
-  <p class="sub">High-fidelity makieta projektowa (design board) implementująca wymagania zamrożone w <b>docs/w1-analiza-biznesowa-2026-10-12.md</b> (R1–R5). Rdzeń: spis z naturą F5 (B7) + baza v1 (B6). Nawigacja jednostronna z WM (B11), role ADMIN/MEMBER z API WM (B8/B10), offline queue (B7/NFR). Ekran <b>09 jest interaktywny</b> — kliknij OK / BRAK / USZKODZONE i prześledź flow z auto-next.</p>
+  <p class="sub">High-fidelity makieta projektowa (design board) implementująca wymagania zamrożone w <b>docs/w1-analiza-biznesowa-2026-10-12.md</b> (R1–R5). Rdzeń: spis z naturą F5 (B7) + baza v1 (B6). Nawigacja jednostronna z WM (B11), role ADMIN/MEMBER z API WM (B8/B10), offline queue (B7/NFR). Ekran <b>09 jest interaktywny</b> — kliknij OK / BRAK / USZKODZONE lub chip „innego stanu" i prześledź flow z auto-next i toastem „Cofnij". Rozstrzygnięcia projektowe Q1–Q3 (2026-10-12): Q1 = inline-chips, Q2 = auto-next natychmiast + toast Cofnij, Q3 = filtr „Osoba" dla MEMBER read-only.</p>
   <div class="meta-chips">
     <span>viewport 360–390 px · zero scroll poziomego</span>
     <span>tap targets ≥ 44 px</span>
@@ -336,7 +340,8 @@ footer.doc{margin-top:64px;color:var(--muted);font-size:12.5px;border-top:1px so
       </div>
       <figcaption><span class="num">03</span><b>Lista pozycji + filtry</b><span class="cap">Chip „Osoba" = filtr po przypisaniu (B6).</span></figcaption>
       <ul class="notes">
-        <li>FAB ＋ widoczny tylko ADMIN (B8); MEMBER → lista bez FAB, czytnik</li>
+        <li>FAB ＋ widoczny tylko ADMIN (B8); MEMBER → lista bez FAB, tylko odczyt</li>
+        <li>Filtr „Osoba" dostępny również MEMBER-owi — read-only (Q3: tak)</li>
         <li>Filtry jako bottom sheety (tap-target &gt; 44 px), nie rozwijane menu</li>
         <li>Sortowanie domyślne: ostatnio zmieniane; wgląd w atrybut wg displayOrder defs</li>
       </ul>
@@ -520,23 +525,29 @@ footer.doc{margin-top:64px;color:var(--muted);font-size:12.5px;border-top:1px so
             <button class="bb-miss" id="b-miss">✕&nbsp; BRAK</button>
             <button class="bb-broken" id="b-broken">⚠&nbsp; USZKODZONE</button>
           </div>
-          <button class="otherlink">Inny stan… (np. serwis / nadwyżka)</button>
+          <div class="chips otherchips">
+            <button class="chip oth" data-lbl="＋ Nadwyżka">＋ Nadwyżka</button>
+            <button class="chip oth" data-lbl="🔧 W serwisie">🔧 W serwisie</button>
+            <button class="chip oth" data-lbl="📦 Wycofany">📦 Wycofany</button>
+          </div>
           <div class="note-panel" id="d-note" style="display:none">
             <label id="d-note-label">Notatka (opcjonalna)</label>
             <textarea id="d-note-text" placeholder="np. waga w progu sali, pęknięta czara…"></textarea>
             <div class="row"><button class="btn ghost" id="d-note-skip">Pomiń</button><button class="btn primary" id="d-note-save">Zapisz i dalej →</button></div>
           </div>
-          <div class="hint" id="d-hint">tapnij przycisk — demo interaktywne · OK przechodzi dalej automatycznie (~500 ms)</div>
+          <div class="hint" id="d-hint">demo: OK → auto-next · BRAK/USZK/chip → notatka opcjonalna · „Pomiń" → toast Cofnij</div>
         </div>
         <div class="abar">
           <div class="prog"><div class="pp"><span id="d-n">35</span>/120 <small>· <span id="d-sync">wszystko zsynchronizowane</span></small></div><div class="meter"><i id="d-meter" style="width:29%"></i></div></div>
           <button class="btn sm" id="b-queue" title="kolejka offline" style="min-width:52px">🗲 <span id="d-q">0</span></button>
         </div>
+        <div class="toast" id="d-toast" style="display:none"><span id="d-toast-msg">✕ BRAK zapisany</span><button id="d-undo">Cofnij ↩</button></div>
         <div class="homebar"><i></i></div>
       </div>
       <figcaption><span class="num">09</span><b>Liczenie — karta pozycji (EKRAN GŁÓWNY)</b><span class="cap">Zgodnie z F5: nazwa, SN, osoba gdy przypisana + 3 duże przyciski.</span></figcaption>
       <ul class="notes">
-        <li><b>OK</b> = auto-next ~500 ms · <b>BRAK/USZK</b> = opcjonalna notka, potem auto-next</li>
+        <li><b>OK</b> = auto-next ~500 ms · <b>BRAK/USZK</b> = opcjonalna notka, potem auto-next; <b>pominięcie notatki → auto-next natychmiast + toast „Cofnij ↩"</b> (Q2)</li>
+        <li>Inny stan = <b>inline-chips pod przyciskami</b> (Q1): ＋ Nadwyżka · 🔧 W serwisie · 📦 Wycofany — bez osobnego ekranu; notatka przy nich <i>zalecana</i>, nie blokująca</li>
         <li>Przyciski ≥58 px, w pionie — kciuk bez re-targetingu; OK wyróżniony (używany ~90% czasu)</li>
         <li>Bottom bar: progress n/N + live licznik rozbieżności + pauza (zawsze pod kciukiem)</li>
       </ul>
@@ -590,7 +601,8 @@ footer.doc{margin-top:64px;color:var(--muted);font-size:12.5px;border-top:1px so
             <button class="bb-miss" style="pointer-events:none">✕&nbsp; BRAK</button>
             <button class="bb-broken" style="pointer-events:none">⚠&nbsp; USZKODZONE</button>
           </div>
-          <div class="hint">decyzje offline zapisują się z countedAt + countedBy lokalnie, potem flush na server</div>
+          <div class="chips otherchips" style="opacity:.55"><span class="chip oth">＋ Nadwyżka</span><span class="chip oth">🔧 W serwisie</span><span class="chip oth">📦 Wycofany</span></div>
+          <div class="hint">decyzje offline zapisują się z countedAt + countedBy lokalnie, potem flush na serwer</div>
         </div>
         <div class="abar">
           <div class="prog"><div class="pp">38/120 <small>· <span style="color:var(--warn);font-weight:800">kolejka: 4 do wysłania</span></small></div><div class="meter"><i style="width:32%;background:var(--warn)"></i></div></div>
@@ -850,19 +862,20 @@ footer.doc{margin-top:64px;color:var(--muted);font-size:12.5px;border-top:1px so
     <tr><td>B7 · F5 w całości</td><td>08–13</td><td>Karta: nazwa+SN+osoba → OK/BRAK/USZK (+inny stan), auto-next 500 ms, n/N + live rozbieżności, pause/resume, offline queue localStorage pod stocktakeId</td></tr>
     <tr><td>B8 · upoważnienia</td><td>02, 08, 12, 13</td><td>Start/close: ADMIN (reszta wariantów eksplikuje brak uprawnień); liczenie: MEMBER z countedBy (widok „moje liczenia")</td></tr>
     <tr><td>B9 · raport 4 sekcji, akcje nieaktywne</td><td>14, 15</td><td>OK/Brakuje/Uszkodzone/Nadwyżka; disabled → Potrzeba/Serwis z tooltipem „v1.x"; CLOSED read-only + double-close odrzucony</td></tr>
+    <tr><td>Q1–Q3 · rozstrzygnięcia projektowe (2026-10-12)</td><td>09, 03</td><td>„Inny stan" jako inline-chips pod przyciskami decyzji (bez osobnego ekranu); pominięcie notatki = auto-next natychmiast + toast „Cofnij ↩"; filtr „Osoba" widoczny dla MEMBER-a w trybie read-only</td></tr>
     <tr><td>NFR · mobile-first 360 px</td><td>wszystkie</td><td>Board w 360 px, zero scroll poziomego, pinned bottom bar, targety ≥44 px, tryb offline jako stan widoku</td></tr>
   </table>
 </section>
 
 <footer class="doc">
-  Makieta koncepcyjna do walidacji z właścicielem aplikacji — nie jest specyfikacją wizualną produkcyjnych komponentów. Po accepted: tokeny + IA + stany 09–13 przenoszone do komponentów React/TS ze stashem w frontend/. Otwarte pytania projektowe: (Q1) czy „Inny stan…" to osobny sheet czy inline-chips, (Q2) auto-next przy BRAK bez notatki: od razu czy z 2 s „cofnij" (rekomendacja: od razu + toast cofnij, by nie łamać specu B7), (Q3) widoczność filtru „Osoba" dla MEMBER-a (rekomendacja: tak, read-only).
+  Makieta koncepcyjna do walidacji z właścicielem aplikacji — nie jest specyfikacją wizualną produkcyjnych komponentów. Po accepted: tokeny + IA + stany 09–13 przenoszone do komponentów React/TS w frontend/. <b>Rozstrzygnięte pytania projektowe (2026-10-12): (Q1) „Inny stan" = inline-chips na ekranie liczenia, (Q2) auto-next przy BRAK bez notatki = natychmiast + toast „Cofnij", (Q3) filtr „Osoba" dostępny MEMBER-owi w trybie read-only.</b>
 </footer>
 
 </div>
 <script>
 (function(){
-  // chips toggle (wszystkie ekrany)
-  document.querySelectorAll('.chip').forEach(function(c){c.addEventListener('click',function(){c.classList.toggle('on')})});
+  // chips toggle (wszystkie ekrany; oth obsłużone niżej)
+  document.querySelectorAll('.chip:not(.oth)').forEach(function(c){c.addEventListener('click',function(){c.classList.toggle('on')})});
   var tiles=document.querySelectorAll('.tile');
   tiles.forEach(function(t){t.addEventListener('click',function(){tiles.forEach(function(x){x.classList.remove('sel')});t.classList.add('sel')})});
   // modal zamknięcia
@@ -877,7 +890,7 @@ footer.doc{margin-top:64px;color:var(--muted);font-size:12.5px;border-top:1px so
     {ico:'🎼',name:'Komplet perkusja — Koncert Festiwalowy 2025',sn:'A-330 · 12 głosów',who:'🏬 Magazyn MAIN',wh:true},
     {ico:'👕',name:'Sutanna zielona, rozmiar M',sn:'U-102',who:'👤 Anna Wójcik · przydział 03.09.2025',wh:false}
   ];
-  var i=0,n=35,total=120,div=3,q=0,awaitNote=false,busy=false;
+  var i=0,n=35,total=120,div=3,q=0,awaitNote=false,busy=false,pendingLbl='';
   function $(id){return document.getElementById(id)}
   var card=$('d-card'),note=$('d-note');
   function render(){
@@ -901,21 +914,33 @@ footer.doc{margin-top:64px;color:var(--muted);font-size:12.5px;border-top:1px so
     setTimeout(function(){$('d-hint').textContent='tapnij przycisk — demo interaktywne · OK przechodzi dalej automatycznie (~500 ms)';},900);
     advance(); // OK = auto-next ~500ms, bez pytania
   });
-  function missish(kind){
+  function missish(kind,lbl){
     if(busy||awaitNote)return;
-    awaitNote=true;
+    awaitNote=true;pendingLbl=lbl||'';
     note.style.display='flex';
-    note.className='note-panel'+(kind==='brak'?'':' uszk');
-    $('d-note-label').textContent=kind==='brak'?'Dlaczego brak? (opcjonalna notatka)':'Opis uszkodzenia (opcjonalna notatka)';
+    note.className='note-panel'+(kind==='brak'?'':kind==='usz'?' uszk':' inny');
+    $('d-note-label').textContent=kind==='brak'?'Dlaczego brak? (opcjonalna notatka)':kind==='usz'?'Opis uszkodzenia (opcjonalna notatka)':'Notatka do innego stanu (zalecana)';
     $('d-note-text').focus();
   }
-  $('b-miss').addEventListener('click',function(){missish('brak')});
-  $('b-broken').addEventListener('click',function(){missish('usz')});
-  function finishNote(){
+  $('b-miss').addEventListener('click',function(){missish('brak','✕ BRAK')});
+  $('b-broken').addEventListener('click',function(){missish('usz','⚠ USZKODZONE')});
+  document.querySelectorAll('.chip.oth').forEach(function(c){c.addEventListener('click',function(){missish('inny',c.getAttribute('data-lbl'))})});
+  function finishNote(skip){
     div++;note.style.display='none';$('d-note-text').value='';awaitNote=false;advance();
+    if(skip)showToast(pendingLbl+' zapisany'); // Q2: auto-next natychmiast + toast Cofnij
   }
-  $('d-note-save').addEventListener('click',finishNote);
-  $('d-note-skip').addEventListener('click',finishNote);
+  $('d-note-save').addEventListener('click',function(){finishNote(false)});
+  $('d-note-skip').addEventListener('click',function(){finishNote(true)});
+  var tHide=null;
+  function showToast(msg){
+    var t=$('d-toast');$('d-toast-msg').textContent=msg;
+    t.style.display='flex';clearTimeout(tHide);tHide=setTimeout(function(){t.style.display='none'},3200);
+  }
+  $('d-undo').addEventListener('click',function(){
+    if(busy)return;
+    div=Math.max(0,div-1);if(i>0)i--;if(n>0)n--;
+    render();$('d-toast').style.display='none';
+  });
   $('b-pause')&&0;
   $('btn-pause').addEventListener('click',function(){
     $('d-hint').textContent='⏸ pauza — symulacja: w stanie realnym ekran 12';

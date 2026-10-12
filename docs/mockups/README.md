@@ -19,14 +19,15 @@ kontrakt WM dla bandów/członków (B10) i NFR mobile-first 360 px / tap ≥44 p
 | E · MEMBER | 16 moje przydziały + liczenia, 17 sheet zwrotu |
 | DS / TR | design tokens + tabele typografii; macierz traceability wymóg→ekran |
 
-Ekran 09 jest **interaktywny**: OK = auto-next ~500 ms, BRAK/USZKODZONE = panel notatki (opcjonalna) +
-„Zapisz i dalej", licznik rozbieżności live, progress n/N + meter w pinned bottom barze.
+Ekran 09 jest **interaktywny**: OK = auto-next ~500 ms, BRAK/USZKODZONE/inny stan = panel notatki
+(opcjonalna) + „Zapisz i dalej", pominięcie notatki = auto-next natychmiast + toast „Cofnij ↩",
+licznik rozbieżności live, progress n/N + meter w pinned bottom barze.
 
-## Otwarte pytania projektowe (do rozstrzygnięcia z właścicielem)
+## Rozstrzygnięte decyzje projektowe (2026-10-12)
 
-- Q1: „Inny stan…" — osobny sheet czy inline-chips?
-- Q2: auto-next przy BRAK bez notatki — natychmiast (rekomendacja) czy z 2 s „cofnij"?
-- Q3: czy MEMBER widzi filtr „Osoba" na liście ekwipunku (read-only)? (rekomendacja: tak)
+- **Q1** „Inny stan…" = **inline-chips** pod przyciskami decyzji (＋ Nadwyżka · 🔧 W serwisie · 📦 Wycofany), bez osobnego ekranu.
+- **Q2** auto-next przy BRAK bez notatki = **natychmiast + toast „Cofnij"** (nie łamie specu B7, notatka nigdy nie blokuje).
+- **Q3** filtr „Osoba" na liście ekwipunku = **dostępny MEMBER-owi**, tryb read-only.
 
 ## Status
 
