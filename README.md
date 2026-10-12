@@ -14,13 +14,17 @@ Kontener jest budowany przez **Dockerfile w korzeniu repo** (provider Docker —
 Railway wykrywa go automatycznie po podpięciu tego repo do projektu):
 
 1. Railway: podłącz repo `michalbzowski/windband-inventory` do serwisu (push = build).
-2. Zmienna środowiskowa **`WM_API_URL`** = adres windband-manager, np. w Railway
-   `https://<windband-manager-slug>.up.railway.app`. Proxy `/api/v1` działa przez
-   nginx (`deploy/nginx/default.conf.template`) — przeglądarka widzi API jako
-   same-origin, jak lokalnie przy `vite dev` (bez CORS).
-3. Klucz Keycloak: dodaj redirect URI `https://<inventory-slug>.up.railway.app/*`
-   do klienta `windband-inventory-local` (oraz do klienta prod, gdy powstanie),
-   bo SPA loguje się przez ten sam realm `windband`.
+2. Zmienna środowiskowa **`WM_API_URL`** = realny adres windband-managera w Twoim
+   środowisku (host + opcjonalnie ścieżka, bez końcowego `/`). To cel proxy
+   `/api/v1`; przeglądarka widzi API jako same-origin, jak lokalnie przy
+   `vite dev` (bez CORS). Adres jest podstawiany w nginx za pomocą env —
+   zmiany nie wymagają przebudowy obrazu.
+3. Klucz Keycloak: klient `windband-inventory-local` musi mieć w Valid redirect
+   URIs dokładnie adres, do którego aplikacja przekierowuje po logowaniu —
+   zawsze `<host aplikacji>/callback`. Lokalny env: `http://localhost:5173/callback`;
+   dla środowisk produkcyjnych dopisz konkretny host (np. domena przypisana w
+   Railway) — zarządzany kodowo w repo WC: `keycloak/import/windband-realm.json`
+   (nie wpisuj ręcznie w dashboardzie, bo nadpisze go kolejny import realmu).
 
 Lokalnie (opcja, bez Railway):
 
