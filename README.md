@@ -36,13 +36,16 @@ Aplikacja zawsze przekierowuje się po logowaniu do `<host aplikacji>/callback`
 (patrz `frontend/src/auth/oidc.ts`). Ten dokładny adres musi być w Valid
 redirect URIs klienta `windband-inventory-local` w realmie `windband`.
 
-⚠️ **Keycloak NIE akceptuje wildcardów w hostach** redirect URI (zaweryfikowane
-empirycznie na KC 26: `https://*.bandmanager.pl/callback` nie dopuszcza faktycznego
-hosta). Rejestracja musi być konkretna, np. po przypisaniu domeny:
+⚠️ Zdarzono się z tym (2026-10-13): w realmie `windband` istniały **dwa clienty o tym
+samym `clientId`** (`windband-inventory-local`) — jeden z importu JSON, drugi utworzony
+ręcznie. Keycloak rozwiązywał zapytanie auth do *tej drugiej*, uboższej linii
+(redirekcje: tylko localhost) → stałe `400 invalid_redirect_uri` mimo że „ten
+client" w dashboardzie miał dokładny `https://.../callback`. **Po scaleniu do jednego
+clienta (i usunięciu duplikatu) auth przechodzi 200 dla http i https exact redirect.**
 
-```text
-https://inw.bandmanager.pl/callback
-```
+Lekcja przy debugowaniu: zawsze wypisuj **pełną listę klientów z UUID**
+(`GET /admin/realms/{realm}/clients`) — zapytanie `?client_id=...` może zwrócić kilka
+linii, a interfejs admina operuje na pierwszej z nich.
 
 Uwaga: jeśli realm produkcyjny jest seedowany z `keycloak/import/windband-realm.json`
 w repo windband-manager, dopisz ten adres do tego pliku (i do lokalnego KC),
