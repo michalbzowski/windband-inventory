@@ -107,7 +107,7 @@ Brak: migracja danych (B3), dwustronna nawigacja (B11), stany członka/kontaktow
 5. Weryfikacja: zero encji inventory w `src/` WM (ArchUnit), zielone `./mvnw verify`.
 
 ## 7. Otwarte przed startem kodowania (do zamknięcia w PR-ach / setupie)
-1. Dokładny kontrakt REST WM endpointów B10 (ścieżki, pola payloada) — projekt w PR WM.
+1. ~~Dokładny kontrakt REST WM endpointów B10~~ ✅ zaimplementowane w WM: branch `feat/inventory-integration-api` @ `16efdc43` (`GET /api/v1/me/bands`, `GET /api/v1/bands/{bandId}/members`; rola ADMIN/MEMBER; expectedSet per członek).
 2. Rejestracja klienta OIDC SPA inventory w realmie `windband` (krok Keycloak-admin).
 3. Wybór narzędzia E2E dla SPA (rekomendacja: Playwright) — do potw. przy scaffoldzie.
 4. Nazwy URL + scheme deploya Railway pod domain/inventory.
