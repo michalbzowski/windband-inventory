@@ -1,0 +1,932 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>windband-inventory — makieta UI mobile · v1 (2026-10-12)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ============ BOARD (dokument projektowy) ============ */
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#EEF1F6; --surface:#FFFFFF; --ink:#111827; --muted:#6B7280; --line:#E5E7EB;
+  --primary:#4338CA; --primary-soft:#EEF2FF; --primary-line:#C7D2FE;
+  --ok:#15803D; --ok-soft:#F0FDF4; --ok-line:#BBF7D0;
+  --danger:#B91C1C; --danger-soft:#FEF2F2; --danger-line:#FECACA;
+  --warn:#B45309; --warn-soft:#FFFBEB; --warn-line:#FDE68A;
+  --info:#1D4ED8; --info-soft:#DBEAFE;
+  --gray:#64748B; --gray-soft:#F1F5F9;
+  --r-card:14px; --r-btn:12px;
+  --shadow:0 1px 2px rgba(17,24,39,.06),0 8px 24px rgba(17,24,39,.10);
+}
+body{font-family:Inter,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased}
+.board{max-width:1760px;margin:0 auto;padding:48px 40px 96px}
+header.doc{margin-bottom:36px}
+header.doc h1{font-size:30px;font-weight:800;letter-spacing:-.02em}
+header.doc .sub{color:var(--muted);font-size:15px;margin-top:8px;max-width:900px}
+.meta-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.meta-chips span{font-size:12px;font-weight:600;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:6px 12px;color:var(--muted)}
+section.flow{margin-top:56px}
+section.flow>h2{font-size:22px;font-weight:800;letter-spacing:-.01em;display:flex;align-items:center;gap:12px}
+section.flow>h2 .tag{font-size:11px;font-weight:700;background:var(--primary);color:#fff;border-radius:6px;padding:3px 8px;letter-spacing:.06em}
+section.flow>.lede{color:var(--muted);font-size:14px;margin:6px 0 26px;max-width:980px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,360px);gap:44px 36px;align-items:start}
+figure.shot{display:flex;flex-direction:column;gap:12px}
+figure.shot figcaption{font-size:13px}
+figure.shot figcaption b{display:block;font-size:14px}
+figure.shot figcaption .cap{color:var(--muted)}
+.num{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:7px;background:var(--ink);color:#fff;font-size:11px;font-weight:700;margin-right:8px;vertical-align:-4px}
+ul.notes{list-style:none;font-size:12.5px;color:var(--muted);display:flex;flex-direction:column;gap:4px;max-width:360px}
+ul.notes li{padding-left:16px;position:relative}
+ul.notes li::before{content:"→";position:absolute;left:0;color:var(--primary);font-weight:700}
+ul.notes li b{color:var(--ink)}
+/* ============ PHONE ============ */
+.phone{width:360px;height:740px;background:var(--surface);border:1px solid #D7DBE4;border-radius:34px;box-shadow:var(--shadow);overflow:hidden;display:flex;flex-direction:column;position:relative}
+.sbar{height:34px;flex:none;display:flex;justify-content:space-between;align-items:center;padding:0 20px;font-size:11.5px;font-weight:700;color:var(--ink);background:var(--surface)}
+.sbar .r{display:flex;align-items:center;gap:6px}
+.sig{letter-spacing:1px;font-size:9px}
+.bat{width:18px;height:9px;border:1px solid var(--ink);border-radius:2px;position:relative;display:inline-block}
+.bat::after{content:"";position:absolute;inset:1px;right:5px;background:var(--ink);border-radius:1px}
+.appbar{flex:none;min-height:52px;display:flex;align-items:center;gap:10px;padding:2px 14px;border-bottom:1px solid var(--line);background:var(--surface)}
+.appbar .back{font-size:20px;color:var(--muted);width:32px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:8px}
+.appbar h3{font-size:15.5px;font-weight:700;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.appbar .a-icons{display:flex;gap:2px}
+.ic{width:40px;height:40px;border:0;background:none;border-radius:10px;font-size:16px;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center}
+.ic:hover{background:var(--gray-soft)}
+.content{flex:1;overflow:hidden;padding:14px;display:flex;flex-direction:column;gap:12px;background:var(--surface)}
+.content.tinted{background:#F7F9FC}
+/* bottom nav (tabs) */
+.tabs{flex:none;height:62px;display:flex;border-top:1px solid var(--line);background:var(--surface);padding-bottom:8px}
+.tabs .t{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:10.5px;font-weight:600;color:var(--muted);border:0;background:none;cursor:pointer}
+.tabs .t .ti{font-size:19px}
+.tabs .t.on{color:var(--primary)}
+.tabs .t.on .ti{transform:translateY(-1px)}
+.homebar{flex:none;height:18px;display:flex;align-items:center;justify-content:center}
+.homebar i{width:110px;height:4px;border-radius:99px;background:var(--ink);opacity:.85}
+/* bottom action bar */
+.abar{flex:none;border-top:1px solid var(--line);background:var(--surface);padding:10px 14px;display:flex;align-items:center;gap:10px;box-shadow:0 -6px 16px rgba(17,24,39,.05)}
+.abar .prog{flex:1;min-width:0}
+.abar .prog .pp{font-size:12.5px;font-weight:700}
+.abar .prog .pp small{font-weight:600;color:var(--muted)}
+.meter{height:5px;border-radius:99px;background:var(--line);margin-top:5px;overflow:hidden}
+.meter i{display:block;height:100%;background:var(--primary);border-radius:99px}
+/* atoms */
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:7px 12px;color:var(--ink);cursor:pointer;white-space:nowrap}
+.chip .cnt-n{font-size:11px;color:var(--muted)}
+.chip.on{background:var(--primary);border-color:var(--primary);color:#fff}
+.chip.on .cnt-n{color:#DDE3FF}
+.chips{display:flex;gap:8px;overflow:hidden;flex-wrap:nowrap}
+.badge{display:inline-flex;align-items:center;font-size:11px;font-weight:700;border-radius:6px;padding:3px 8px;letter-spacing:.02em;white-space:nowrap}
+.b-ok{background:var(--ok-soft);color:var(--ok);border:1px solid var(--ok-line)}
+.b-info{background:var(--info-soft);color:var(--info);border:1px solid #BFDBFE}
+.b-warn{background:var(--warn-soft);color:var(--warn);border:1px solid var(--warn-line)}
+.b-danger{background:var(--danger-soft);color:var(--danger);border:1px solid var(--danger-line)}
+.b-gray{background:var(--gray-soft);color:var(--gray);border:1px solid #E2E8F0}
+.b-primary{background:var(--primary-soft);color:var(--primary);border:1px solid var(--primary-line)}
+.card{border:1px solid var(--line);border-radius:var(--r-card);padding:13px 14px;display:flex;gap:12px;align-items:center;background:var(--surface)}
+.card .ticon{width:42px;height:42px;flex:none;border-radius:11px;background:var(--primary-soft);display:flex;align-items:center;justify-content:center;font-size:20px}
+.card .cb{flex:1;min-width:0}
+.card .cb b{display:block;font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card .cb .meta{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card .right{display:flex;flex-direction:column;align-items:flex-end;gap:5px}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:var(--r-btn);min-height:44px;padding:10px 14px;font:inherit;font-size:14px;font-weight:700;color:var(--ink);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn.primary{background:var(--primary);border-color:var(--primary);color:#fff}
+.btn.ok{background:var(--ok);border-color:var(--ok);color:#fff}
+.btn.ghost{background:none}
+.btn.block{width:100%}
+.btn.sm{min-height:36px;font-size:12.5px;padding:6px 12px;border-radius:10px}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.row{display:flex;gap:10px}
+.field{display:flex;flex-direction:column;gap:5px}
+.field label{font-size:12px;font-weight:700;color:var(--muted)}
+.field input,.field textarea,.field select{border:1px solid var(--line);border-radius:10px;min-height:44px;padding:10px 12px;font:inherit;font-size:14px;background:var(--surface)}
+.field textarea{min-height:64px;resize:none}
+.kv{display:flex;justify-content:space-between;gap:10px;font-size:13px;padding:9px 0;border-bottom:1px solid var(--line)}
+.kv:last-child{border-bottom:0}
+.kv .k{color:var(--muted);font-weight:600}
+.kv .v{font-weight:700;text-align:right}
+.panel{border:1px solid var(--line);border-radius:var(--r-card);padding:14px;background:var(--surface)}
+.panel h4{font-size:12px;font-weight:800;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px}
+.banner{border-radius:12px;padding:11px 13px;font-size:12.5px;font-weight:700;display:flex;gap:9px;align-items:flex-start}
+.banner small{display:block;font-weight:500;font-size:11.5px;margin-top:2px}
+.banner.off{background:#111827;color:#fff}
+.banner.off small{color:#B8C0CE}
+.banner.warni{background:var(--warn-soft);color:var(--warn);border:1px solid var(--warn-line)}
+/* count screen */
+.count-card{border:1.5px solid var(--ink);border-radius:18px;padding:18px;background:var(--surface);box-shadow:0 6px 20px rgba(17,24,39,.08);transition:transform .18s ease,opacity .18s ease}
+.count-card .cc-ico{font-size:30px}
+.count-card b{display:block;font-size:17px;font-weight:800;margin-top:6px;letter-spacing:-.01em}
+.count-card .sn{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:12.5px;color:var(--muted);margin-top:4px}
+.count-card .who{margin-top:10px;font-size:13px;font-weight:600;background:var(--info-soft);color:var(--info);border-radius:8px;padding:7px 10px;display:inline-flex;gap:7px;align-items:center}
+.count-card .who.wh{background:var(--gray-soft);color:var(--gray)}
+.slideout{transform:translateX(-26px);opacity:0}
+.bigbtns{display:flex;flex-direction:column;gap:10px}
+.bigbtns button{width:100%;min-height:58px;border-radius:14px;border:1.5px solid;font:inherit;font-size:16px;font-weight:800;letter-spacing:.02em;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:transform .08s ease}
+.bigbtns button:active{transform:scale(.985)}
+.bb-ok{background:var(--ok);border-color:var(--ok);color:#fff}
+.bb-miss{background:var(--surface);border-color:var(--danger);color:var(--danger)}
+.bb-broken{background:var(--surface);border-color:var(--warn);color:var(--warn)}
+.otherlink{align-self:center;font-size:12.5px;font-weight:700;color:var(--muted);border:0;background:none;cursor:pointer;min-height:36px;padding:6px 12px}
+.otherlink:hover{color:var(--primary)}
+.note-panel{border:1.5px dashed var(--danger);border-radius:14px;padding:12px;background:var(--danger-soft);display:flex;flex-direction:column;gap:10px}
+.note-panel.uszk{border-color:var(--warn);background:var(--warn-soft)}
+.note-panel label{font-size:12px;font-weight:800}
+.note-panel textarea{border:1px solid var(--line);border-radius:10px;min-height:52px;padding:9px 11px;font:inherit;font-size:13px;background:#fff}
+.note-panel .row button{flex:1;min-height:42px}
+.hint{font-size:11.5px;color:var(--muted);text-align:center}
+/* sheet + modal */
+.dim{position:absolute;inset:0;background:rgba(17,24,39,.45);display:flex;align-items:flex-end;z-index:5}
+.dim.center{align-items:center;justify-content:center;padding:20px}
+.sheet{background:var(--surface);width:100%;border-radius:22px 22px 0 0;padding:16px 16px 22px;display:flex;flex-direction:column;gap:12px;box-shadow:0 -12px 40px rgba(0,0,0,.25)}
+.sheet h4{font-size:15px;font-weight:800}
+.sheet .grab{width:38px;height:4px;background:var(--line);border-radius:99px;margin:0 auto 4px}
+.modal{background:var(--surface);border-radius:18px;padding:18px;width:100%;max-width:290px;display:flex;flex-direction:column;gap:12px}
+.modal b{font-size:15px}
+.modal p{font-size:13px;color:var(--muted)}
+/* misc screens */
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat{border:1px solid var(--line);border-radius:12px;padding:11px 12px;background:var(--surface)}
+.stat i{font-style:normal;font-size:11px;font-weight:700;color:var(--muted);display:block}
+.stat b{font-size:20px;font-weight:800;letter-spacing:-.02em}
+.stat.bad b{color:var(--danger)}
+.tile-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tile{border:1.5px solid var(--line);border-radius:14px;padding:14px 12px;display:flex;flex-direction:column;gap:8px;align-items:flex-start;font:inherit;font-size:13px;font-weight:700;background:var(--surface);cursor:pointer;min-height:74px}
+.tile .ticon{width:34px;height:34px;font-size:17px;border-radius:9px}
+.tile.sel{border-color:var(--primary);background:var(--primary-soft);color:var(--primary)}
+.stepper{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:var(--muted)}
+.stepper .st{display:flex;align-items:center;gap:8px}
+.stepper .dot{width:20px;height:20px;border-radius:99px;border:2px solid var(--line);display:inline-flex;align-items:center;justify-content:center;font-size:10px;background:#fff}
+.stepper .st.on .dot{border-color:var(--primary);background:var(--primary);color:#fff}
+.stepper .st.on{color:var(--primary)}
+.hist{display:flex;flex-direction:column}
+.hist .h{display:flex;gap:11px;padding:9px 0;border-bottom:1px solid var(--line);font-size:12.5px}
+.hist .h:last-child{border-bottom:0}
+.hist .dot2{width:9px;height:9px;flex:none;border-radius:99px;background:var(--primary-line);margin-top:5px;border:2px solid var(--primary)}
+.hist .h .m{color:var(--muted)}
+.fab{position:absolute;right:16px;bottom:118px;width:54px;height:54px;border-radius:18px;background:var(--primary);color:#fff;font-size:24px;font-weight:400;border:0;box-shadow:0 8px 20px rgba(67,56,202,.4);cursor:pointer;z-index:4}
+.sectionlist .srow{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);padding:7px 0;border-bottom:1px dashed var(--line)}
+.sectionlist .srow:last-child{border-bottom:0}
+.stamp{position:absolute;top:150px;right:-42px;transform:rotate(38deg);background:var(--ok);color:#fff;font-weight:800;font-size:12px;letter-spacing:.14em;padding:7px 48px;z-index:3;box-shadow:0 4px 14px rgba(21,128,61,.35)}
+.stamp-inline{display:flex;justify-content:center}
+.stamp-inline i{font-style:normal;border:2.5px solid var(--ok);color:var(--ok);border-radius:10px;padding:7px 16px;font-weight:800;font-size:12.5px;letter-spacing:.12em;transform:rotate(-4deg);display:flex;gap:8px;align-items:center;background:var(--ok-soft)}
+.role-note{font-size:11px;font-weight:800;letter-spacing:.05em;color:var(--muted);background:var(--gray-soft);border-radius:8px;padding:5px 9px;display:inline-block}
+/* IA + tokens + traceability */
+.ia{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+.ia .col{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px}
+.ia .col h5{font-size:14px;font-weight:800;display:flex;gap:9px;align-items:center}
+.ia .col h5 .ti{width:34px;height:34px;border-radius:10px;background:var(--primary-soft);color:var(--primary);display:inline-flex;align-items:center;justify-content:center;font-size:16px}
+.ia .col ul{list-style:none;margin-top:10px;font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:6px}
+.ia .col li b{color:var(--ink)}
+.ia .col li::before{content:"↳ ";color:var(--primary-line);font-weight:700}
+.swatches{display:flex;flex-wrap:wrap;gap:12px}
+.sw{width:150px;background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:11.5px;font-weight:600}
+.sw .c{height:44px}
+.sw .l{padding:8px 10px;display:flex;justify-content:space-between}
+.sw .l span{color:var(--muted);font-family:ui-monospace,Menlo,monospace;font-size:10.5px}
+table.trace{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden;font-size:13px}
+table.trace th{background:var(--ink);color:#fff;text-align:left;font-weight:700;padding:10px 14px;font-size:12px;letter-spacing:.04em}
+table.trace td{padding:10px 14px;border-top:1px solid var(--line);vertical-align:top}
+table.trace td:first-child{font-weight:800;white-space:nowrap}
+table.trace tr:nth-child(even) td{background:#FAFBFD}
+footer.doc{margin-top:64px;color:var(--muted);font-size:12.5px;border-top:1px solid var(--line);padding-top:18px}
+</style>
+</head>
+<body>
+<div class="board">
+
+<header class="doc">
+  <h1>windband-inventory — makieta widoków · aplikacja mobilna v1</h1>
+  <p class="sub">High-fidelity makieta projektowa (design board) implementująca wymagania zamrożone w <b>docs/w1-analiza-biznesowa-2026-10-12.md</b> (R1–R5). Rdzeń: spis z naturą F5 (B7) + baza v1 (B6). Nawigacja jednostronna z WM (B11), role ADMIN/MEMBER z API WM (B8/B10), offline queue (B7/NFR). Ekran <b>09 jest interaktywny</b> — kliknij OK / BRAK / USZKODZONE i prześledź flow z auto-next.</p>
+  <div class="meta-chips">
+    <span>viewport 360–390 px · zero scroll poziomego</span>
+    <span>tap targets ≥ 44 px</span>
+    <span>pinned bottom bar</span>
+    <span>React + TS SPA (B12)</span>
+    <span>SSO Keycloak realm „windband" (B5)</span>
+    <span>polski UI</span>
+  </div>
+</header>
+
+<!-- ================= IA ================= -->
+<section class="flow">
+  <h2><span class="tag">IA</span> Architektura informacji — 4 zakładki, role zależne</h2>
+  <p class="lede">Wejście wyłącznie z WM (link na dashboardzie bandu / karcie ekwipunku — B11, bez przycisku powrotu w v1). Po SSO: 1 band → od razu Pulpit; ≥2 bandy → ekran wyboru (01). nawigacja dolna stała dla obu ról; różnice zakresu sygnalizowane in-place (button disabled + explain), nigdy ukrywane „w ciszy" — MEMBER musi rozumieć, dlaczego czegoś nie może.</p>
+  <div class="ia">
+    <div class="col"><h5><span class="ti">🏠</span> Pulpit</h5>
+      <ul>
+        <li><b>ADMIN:</b> trwa spis → wznów · szybkie akcje (nowa pozycja, rozpocznij spis)</li>
+        <li><b>MEMBER:</b> podgląd statusów + „trwa spis — dołącz do liczenia"</li>
+        <li>liczniki: dostępne / przypisane / w serwisie / braki</li>
+      </ul>
+    </div>
+    <div class="col"><h5><span class="ti">📦</span> Ekwipunek</h5>
+      <ul>
+        <li>lista pozycji + filtry: typ / status / magazyn / osoba (B6)</li>
+        <li>szczegóły pozycji → przydział · zwrot · transfer · historia</li>
+        <li>nowa pozycja: wizard 2-krokowy (typ → atrybuty, D1)</li>
+      </ul>
+    </div>
+    <div class="col"><h5><span class="ti">✓</span> Liczenie</h5>
+      <ul>
+        <li><b>ADMIN:</b> panel startu spisu (filtry zakresu) · pauza/wznów · zamknięcie</li>
+        <li><b>MEMBER:</b> dołączenie do trwającego spisu → karty pozycji (F5)</li>
+        <li>offline queue widoczna w tym samym module (localStorage)</li>
+      </ul>
+    </div>
+    <div class="col"><h5><span class="ti">👤</span> Moje</h5>
+      <ul>
+        <li>własne przydziały + zwrot ze stanem i notką (B6)</li>
+        <li>moje liczenia w spisach (countedBy)</li>
+        <li>status synchronizacji kolejki · wylogowanie</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ================= A: wejście ================= -->
+<section class="flow">
+  <h2><span class="tag">A</span> Wejście i wybór bandu</h2>
+  <div class="grid">
+
+    <figure class="shot">
+      <div class="phone">
+        <div class="sbar"><span>9:41</span><span class="r"><span class="sig">▂▄▆█</span> 5G <i class="bat"></i> 84%</span></div>
+        <div class="appbar"><h3>Twój ekwipunek</h3><span class="badge b-primary">SSO · windband</span></div>
+        <div class="content tinted" style="gap:10px">
+          <div style="font-size:13px;color:var(--muted);padding:2px 2px 4px">Zalogowano kontem <b>michal.b&#8203;zowski</b> przez windband-manager. Wybierz band, którym się zajmujesz.</div>
+          <div class="card"><div class="ticon">🎺</div><div class="cb"><b>Orkiestra Dęta Miasta Kościerzyna</b><div class="meta">42 członków · 142 pozycje</div></div><div class="right"><span class="badge b-primary">ADMIN</span></div></div>
+          <div class="card"><div class="ticon">🥁</div><div class="cb"><b>Młodzieżowa Orkiestra „Fanfara"</b><div class="meta">28 członków · 96 pozycji</div></div><div class="right"><span class="badge b-gray">MEMBER</span></div></div>
+          <div class="card"><div class="ticon">🎼</div><div class="cb"><b>Big Band Powiśle</b><div class="meta">19 członków · 51 pozycji</div></div><div class="right"><span class="badge b-gray">MEMBER</span></div></div>
+          <div class="banner warni" style="margin-top:4px">🔗<div>Brak powrotu do WM w tej wersji<small>Nawigacja jest jednostronna: wróć przez zakładkę windband-manager.</small></div></div>
+        </div>
+        <div class="tabs"><button class="t on"><span class="ti">🏠</span>Pulpit</button><button class="t"><span class="ti">📦</span>Ekwipunek</button><button class="t"><span class="ti">✓</span>Liczenie</button><button class="t"><span class="ti">👤</span>Moje</button></div>
+        <div class="homebar"><i></i></div>
+      </div>
+      <figcaption><span class="num">01</span><b>Wybór bandu (po SSO)</b><span class="cap">Role z API WM (B10) — badge ADMIN/MEMBER per band.</span></figcaption>
+      <ul class="notes">
+        <li>Pominięty, gdy user ma 1 band (deep-link prosto w Pulpit)</li>
+        <li>Role odświeżane przy każdym wejściu — nie z claimów OIDC (§2)</li>
+      </ul>
+    </figure>
+
+    <figure class="shot">
+      <div class="phone">
+        <div class="sbar"><span>9:41</span><span class="r"><span class="sig">▂▄▆█</span> 5G <i class="bat"></i> 84%</span></div>
+        <div class="appbar"><h3>Orkiestra D. Kościerzyna</h3><span class="badge b-primary">ADMIN</span><button class="ic">⋯</button></div>
+        <div class="content tinted">
+          <div class="panel" style="border-color:var(--primary);background:var(--primary-soft)">
+            <h4 style="color:var(--primary)">Spis #7 · w toku</h4>
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div style="font-size:13px"><b>34 / 120</b> pozycji · rozbieżności <b style="color:var(--danger)">3</b><br><span style="color:var(--muted)">start: dziś 09:12 · przez Ciebie</span></div>
+              <button class="btn primary sm" style="min-height:44px">Wznów ⏵</button>
+            </div>
+            <div class="meter" style="margin-top:10px"><i style="width:28%"></i></div>
+          </div>
+          <div class="stat-grid">
+            <div class="stat"><i>Dostępne</i><b>86</b></div>
+            <div class="stat"><i>Przypisane</i><b>28</b></div>
+            <div class="stat"><i>W serwisie</i><b>4</b></div>
+            <div class="stat bad"><i>Braki / straty</i><b>2</b></div>
+          </div>
+          <div class="panel"><h4>Szybkie akcje</h4>
+            <div class="sectionlist">
+              <div class="srow">＋ Nowa pozycja <span style="font-weight:800">›</span></div>
+              <div class="srow">🔁 Rozpocznij nowy spis <span style="font-weight:800">›</span></div>
+              <div class="srow">📤 Przydziały i zwroty <span style="font-weight:800">›</span></div>
+              <div class="srow">🏬 Transfery między magazynami <span style="font-weight:800">›</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="tabs"><button class="t on"><span class="ti">🏠</span>Pulpit</button><button class="t"><span class="ti">📦</span>Ekwipunek</button><button class="t"><span class="ti">✓</span>Liczenie</button><button class="t"><span class="ti">👤</span>Moje</button></div>
+        <div class="homebar"><i></i></div>
+      </div>
+      <figcaption><span class="num">02</span><b>Pulpit bandu (ADMIN)</b><span class="cap">Kontekst „tu i teraz" — trwa spis zawsze na wierzchu.</span></figcaption>
+      <ul class="notes">
+        <li>Wariant MEMBER: pasek spisu → „trwa liczenie — <b>dołącz</b>", brak szybkich akcji zapisu</li>
+        <li>Agregety liczone po stronie query API; brak edycji z Pulpitu (zero ryzyka tap-hazard)</li>
+      </ul>
+    </figure>
+
+  </div>
+</section>
+
+<!-- ================= B: baza ================= -->
+<section class="flow">
+  <h2><span class="tag">B</span> Baza ekwipunku (B6) — listy, szczegóły, przydziały, CRUD</h2>
+  <p class="lede">Lista z filtrami = główny widok pracy ADMIN-a. Karta pozycji celowo pokazuje <b>numer seryjny</b> i <b>osobę/magazyn</b> — te same dane, które potem zobaczy w liczeniu (spójność rozpoznawalności między modułami).</p>
+  <div class="grid">
+
+    <figure class="shot">
+      <div class="phone">
+        <div class="sbar"><span>9:41</span><span class="r"><span class="sig">▂▄▆█</span> 5G <i class="bat"></i> 84%</span></div>
+        <div class="appbar"><h3>Ekwipunek</h3><button class="ic">⌕</button></div>
+        <div class="content" style="gap:10px">
+          <div class="chips"><span class="chip">Typ ▾ <span class="cnt-n">4</span></span><span class="chip on">Status ▾ <span class="cnt-n">Przypisane</span></span><span class="chip">Magazyn ▾</span><span class="chip">Osoba ▾</span></div>
+          <div style="font-size:12px;color:var(--muted);font-weight:600">28 pozycji · filtr: Status = Przypisane</div>
+          <div class="card"><div class="ticon">🎺</div><div class="cb"><b>Tuba Bb Yamaha YBH-301M</b><div class="meta">SN YBH-301M-84213 · 👤 Jan Mazur</div></div><div class="right"><span class="badge b-info">Przypisany</span></div></div>
+          <div class="card"><div class="ticon">🎺</div><div class="cb"><b>Puzon Bach 42</b><div class="meta">SN BACH-42-7781 · 👤 Kasia Lis</div></div><div class="right"><span class="badge b-info">Przypisany</span></div></div>
+          <div class="card"><div class="ticon">👕</div><div class="cb"><b>Sutanna zielona, rozmiar M</b><div class="meta">U-102 · 👤 Anna Wójcik</div></div><div class="right"><span class="badge b-info">Przypisany</span></div></div>
+          <div class="card"><div class="ticon">🎼</div><div class="cb"><b>Komplet: Koncert Festiwalowy 2025</b><div class="meta">A-330 · 12 głosów · 👤 sekcja perkusji</div></div><div class="right"><span class="badge b-info">Przypisany</span></div></div>
+          <div class="card"><div class="ticon">🥁</div><div class="cb"><b>Werbel ADK Master 14"</b><div class="meta">SN ADK-14-0221 · 👤 Piotr Dąb</div></div><div class="right"><span class="badge b-info">Przypisany</span></div></div>
+        </div>
+        <button class="fab">＋</button>
+        <div class="tabs"><button class="t"><span class="ti">🏠</span>Pulpit</button><button class="t on"><span class="ti">📦</span>Ekwipunek</button><button class="t"><span class="ti">✓</span>Liczenie</button><button class="t"><span class="ti">👤</span>Moje</button></div>
+        <div class="homebar"><i></i></div>
+      </div>
+      <figcaption><span class="num">03</span><b>Lista pozycji + filtry</b><span class="cap">Chip „Osoba" = filtr po przypisaniu (B6).</span></figcaption>
+      <ul class="notes">
+        <li>FAB ＋ widoczny tylko ADMIN (B8); MEMBER → lista bez FAB, czytnik</li>
+        <li>Filtry jako bottom sheety (tap-target &gt; 44 px), nie rozwijane menu</li>
+        <li>Sortowanie domyślne: ostatnio zmieniane; wgląd w atrybut wg displayOrder defs</li>
+      </ul>
+    </figure>
+
+    <figure class="shot">
+      <div class="phone">
+        <div class="sbar"><span>9:41</span><span class="r"><span class="sig">▂▄▆█</span> 5G <i class="bat"></i> 84%</span></div>
+        <div class="appbar"><span class="back">‹</span><h3>Tuba Bb Yamaha YBH-301M</h3><button class="ic">✎</button></div>
+        <div class="content" style="gap:11px">
+          <div style="display:flex;gap:8px;align-items:center"><span class="badge b-info">Przypisany</span><span class="badge b-gray">Instrument · Bb</span></div>
+          <div class="panel"><h4>Atrybuty</h4>
+            <div class="kv"><span class="k">Nr seryjny</span><span class="v">YBH-301M-84213</span></div>
+            <div class="kv"><span class="k">Producent</span><span class="v">Yamaha</span></div>
+            <div class="kv"><span class="k">Kategoria wartości</span><span class="v">Wysoka (&gt; 8 000 zł)</span></div>
+            <div class="kv"><span class="k">Kupiono</span><span class="v">14.09.2021</span></div>
+            <div class="kv"><span class="k">Etui w komplecie</span><span class="v">✓ tak</span></div>
+          </div>
+          <div class="panel"><h4>Przechowywanie</h4>
+            <div class="kv"><span class="k">Osoba</span><span class="v">👤 Jan Mazur</span></div>
+            <div class="kv"><span class="k">Od</span><span class="v">14.02.2026</span></div>
+          </div>
+          <div class="panel"><h4>Historia przydziałów</h4>
+            <div class="hist">
+              <div class="h"><span class="dot2"></span><div><b>Jan Mazur</b> · 14.02.2026 → teraz<div class="m">Wypożyczenie na sezon koncertowy</div></div></div>
+              <div class="h"><span class="dot2"></span><div><b>Magazyn MAIN</b> · 01.2024 – 14.02.2026<div class="m">Zwrot: stan OK</div></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="abar"><button class="btn primary" style="flex:1">Przypisz… ↦</button><button class="btn" style="flex:1">Transfer 🏬</button></div>
+        <div class="homebar"><i></i></div>
+      </div>
+      <figcaption><span class="num">04</span><b>Szczegóły pozycji (ADMIN)</b><span class="cap">Pinned bottom bar = strefa akcji zapisu.</span></figcaption>
+      <ul class="notes">
+        <li>Atrybuty renderowane z defs per typ, kolejność displayOrder (D1)</li>
+        <li>MEMBER: bary zastąpione jednym „Zwróć pozycję" (tylko gdy przydzielona do niego)</li>
+        <li>Statusy życia: Dostępny · Przypisany · W serwisie · Wycofany · Zutylizowany · Zagubiony</li>
+      </ul>
+    </figure>
+
+    <figure class="shot">
+      <div class="phone">
+        <div class="sbar"><span>9:41</span><span class="r"><span class="sig">▂▄▆█</span> 5G <i class="bat"></i> 84%</span></div>
+        <div class="appbar"><span class="back">‹</span><h3>Tuba Bb Yamaha YBH-301M</h3></div>
+        <div class="content" style="gap:11px;background:#F7F9FC">
+          <div style="filter:blur(0.5px);opacity:.55">
+            <div class="panel"><h4>Przechowywanie</h4><div class="kv"><span class="k">Magazyn</span><span class="v">MAIN</span></div></div>
+            <div class="panel"><h4>Atrybuty</h4><div class="kv"><span class="k">Nr seryjny</span><span class="v">YBH-301M-84213</span></div></div>
+          </div>
+        </div>
+        <div class="dim"><div class="sheet">
+          <div class="grab"></div>
+          <h4>Przypisz do osoby</h4>
+          <div style="font-size:12px;color:var(--muted);margin-top:-4px">Członkowie bandu — dane z windband-manager (B10)</div>
+          <input placeholder="🔍 Szukaj członka…" style="border:1px solid var(--line);border-radius:10px;min-height:44px;padding:10px 12px;font:inherit;font-size:14px">
+          <div class="card" style="padding:10px 12px"><div class="ticon" style="width:34px;height:34px;font-size:15px">🎺</div><div class="cb"><b>Jan Mazur</b><div class="meta">tuba · MEMBER</div></div><span class="badge b-primary" style="margin-right:8px">1 pozycja</span><span class="badge b-ok">✓</span></div>
+          <div class="card" style="padding:10px 12px;opacity:.6"><div class="ticon" style="width:34px;height:34px;font-size:15px">🎷</div><div class="cb"><b>Anna Wójcik</b><div class="meta">klarnet · MEMBER</div></div><span class="badge b-gray">2 pozycje</span></div>
+          <div class="card" style="padding:10px 12px;opacity:.6"><div class="ticon" style="width:34px;height:34px;font-size:15px">🥁</div><div class="cb"><b>Piotr Dąb</b><div class="meta">perkusja · MEMBER</div></div><span class="badge b-gray">1 pozycja</span></div>
+          <div class="field"><label>Notatka (opcjonalna)</label><input placeholder="np. na sezon koncertowy do czerwca"></div>
+          <button class="btn primary block">Przypisz — stan: Przypisany</button>
+        </div></div>
+        <div class="homebar"><i></i></div>
+      </div>
+      <figcaption><span class="num">05</span><b>Bottom sheet: przydział</b><span class="cap">Pełnoekranowy picker = mniej pomyłek niż modal.</span></figcaption>
+      <ul class="notes">
+        <li>Lista z API WM (id, imię, nazwisko, rola) + licznik już trzymanych pozycji</li>
+        <li>Zapis: assignTo → historia (assignedAt, notka) — B6</li>
+        <li>Transfer magazynowy: analogiczny sheet (MAIN / SERVICE / ARCHIVE)</li>
+      </ul>
+    </figure>
+
+    <figure class="shot">
+      <div class="phone">
+        <div class="sbar"><span>9:41</span><span class="r"><span class="sig">▂▄▆█</span> 5G <i class="bat"></i> 84%</span></div>
+        <div class="appbar"><span class="back">‹</span><h3>Nowa pozycja</h3></div>
+        <div class="content tinted" style="gap:12px">
+          <div class="stepper"><span class="st on"><span class="dot">1</span>Typ</span> ─ <span class="st"><span class="dot">2</span>Atrybuty</span> ─ <span class="st"><span class="dot">3</span>Gotowe</span></div>
+          <div style="font-size:13px;color:var(--muted);font-weight:600">Czego dotyczy pozycja? <span style="font-weight:500">(wybór typu określa formularz atrybutów)</span></div>
+          <div class="tile-grid">
+            <button class="tile sel"><span class="ticon">🎺</span>Instrument</button>
+            <button class="tile"><span class="ticon">👕</span>Umundrowanie</button>
+            <button class="tile"><span class="ticon">🏆</span>Wyróżnienie</button>
+            <button class="tile"><span class="ticon">🎼</span>Nuty</button>
+            <button class="tile"><span class="ticon">🧰</span>Sprzęt</button>
+            <button class="tile"><span class="ticon">🧴</span>Materiały eksploatacyjne</button>
+            <button class="tile"><span class="ticon">📄</span>Dokument</button>
+            <button class="tile"><span class="ticon">🔖</span>Inne</button>
+          </div>
+        </div>
+        <div class="abar"><button class="btn primary block" style="flex:1">Dalej — atrybuty ›</button></div>
+        <div class="homebar"><i></i></div>
+      </div>
+      <figcaption><span class="num">06</span><b>Nowa pozycja — krok 1: typ</b><span class="cap">Enum ItemType bez podklas (D1).</span></figcaption>
+      <ul class="notes">
+        <li>Tyły kafelków = 74 px &gt; 44 px; dobór kolorem, nie ikoną (dostępność)</li>
+        <li>Stepper widoczny także w kroku 2 → jasność „został 1 ekran"</li>
+      </ul>
+    </figure>
+
+    <figure class="shot">
+      <div class="phone">
+        <div class="sbar"><span>9:41</span><span class="r"><span class="sig">▂▄▆█</span> 5G <i class="bat"></i> 84%</span></div>
+        <div class="appbar"><span class="back">‹</span><h3>Nowa pozycja · Instrument</h3></div>
+        <div class="content tinted" style="gap:11px">
+          <div class="stepper"><span class="st"><span class="dot">✓</span>Typ</span> ─ <span class="st on"><span class="dot">2</span>Atrybuty</span> ─ <span class="st"><span class="dot">3</span>Gotowe</span></div>
+          <div class="field"><label>Nazwa *</label><input value="Tuba Bb Yamaha YBH-301M"></div>
+          <div class="field"><label>Nr seryjny</label><input value="YBH-301M-84213"></div>
+          <div class="row"><div class="field" style="flex:1"><label>Strojenie</label><select><option>Bb</option></select></div><div class="field" style="flex:1"><label>Kategoria wartości</label><select><option>Wysoka &gt; 8 000 zł</option></select></div></div>
+          <div class="field"><label>Ilość</label><input value="1"></div>
+          <div class="field"><label>Kupiono</label><input value="14.09.2021"></div>
+          <div class="row" style="align-items:center;gap:8px;font-size:13px;font-weight:700"><div style="flex:1">Etui w komplecie</div><span class="badge b-ok" style="padding:8px 14px">✓ TAK</span></div>
+        </div>
+        <div class="abar"><button class="btn" style="min-width:96px">‹ Wstecz</button><button class="btn primary block" style="flex:1">Zapisz pozycję</button></div>
+        <div class="homebar"><i></i></div>
+      </div>
+      <figcaption><span class="num">07</span><b>Nowa pozycja — krok 2: atrybuty</b><span class="cap">Formularz generowany z ItemAttributeDef (B6).</span></figcaption>
+      <ul class="notes">
+        <li>Typy pól: TEXT/NUMBER/SELECT/MULTI/BOOLEAN/DATE wg definicji per band+typ</li>
+        <li>Walu­dacja inline (jeden błąd = scroll do pola); zapis = POST + powrót do szczegółów z toastem „Cofnij"</li>
+      </ul>
+    </figure>
+
+  </div>
+</section>
+
+<!-- ================= C: stocktake ================= -->
+<section class="flow">
+  <h2><span class="tag">C</span> Rdzeń v1: spis z naturą (F5, spec zamrożony B7)</h2>
+  <p class="lede">Najważniejszy flow aplikacji — liczenie w salce koncertowej, stojąc, często jedną ręką i w słabym zasięgu. Wszystkie decyzje projektowe podporządkowane specowi: 3 duże przyciski, auto-next ~500 ms, live licznik rozbieżności, pause/resume, kolejka offline. Ekrany 09–12 to kolejne <b>stany tego samego widoku</b>.</p>
+  <div class="grid">
+
+    <figure class="shot">
+      <div class="phone">
+        <div class="sbar"><span>9:41</span><span class="r"><span class="sig">▂▄▆█</span> 5G <i class="bat"></i> 84%</span></div>
+        <div class="appbar"><span class="back">‹</span><h3>Nowy spis z naturą</h3></div>
+        <div class="content tinted" style="gap:12px">
+          <div class="panel" style="border-color:var(--primary)">
+            <h4 style="color:var(--primary)">Zakres spisu (snapshot)</h4>
+            <div style="font-size:13px;color:var(--muted)">Spis obejmie <b style="color:var(--ink)">120 pozycji</b>: stan Dostępny + Przypisany (oczekiwane). Wycofane i zutylizowane — poza zakresem.</div>
+            <div class="chips" style="margin-top:10px;flex-wrap:wrap"><span class="chip on">Typ: Instrument</span><span class="chip">+ Typ</span><span class="chip">Status ▾</span><span class="chip">Magazyn: MAIN ▾</span></div>
+          </div>
+          <div class="field"><label>Notatka spisu (widoczna w raporcie)</label><textarea placeholder="np. inwentaryzacja przed sezonem — sala przy UM"></textarea></div>
+          <div class="panel">
+            <h4>Jak to zadziała</h4>
+            <div style="font-size:12.5px;color:var(--muted);display:flex;flex-direction:column;gap:6px">
+              <div>1 · Uruchomiasz spis — powstaje lista oczekiwanych pozycji</div>
+              <div>2 · Członkowie (MEMBER) liczą: OK / BRAK / USZKODZONE</div>
+              <div>3 · Raport rozbieżności i zamknięcie — tylko ADMIN</div>
+            </div>
+          </div>
+          <div class="role-note" style="margin-top:auto">Start: tylko ADMIN (B8) · MEMBER: „Spis uruchamia administrator"</div>
+        </div>
+        <div class="abar"><button class="btn primary block" style="flex:1;font-size:16px;min-height:52px">▶ Rozpocznij spis</button></div>
+        <div class="homebar"><i></i></div>
+      </div>
+      <figcaption><span class="num">08</span><b>Panel startu spisu (ADMIN)</b><span class="cap">Filtry startu zakresu → snapshot = aktywne pozycje + przydziały.</span></figcaption>
+      <ul class="notes">
+        <li>POST /api/inventory/stocktakes · status DRAFT→IN_PROGRESS</li>
+        <li>Liczba oczekiwana podawana PRZED startem = brak niespodzianki (heurystyka #1 Nielsena)</li>
+      </ul>
+    </figure>
+
+    <!-- 09 interactive -->
+    <figure class="shot">
+      <div class="phone" id="p-demo">
+        <div class="sbar"><span>9:41</span><span class="r"><span class="sig">▂▄▆█</span> 5G <i class="bat"></i> 84%</span></div>
+        <div class="appbar"><h3>Spis #7 · liczenie</h3><button class="ic" title="pauza" id="btn-pause">⏸</button></div>
+        <div class="content" style="gap:12px">
+          <div class="stepper" style="justify-content:space-between">
+            <span>Pozycja <b id="d-i">35</b> z <b>120</b></span>
+            <span class="badge b-danger" id="d-div">⚠ rozbieżności: 3</span>
+          </div>
+          <div class="count-card" id="d-card">
+            <span class="cc-ico" id="d-ico">🎺</span>
+            <b id="d-name">Tuba Bb Yamaha YBH-301M</b>
+            <div class="sn" id="d-sn">SN YBH-301M-84213</div>
+            <div class="who" id="d-who">👤 Jan Mazur · przydział 14.02.2026</div>
+          </div>
+          <div class="bigbtns">
+            <button class="bb-ok" id="b-ok">✓&nbsp; OK — jest i sprawny</button>
+            <button class="bb-miss" id="b-miss">✕&nbsp; BRAK</button>
+            <button class="bb-broken" id="b-broken">⚠&nbsp; USZKODZONE</button>
+          </div>
+          <button class="otherlink">Inny stan… (np. serwis / nadwyżka)</button>
+          <div class="note-panel" id="d-note" style="display:none">
+            <label id="d-note-label">Notatka (opcjonalna)</label>
+            <textarea id="d-note-text" placeholder="np. waga w progu sali, pęknięta czara…"></textarea>
+            <div class="row"><button class="btn ghost" id="d-note-skip">Pomiń</button><button class="btn primary" id="d-note-save">Zapisz i dalej →</button></div>
+          </div>
+          <div class="hint" id="d-hint">tapnij przycisk — demo interaktywne · OK przechodzi dalej automatycznie (~500 ms)</div>
+        </div>
+        <div class="abar">
+          <div class="prog"><div class="pp"><span id="d-n">35</span>/120 <small>· <span id="d-sync">wszystko zsynchronizowane</span></small></div><div class="meter"><i id="d-meter" style="width:29%"></i></div></div>
+          <button class="btn sm" id="b-queue" title="kolejka offline" style="min-width:52px">🗲 <span id="d-q">0</span></button>
+        </div>
+        <div class="homebar"><i></i></div>
+      </div>
+      <figcaption><span class="num">09</span><b>Liczenie — karta pozycji (EKRAN GŁÓWNY)</b><span class="cap">Zgodnie z F5: nazwa, SN, osoba gdy przypisana + 3 duże przyciski.</span></figcaption>
+      <ul class="notes">
+        <li><b>OK</b> = auto-next ~500 ms · <b>BRAK/USZK</b> = opcjonalna notka, potem auto-next</li>
+        <li>Przyciski ≥58 px, w pionie — kciuk bez re-targetingu; OK wyróżniony (używany ~90% czasu)</li>
+        <li>Bottom bar: progress n/N + live licznik rozbieżności + pauza (zawsze pod kciukiem)</li>
+      </ul>
+    </figure>
+
+    <figure class="shot">
+      <div class="phone">
+        <div class="sbar"><span>9:41</span><span class="r"><span class="sig">▂▄▆█</span> 5G <i class="bat"></i> 84%</span></div>
+        <div class="appbar"><h3>Spis #7 · liczenie</h3><button class="ic">⏸</button></div>
+        <div class="content" style="gap:12px">
+          <div class="stepper" style="justify-content:space-between"><span>Pozycja <b>36</b> z <b>120</b></span><span class="badge b-danger">⚠ rozbieżności: 3</span></div>
+          <div class="count-card" style="border-color:var(--warn)">
+            <span class="cc-ico">🎺</span>
+            <b>Puzon Bach 42</b>
+            <div class="sn">SN BACH-42-7781</div>
+            <div class="who">👤 Kasia Lis · przydział 22.09.2025</div>
+          </div>
+          <div style="font-size:13px;font-weight:800;color:var(--warn);display:flex;align-items:center;gap:8px">Oznaczono: ⚠ USZKODZONE <span class="badge b-warn">znaleziono: uszkodzony</span></div>
+          <div class="note-panel uszk">
+            <label>Notatka o uszkodzeniu (opcjonalna)</label>
+            <textarea>wodzik pęknięty, suwak zacieka — do oceny serwisu</textarea>
+            <div class="row"><button class="btn ghost">Pomiń</button><button class="btn primary" style="background:var(--warn);border-color:var(--warn)">Zapisz i dalej →</button></div>
+          </div>
+          <div class="hint">auto-next odpala się po „Zapisz i dalej" — notka nigdy nie blokuje liczenia</div>
+        </div>
+        <div class="abar"><div class="prog"><div class="pp">35/120 <small>· zapisano 1 s temu</small></div><div class="meter"><i style="width:29%"></i></div></div><button class="btn sm" style="min-width:52px">🗲 0</button></div>
+        <div class="homebar"><i></i></div>
+      </div>
+      <figcaption><span class="num">10</span><b>Liczenie — stan „wymaga notatki"</b><span class="cap">Karta obramowana kolorem decyzji; pole opcjonalne.</span></figcaption>
+      <ul class="notes">
+        <li>foundState BROKEN zapisywane od razu przy tapnięciu ⚠; notka = augmentacja linii</li>
+        <li>PUT …/stocktake-{id}/lines/{lineId} &lt; 500 ms (NFR testowe) — potwierdzenie czasu w bottom bar</li>
+      </ul>
+    </figure>
+
+    <figure class="shot">
+      <div class="phone">
+        <div class="sbar"><span>9:41</span><span class="r"><span class="sig" style="opacity:.4">▂▄▅░</span> 5G✕ <i class="bat"></i> 84%</span></div>
+        <div class="appbar"><h3>Spis #7 · liczenie</h3><span class="badge b-gray">Offline</span><button class="ic">⏸</button></div>
+        <div class="content" style="gap:12px">
+          <div class="banner off">📡<div>Brak połączenia — liczenie trwa dalej<small>4 decyzje czekają w kolejce (localStorage) i wyślą się same po powrocie sieci. Spis #7, ten sam ID.</small></div></div>
+          <div class="stepper" style="justify-content:space-between"><span>Pozycja <b>39</b> z <b>120</b></span><span class="badge b-danger">⚠ rozbieżności: 4</span></div>
+          <div class="count-card">
+            <span class="cc-ico">👕</span>
+            <b>Sutanna zielona, rozmiar M</b>
+            <div class="sn">U-102</div>
+            <div class="who">👤 Anna Wójcik · przydział 03.09.2025</div>
+          </div>
+          <div class="bigbtns">
+            <button class="bb-ok" style="pointer-events:none">✓&nbsp; OK — jest i sprawny</button>
+            <button class="bb-miss" style="pointer-events:none">✕&nbsp; BRAK</button>
+            <button class="bb-broken" style="pointer-events:none">⚠&nbsp; USZKODZONE</button>
+          </div>
+          <div class="hint">decyzje offline zapisują się z countedAt + countedBy lokalnie, potem flush na server</div>
+        </div>
+        <div class="abar">
+          <div class="prog"><div class="pp">38/120 <small>· <span style="color:var(--warn);font-weight:800">kolejka: 4 do wysłania</span></small></div><div class="meter"><i style="width:32%;background:var(--warn)"></i></div></div>
+          <button class="btn sm" style="min-width:52px;background:var(--warn-soft);border-color:var(--warn-line);color:var(--warn)">🗲 4</button>
+        </div>
+        <div class="homebar"><i></i></div>
+      </div>
+      <figcaption><span class="num">11</span><b>Liczenie — tryb offline + kolejka</b><span class="cap">Zero utraty pracy w piwnicy / pod domek akustyczny.</span></figcaption>
+      <ul class="notes">
+        <li>Kolejka keyed przez stocktakeId (B7); flush po reconnect — ten sam spis, nie nowy</li>
+        <li>Meter zmienia barwę w offline = szybki signal stanu bez czytania tekstu</li>
+      </ul>
+    </figure>
+
+    <figure class="shot">
+      <div class="phone">
+        <div class="sbar"><span>9:41</span><span class="r"><span class="sig">▂▄▆█</span> 5G <i class="bat"></i> 84%</span></div>
+        <div class="appbar"><h3>Spis #7</h3><span class="badge b-warn">Wstrzymany</span></div>
+        <div class="content tinted" style="gap:14px;align-items:center;justify-content:center;text-align:center">
+          <div style="width:88px;height:88px;border-radius:999px;background:var(--warn-soft);border:1.5px solid var(--warn-line);display:flex;align-items:center;justify-content:center;font-size:38px;color:var(--warn)">⏸</div>
+          <div>
+            <b style="font-size:17px;font-weight:800">Liczenie wstrzymane</b>
+            <div style="font-size:13px;color:var(--muted);margin-top:6px;max-width:260px">Postęp jest zapisany. Możesz zamknąć aplikację albo przekazać telefon komuś innemu — ten sam spis wznawia każdy aktywny członek bandu.</div>
+          </div>
+          <div class="panel" style="width:100%">
+            <div class="kv"><span class="k">Policzone</span><span class="v">38 / 120</span></div>
+            <div class="kv"><span class="k">Rozbieżności na żywo</span><span class="v" style="color:var(--danger)">4 (1 BRAK · 2 USZK · 1 nadwyżka)</span></div>
+            <div class="kv"><span class="k">Kolejka offline</span><span class="v" style="color:var(--ok)">◇ wysłane</span></div>
+            <div class="kv"><span class="k">Ostatnio liczono</span><span class="v">Werbel ADK · przez Ciebie</span></div>
+          </div>
+          <button class="btn primary block" style="min-height:52px;font-size:16px">▶ Wznów liczenie</button>
+          <div class="role-note">MEMBER: widzi to samo + „Zakończ moje liczenie" — zamknięcie spisu nadal tylko ADMIN</div>
+        </div>
+        <div class="homebar"><i></i></div>
+      </div>
+      <figcaption><span class="num">12</span><b>Pauza / wznów (pause-resume)</b><span class="cap">Eksplicytny stan = brak „utopionych" liczeń.</span></figcaption>
+      <ul class="notes">
+        <li>Pauza nie blokuje innych liczących (wielu MEMBER-ów na jednym spisie)</li>
+        <li>Resume wraca do <b>pierwszej niepoli­czonej</b> karty + przywraca filtr zakresu</li>
+      </ul>
+    </figure>
+
+    <figure class="shot">
+      <div class="phone">
+        <div class="sbar"><span>9:41</span><span class="r"><span class="sig">▂▄▆█</span> 5G <i class="bat"></i> 84%</span></div>
+        <div class="appbar"><span class="back">‹</span><h3>Liczenie</h3><button class="ic">⌕</button></div>
+        <div class="content tinted" style="gap:12px">
+          <div class="panel" style="border-color:var(--primary)">
+            <h4 style="color:var(--primary)">Aktywny spis</h4>
+            <div style="font-size:13px"><b>Spis #7</b> · przed sezonem — sala przy UM</div>
+            <div style="font-size:12px;color:var(--muted);margin-top:3px">start: dziś 09:12 · Michał Bzowski (ADMIN)</div>
+            <div class="meter" style="margin-top:10px"><i style="width:32%"></i></div>
+            <div style="display:flex;justify-content:space-between;font-size:12.5px;font-weight:700;margin-top:6px"><span>38 / 120 policzone</span><span style="color:var(--danger)">4 rozbieżności</span></div>
+            <button class="btn primary block" style="margin-top:12px">✓ Dołącz i licz</button>
+            <button class="btn block" style="margin-top:8px">Pokaż policzone przeze mnie (12)</button>
+          </div>
+          <div class="panel"><h4>Ostatnie spisy</h4>
+            <div class="sectionlist">
+              <div class="srow">#6 · 12.05.2026 · zamknięty <span style="font-weight:800;color:var(--ok)">✓</span></div>
+              <div class="srow">#5 · 03.10.2025 · zamknięty <span style="font-weight:800;color:var(--ok)">✓</span></div>
+            </div>
+          </div>
+          <div class="role-note">ADMIN: panel startu (› 08) dostępny stąd; tu dodatkowo „Eskaluj: dokończ i zamknij"</div>
+        </div>
+        <div class="tabs"><button class="t"><span class="ti">🏠</span>Pulpit</button><button class="t"><span class="ti">📦</span>Ekwipunek</button><button class="t on"><span class="ti">✓</span>Liczenie</button><button class="t"><span class="ti">👤</span>Moje</button></div>
+        <div class="homebar"><i></i></div>
+      </div>
+      <figcaption><span class="num">13</span><b>Zakładka „Liczenie" — stan trwania</b><span class="cap">Hub: wznów / dołącz / historia — jeden ekran, dwie role.</span></figcaption>
+      <ul class="notes">
+        <li>Gdy NIE ma spisu: ekran pusty z ilustracją + CTA „Rozpocznij spis" (ADMIN) lub „Administrator jeszcze nie uruchomił spisu" (MEMBER)</li>
+        <li>Historia linii per countedBy = rozliczalność (B8 „zapis countedBy")</li>
+      </ul>
+    </figure>
+
+  </div>
+</section>
+
+<!-- ================= D: zamknięcie ================= -->
+<section class="flow">
+  <h2><span class="tag">D</span> Zamknięcie spisu — raport rozbieżności (B9)</h2>
+  <div class="grid">
+
+    <figure class="shot">
+      <div class="phone">
+        <div class="sbar"><span>9:41</span><span class="r"><span class="sig">▂▄▆█</span> 5G <i class="bat"></i> 84%</span></div>
+        <div class="appbar"><span class="back">‹</span><h3>Raport — Spis #7</h3><span class="badge b-warn">Draft zamknięcia</span></div>
+        <div class="content tinted" style="gap:12px">
+          <div class="stat-grid">
+            <div class="stat"><i>✓ OK</i><b style="color:var(--ok)">102</b></div>
+            <div class="stat bad"><i>✕ Brakuje</i><b>9</b></div>
+            <div class="stat"><i>⚠ Uszkodzone</i><b style="color:var(--warn)">6</b></div>
+            <div class="stat"><i>＋ Nadwyżka</i><b style="color:var(--info)">3</b></div>
+          </div>
+          <div class="panel"><h4 style="color:var(--danger)">✕ Brakuje (9)</h4>
+            <div class="card" style="padding:9px 11px;border:0"><div class="cb"><b>Trumpet Benge 3X+</b><div class="meta">SN BG-11290 · ostatnio: 👤 Piotr Dąb</div></div><button class="btn sm" disabled>→ Potrzeba</button></div>
+            <div class="card" style="padding:9px 11px;border:0"><div class="cb"><b>Sutanna zielona, rozm. L</b><div class="meta">U-088</div></div><button class="btn sm" disabled>→ Potrzeba</button></div>
+            <div style="font-size:12px;color:var(--primary);font-weight:700;padding-top:6px">pokaż wszystkie 9 ›</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:4px">Przyciski akcji aktywne od wdrożenia modułów v1.x (Potrzeby / Serwis) — tutaj pozycja „wiesza się" jako sugestia. (B9)</div>
+          </div>
+          <div class="panel"><h4 style="color:var(--warn)">⚠ Uszkodzone (6)</h4>
+            <div class="card" style="padding:9px 11px;border:0"><div class="cb"><b>Puzon Bach 42</b><div class="meta">„suwak zacieka" · 👤 Kasia Lis</div></div><button class="btn sm" disabled>→ Serwis</button></div>
+          </div>
+          <div class="panel"><h4>Notatka końcowa</h4><div style="font-size:12.5px;color:var(--muted)">„Spis przedsezonowy. Dwa instrumenty fizycznie znalezione u osób, które nie są w bieżącym przydziale — do potwierdzenia."</div></div>
+        </div>
+        <div class="abar"><button class="btn ok block" id="btn-close" style="flex:1;font-size:15.5px;min-height:52px">Zamknij spis ✓</button></div>
+        <div class="dim center" id="m-close" style="display:none">
+          <div class="modal"><b>Zamknąć spis #7?</b><p>Zamknięcie blokuje dalsze liczenie i edycję linii. Raport staje się odczytywalny na stałe. Tej operacji nie można cofnąć — ponowne zamknięcie zostanie odrzucone przez API.</p>
+            <div class="row"><button class="btn" style="flex:1" id="m-no">Anuluj</button><button class="btn ok" style="flex:1" id="m-yes">Tak, zamknij</button></div></div>
+        </div>
+        <div class="homebar"><i></i></div>
+      </div>
+      <figcaption><span class="num">14</span><b>Raport diff + zamknięcie (ADMIN)</b><span class="cap">4 sekcje raportu dokładnie wg specyfikacji B9.</span></figcaption>
+      <ul class="notes">
+        <li>PATCH …/close · double-close → 409/odrzucenie (testowany w CI)</li>
+        <li>Sekcja „Nadwyżka" = foundState EXTRA (np. instrument bez nadanego numeru znaleziony w sali)</li>
+        <li>Po zamknięciu: pieczęć „ZAMKNIĘTO", pełna read-only (15 → stan po)</li>
+      </ul>
+    </figure>
+
+    <figure class="shot">
+      <div class="phone">
+        <div class="sbar"><span>9:41</span><span class="r"><span class="sig">▂▄▆█</span> 5G <i class="bat"></i> 84%</span></div>
+        <div class="appbar"><span class="back">‹</span><h3>Raport — Spis #7</h3></div>
+        <div class="content tinted" style="gap:12px;position:relative">
+          <div class="stamp-inline"><i>✓ ZAMKNIĘTO&nbsp; 12.10.2026 18:40</i></div>
+          <div class="panel"><h4>Podsumowanie</h4>
+            <div class="kv"><span class="k">Pozycje oczekiwane</span><span class="v">120</span></div>
+            <div class="kv"><span class="k">Policzone</span><span class="v">120 / 120</span></div>
+            <div class="kv"><span class="k">Zamknięto</span><span class="v">12.10.2026 18:40 · Michał B.</span></div>
+            <div class="kv"><span class="k">Rozbieżności</span><span class="v" style="color:var(--danger)">18 (brak 9 · uszk. 6 · nadw. 3)</span></div>
+          </div>
+          <div class="panel"><h4>Sekcje raportu</h4>
+            <div class="sectionlist">
+              <div class="srow">✓ OK <b>102</b></div>
+              <div class="srow">✕ Brakuje <b>9</b></div>
+              <div class="srow">⚠ Uszkodzone <b>6</b></div>
+              <div class="srow">＋ Nadwyżka <b>3</b></div>
+            </div>
+          </div>
+          <div class="banner warni">🔒<div>Spis zamknięty — edycja zablokowana<small>Wydruk / PDF raportu: roadmapa v1.x (JasperReports odłożone, D4).</small></div></div>
+        </div>
+        <div class="abar"><button class="btn block" style="flex:1">Eksport / druk <span class="badge b-gray" style="margin-left:6px">v1.x</span></button></div>
+        <div class="homebar"><i></i></div>
+      </div>
+      <figcaption><span class="num">15</span><b>Raport po zamknięciu (read-only)</b><span class="cap"> CLOSED blokuje edycję; akcje wstrzymane do v1.x.</span></figcaption>
+      <ul class="notes">
+        <li>Dostępny obu rolom do odczytu; ADMIN nie ma tu już żadnych akcji zapisu</li>
+      </ul>
+    </figure>
+
+  </div>
+</section>
+
+<!-- ================= E: member ================= -->
+<section class="flow">
+  <h2><span class="tag">E</span> Perspektywa MEMBER — „Moje" (B8)</h2>
+  <div class="grid">
+
+    <figure class="shot">
+      <div class="phone">
+        <div class="sbar"><span>9:41</span><span class="r"><span class="sig">▂▄▆█</span> 5G <i class="bat"></i> 84%</span></div>
+        <div class="appbar"><h3>Moje</h3><span class="badge b-gray">MEMBER · Fanfara</span></div>
+        <div class="content tinted" style="gap:12px">
+          <div class="panel"><h4>Przechowuję teraz (2)</h4>
+            <div class="card" style="padding:10px 12px"><div class="ticon">🎺</div><div class="cb"><b>Tuba Bb Yamaha YBH-301M</b><div class="meta">od 14.02.2026 · „sezon koncertowy"</div></div><button class="btn sm">Zwróć ↩</button></div>
+            <div class="card" style="padding:10px 12px"><div class="ticon">👕</div><div class="cb"><b>Sutanna zielona, rozmiar M</b><div class="meta">od 03.09.2025</div></div><button class="btn sm">Zwróć ↩</button></div>
+          </div>
+          <div class="panel"><h4>Moje liczenia w spisach</h4>
+            <div class="sectionlist">
+              <div class="srow">Spis #7 · policzyłeś 12 pozycji <b style="color:var(--danger)">1 BRAK</b></div>
+              <div class="srow">Spis #6 · 20 pozycji <b style="color:var(--ok)">✓ bez rozbieżności</b></div>
+            </div>
+          </div>
+          <div class="panel"><h4>Konto i synchronizacja</h4>
+            <div class="kv"><span class="k">Zalogowano przez</span><span class="v">SSO · windband</span></div>
+            <div class="kv"><span class="k">Kolejka offline</span><span class="v" style="color:var(--ok)">◇ pusta</span></div>
+            <div class="kv"><span class="k">Band</span><span class="v">zmień ‹ 01 ›</span></div>
+          </div>
+        </div>
+        <div class="tabs"><button class="t"><span class="ti">🏠</span>Pulpit</button><button class="t"><span class="ti">📦</span>Ekwipunek</button><button class="t"><span class="ti">✓</span>Liczenie</button><button class="t on"><span class="ti">👤</span>Moje</button></div>
+        <div class="homebar"><i></i></div>
+      </div>
+      <figcaption><span class="num">16</span><b>Moje przydziały + liczenia</b><span class="cap">Przejrzystość „co trzymam i co już policzyłem".</span></figcaption>
+      <ul class="notes">
+        <li>MEMBER w „Ekwipunek" = tylko odczyt list (B8) — bez FAB, bez akcji zapisu</li>
+        <li>Historia liczeń per countedBy buduje poczucie wkładu (motywacja do dokładnego spisu)</li>
+      </ul>
+    </figure>
+
+    <figure class="shot">
+      <div class="phone">
+        <div class="sbar"><span>9:41</span><span class="r"><span class="sig">▂▄▆█</span> 5G <i class="bat"></i> 84%</span></div>
+        <div class="appbar"><h3>Moje</h3><span class="badge b-gray">MEMBER · Fanfara</span></div>
+        <div class="content" style="background:#F7F9FC">
+          <div style="filter:blur(.5px);opacity:.45">
+            <div class="panel"><h4>Przechowuję teraz</h4><div class="card" style="padding:10px 12px"><div class="cb"><b>Tuba Bb Yamaha YBH-301M</b></div></div></div>
+          </div>
+        </div>
+        <div class="dim"><div class="sheet">
+          <div class="grab"></div>
+          <h4>Zwrot: Tuba Bb Yamaha</h4>
+          <div style="font-size:12.5px;color:var(--muted);margin-top:-4px">SN YBH-301M-84213 · trzymane od 14.02.2026</div>
+          <div class="field"><label>Stan przy zwrocie *</label>
+            <div class="chips" style="flex-wrap:wrap"><span class="chip on" style="min-height:44px">✓ sprawny</span><span class="chip" style="min-height:44px">⚠ uszkodzony</span></div>
+          </div>
+          <div class="field"><label>Notatka (opcjonalna)</label><textarea placeholder="np. przetarty pasek na ramieniu…"></textarea></div>
+          <div class="banner warni" style="font-size:11.5px">🏬<div>Wracaj do składu — wrzut do MAIN<small>Wydanie odbierze osoba upoważniona; przydział zakończy się natychmiast po zapisie.</small></div></div>
+          <button class="btn primary block">Zatwierdź zwrot</button>
+        </div></div>
+        <div class="homebar"><i></i></div>
+      </div>
+      <figcaption><span class="num">17</span><b>Bottom sheet: zwrot pozycji</b><span class="cap">Stan przy zwrocie wymuszony — dane do F4 serwisów w v1.x.</span></figcaption>
+      <ul class="notes">
+        <li>unassign → historia: returnedAt + stan + notka (B6)</li>
+        <li>Chip ≥44 px; „uszkodzony" podświetla pole notatki jako <i>rekomendowane</i> (bez blokowania)</li>
+      </ul>
+    </figure>
+
+  </div>
+</section>
+
+<!-- ================= tokens ================= -->
+<section class="flow">
+  <h2><span class="tag">DS</span> Design tokens — fundament systemu React/TS (B12)</h2>
+  <p class="lede">Jeden accent + 3 kolory semantyczne decyzji liczenia. Statusy życia pozycji mają własną skalę, ale NIE współdzielą barw z decision-buttons (OK zielony przycisku ≠ AVAILABLE zielony badge'a — unikamy myślenia „zielony = cokolwiek dobrego").</p>
+  <div class="swatches">
+    <div class="sw"><div class="c" style="background:#4338CA"></div><div class="l">Primary <span>#4338CA</span></div></div>
+    <div class="sw"><div class="c" style="background:#15803D"></div><div class="l">Decision OK <span>#15803D</span></div></div>
+    <div class="sw"><div class="c" style="background:#B91C1C"></div><div class="l">Decision BRAK <span>#B91C1C</span></div></div>
+    <div class="sw"><div class="c" style="background:#B45309"></div><div class="l">Decision USZK <span>#B45309</span></div></div>
+    <div class="sw"><div class="c" style="background:#1D4ED8"></div><div class="l">Status: Przypisany <span>#1D4ED8</span></div></div>
+    <div class="sw"><div class="c" style="background:#111827"></div><div class="l">Ink <span>#111827</span></div></div>
+    <div class="sw"><div class="c" style="background:#F7F9FC"></div><div class="l">Surface tint <span>#F7F9FC</span></div></div>
+    <div class="sw"><div class="c" style="background:#E5E7EB"></div><div class="l">Line <span>#E5E7EB</span></div></div>
+  </div>
+  <div class="panel" style="margin-top:22px;max-width:920px">
+    <h4>Typografia (Inter)</h4>
+    <div class="kv"><span class="k">Nazwa karty / ekranu</span><span class="v">17 / 700 · letter-spacing −0.01em</span></div>
+    <div class="kv"><span class="k">Treść / etykiety pól</span><span class="v">13–14 / 500–700</span></div>
+    <div class="kv"><span class="k">Metadata / SN</span><span class="v">12 mono (SF Mono/ui-monospace)</span></div>
+    <div class="kv"><span class="k">Przycisk decyzji</span><span class="v">16 / 800 · min 58 px</span></div>
+    <div class="kv"><span class="k">Tap-target min.</span><span class="v">44 px (NFR)</span></div>
+  </div>
+</section>
+
+<!-- ================= traceability ================= -->
+<section class="flow">
+  <h2><span class="tag">TR</span> Traceability — wymóg dokumentu → ekran</h2>
+  <table class="trace">
+    <tr><th>Decyzja / wymóg (w1-analiza)</th><th>Ekran(y)</th><th>Jak zrealizowany</th></tr>
+    <tr><td>B1/B10 · WM = master</td><td>01, 05</td><td>Pickery bandów i członków tylko z danych API WM; brak CRUD bandów/memberów w aplikacji</td></tr>
+    <tr><td>B5/B12 · SSO ten sam realm</td><td>01</td><td>Wejście z pominięciem własnego loginu; badge „SSO · windband"; refresh tokenu przez PKCE (NFR)</td></tr>
+    <tr><td>B11 · nawigacja jednostronna</td><td>01</td><td>Brak przycisku „wróć do WM"; komunikat wyjaśniający powrót przez przeglądarkę</td></tr>
+    <tr><td>B6 · pozycje + atrybuty</td><td>04, 06, 07</td><td>Wizard dwustopniowy typ→atrybuty; defs per band/typ, displayOrder; formularz generowany dynamicznie</td></tr>
+    <tr><td>B6 · przydział/zwrot + historia</td><td>04, 05, 16, 17</td><td>SHEET przydziału z API WM, historia assignedAt/returnedAt/stan/notka na szczegółach i „Moje"</td></tr>
+    <tr><td>B6 · magazyny + transfery</td><td>03, 04, 05</td><td>Chip filtra „Magazyn", akcja „Transfer" (MAIN/SERVICE/ARCHIVE), WarehouseTransfer w historii</td></tr>
+    <tr><td>B7 · F5 w całości</td><td>08–13</td><td>Karta: nazwa+SN+osoba → OK/BRAK/USZK (+inny stan), auto-next 500 ms, n/N + live rozbieżności, pause/resume, offline queue localStorage pod stocktakeId</td></tr>
+    <tr><td>B8 · upoważnienia</td><td>02, 08, 12, 13</td><td>Start/close: ADMIN (reszta wariantów eksplikuje brak uprawnień); liczenie: MEMBER z countedBy (widok „moje liczenia")</td></tr>
+    <tr><td>B9 · raport 4 sekcji, akcje nieaktywne</td><td>14, 15</td><td>OK/Brakuje/Uszkodzone/Nadwyżka; disabled → Potrzeba/Serwis z tooltipem „v1.x"; CLOSED read-only + double-close odrzucony</td></tr>
+    <tr><td>NFR · mobile-first 360 px</td><td>wszystkie</td><td>Board w 360 px, zero scroll poziomego, pinned bottom bar, targety ≥44 px, tryb offline jako stan widoku</td></tr>
+  </table>
+</section>
+
+<footer class="doc">
+  Makieta koncepcyjna do walidacji z właścicielem aplikacji — nie jest specyfikacją wizualną produkcyjnych komponentów. Po accepted: tokeny + IA + stany 09–13 przenoszone do komponentów React/TS ze stashem w frontend/. Otwarte pytania projektowe: (Q1) czy „Inny stan…" to osobny sheet czy inline-chips, (Q2) auto-next przy BRAK bez notatki: od razu czy z 2 s „cofnij" (rekomendacja: od razu + toast cofnij, by nie łamać specu B7), (Q3) widoczność filtru „Osoba" dla MEMBER-a (rekomendacja: tak, read-only).
+</footer>
+
+</div>
+<script>
+(function(){
+  // chips toggle (wszystkie ekrany)
+  document.querySelectorAll('.chip').forEach(function(c){c.addEventListener('click',function(){c.classList.toggle('on')})});
+  var tiles=document.querySelectorAll('.tile');
+  tiles.forEach(function(t){t.addEventListener('click',function(){tiles.forEach(function(x){x.classList.remove('sel')});t.classList.add('sel')})});
+  // modal zamknięcia
+  var m=document.getElementById('m-close');
+  var bc=document.getElementById('btn-close');
+  if(bc&&m){bc.addEventListener('click',function(){m.style.display='flex'});
+    document.getElementById('m-no').addEventListener('click',function(){m.style.display='none'});
+    document.getElementById('m-yes').addEventListener('click',function(){m.style.display='none';bc.textContent='✓ Spis zamknięty';bc.disabled=true;});}
+  // ==== demo liczenia (ekran 09) ====
+  var items=[
+    {ico:'🎺',name:'Tuba Bb Yamaha YBH-301M',sn:'SN YBH-301M-84213',who:'👤 Jan Mazur · przydział 14.02.2026',wh:false},
+    {ico:'🎼',name:'Komplet perkusja — Koncert Festiwalowy 2025',sn:'A-330 · 12 głosów',who:'🏬 Magazyn MAIN',wh:true},
+    {ico:'👕',name:'Sutanna zielona, rozmiar M',sn:'U-102',who:'👤 Anna Wójcik · przydział 03.09.2025',wh:false}
+  ];
+  var i=0,n=35,total=120,div=3,q=0,awaitNote=false,busy=false;
+  function $(id){return document.getElementById(id)}
+  var card=$('d-card'),note=$('d-note');
+  function render(){
+    var it=items[i%items.length];
+    $('d-ico').textContent=it.ico;$('d-name').textContent=it.name;$('d-sn').textContent=it.sn;
+    var w=$('d-who');w.textContent=it.who;w.className='who'+(it.wh?' wh':'');
+    $('d-i').textContent=n;$('d-n').textContent=n;
+    $('d-div').textContent='⚠ rozbieżności: '+div;
+    $('d-meter').style.width=Math.round(n/total*100)+'%';
+    $('d-q').textContent=q;
+  }
+  function advance(){
+    i++;n++;busy=true;
+    if(n>total)n=total;
+    card.classList.add('slideout');
+    setTimeout(function(){render();card.classList.remove('slideout');busy=false;},220);
+  }
+  $('b-ok').addEventListener('click',function(){
+    if(busy||awaitNote)return;
+    $('d-hint').textContent='✓ OK — przejście do następnej…';
+    setTimeout(function(){$('d-hint').textContent='tapnij przycisk — demo interaktywne · OK przechodzi dalej automatycznie (~500 ms)';},900);
+    advance(); // OK = auto-next ~500ms, bez pytania
+  });
+  function missish(kind){
+    if(busy||awaitNote)return;
+    awaitNote=true;
+    note.style.display='flex';
+    note.className='note-panel'+(kind==='brak'?'':' uszk');
+    $('d-note-label').textContent=kind==='brak'?'Dlaczego brak? (opcjonalna notatka)':'Opis uszkodzenia (opcjonalna notatka)';
+    $('d-note-text').focus();
+  }
+  $('b-miss').addEventListener('click',function(){missish('brak')});
+  $('b-broken').addEventListener('click',function(){missish('usz')});
+  function finishNote(){
+    div++;note.style.display='none';$('d-note-text').value='';awaitNote=false;advance();
+  }
+  $('d-note-save').addEventListener('click',finishNote);
+  $('d-note-skip').addEventListener('click',finishNote);
+  $('b-pause')&&0;
+  $('btn-pause').addEventListener('click',function(){
+    $('d-hint').textContent='⏸ pauza — symulacja: w stanie realnym ekran 12';
+    setTimeout(function(){$('d-hint').textContent='tapnij przycisk — demo interaktywne · OK przechodzi dalej automatycznie (~500 ms)'},1400);
+  });
+  $('b-queue').addEventListener('click',function(){
+    q++;render();
+    $('d-sync').textContent=q>0?('kolejka offline: '+q):'wszystko zsynchronizowane';
+  });
+  render();
+})();
+</script>
+</body>
+</html>
