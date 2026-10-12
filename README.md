@@ -17,39 +17,48 @@ Railway wykrywa go automatycznie po podpięciu tego repo do projektu):
    **obok serwisów windband-manager / keycloak** (push = build). Dzięki temu
    działa private networking `<service>.railway.internal`.
 
-### Zmienne środowiskowe (build-time — Railway podstawia je podczas `npm run build`)
+### Zmienne środowiskowe (RUNTIME — jeden obraz dla każdego środowiska)
 
-| Zmienna | Wartość produkcyjna |
-|---|---|
-| `WM_API_URL` | `http://windband-manager.railway.internal:8080` (private networking; cel proxy `/api/v1`) |
-| `VITE_AUTH_ISSUER` | `https://login.bandmanager.pl/realms/windband` |
-| `VITE_CLIENT_ID` | `windband-inventory-local` |
+Każda wartość zależna od środowiska jest zmienną ENV podstawianą **przy starcie**
+kontenera — kod produkcyjny i build są identyczne wszędzie, środowiska różnią się
+TYLKO zmiennymi. Nginx (oficjalny obraz) renderuje `/etc/nginx/templates/*.template`
+przez envsubst przy starcie, więc `deploy/nginx/env.js.template` → `/env.js` dla SPA;
+lokalnie serwer dev Vite serwuje ten sam `/env.js` z `process.env`.
 
-Nginx podstawia `WM_API_URL` do zbudowanej konfiguracji **przy starcie**
-kontenera (template envsubst) — zmiana celu nie wymaga przebudowy obrazu.
-Przeglądarka widzi API jako same-origin (bez CORS), tak samo jak lokalnie przy
-`vite dev`.
+| Zmienna | Rola | Domyślna (local) | Produkcja |
+|---|---|---|---|
+| `AUTH_ISSUER` | Issuer Keycloak (URL realmu) do loginu i wymiany kodu | `http://localhost:8180/realms/windband` | `https://login.bandmanager.pl/realms/windband` |
+| `AUTH_CLIENT_ID` | OIDC `client_id` (kanoniczna nazwa klienta) | `windband-inventory` | `windband-inventory` (domyślna wystarczy) |
+| `WM_API_URL` | Cel proxy same-origin `/api/v1` → windband-manager | `http://localhost:8080` | `http://windband-manager.railway.internal:8080` |
+
+Redirect powrotny po logowaniu to ZAWSZE `<origin aplikacji>/callback`, liczony w
+przeglądarce z `window.location.origin` — nie jest zmenną ani parametrem buildu.
+Jedyne, co musi zgadzać się per środowisko: ten dokładny adres musi być na liście
+Valid redirect URIs klienta w Keycloak (patrz niżej).
 
 ### Klucz Keycloak (ważne!)
 
 Aplikacja zawsze przekierowuje się po logowaniu do `<host aplikacji>/callback`
 (patrz `frontend/src/auth/oidc.ts`). Ten dokładny adres musi być w Valid
-redirect URIs klienta `windband-inventory-local` w realmie `windband`.
+redirect URIs klienta **`windband-inventory`** (jedyna kanoniczna nazwa client_id)
+w realmie `windband`.
 
-⚠️ Zdarzono się z tym (2026-10-13): w realmie `windband` istniały **dwa clienty o tym
-samym `clientId`** (`windband-inventory-local`) — jeden z importu JSON, drugi utworzony
-ręcznie. Keycloak rozwiązywał zapytanie auth do *tej drugiej*, uboższej linii
+⚠️ Zdarzono się z tym (2026-10-12/13): w realmie `windband` istniały **dwa
+rekordy klienckie o tym samym `clientId`** (wtedy `windband-inventory-local`,
+dziś kanoniczne `windband-inventory`) — jeden z importu JSON, drugi utworzony
+ręcznie. Keycloak rozwiązywał zapytanie auth do *tego drugiego*, uboższego
 (redirekcje: tylko localhost) → stałe `400 invalid_redirect_uri` mimo że „ten
-client" w dashboardzie miał dokładny `https://.../callback`. **Po scaleniu do jednego
-clienta (i usunięciu duplikatu) auth przechodzi 200 dla http i https exact redirect.**
+client" w dashboardzie miał dokładny `https://.../callback`. Log KC potwierdza:
+`LOGIN_ERROR ... error="invalid_redirect_uri", redirect_uri="http://inventory.bandmanager.pl/callback"`.
+**Po scaleniu do jednego clienta (i usunięciu duplikatu) auth przechodzi 200.**
 
 Lekcja przy debugowaniu: zawsze wypisuj **pełną listę klientów z UUID**
 (`GET /admin/realms/{realm}/clients`) — zapytanie `?client_id=...` może zwrócić kilka
 linii, a interfejs admina operuje na pierwszej z nich.
 
 Uwaga: jeśli realm produkcyjny jest seedowany z `keycloak/import/windband-realm.json`
-w repo windband-manager, dopisz ten adres do tego pliku (i do lokalnego KC),
-a nie do dashboardu KC ręcznie — bo nadpisze go kolejny import realmu.
+w repo windband-manager, dopisz adres w TYM PLIKU (i do lokalnego KC) — nie ręcznie
+w dashboardzie KC — bo kolejny import realmu go nadpisze.
 
 ### Publiczna domena / TLS w Railway
 
