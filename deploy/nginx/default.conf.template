@@ -30,7 +30,12 @@ server {
         set $wm_upstream ${WM_API_URL};
         proxy_pass $wm_upstream;
         proxy_http_version 1.1;
-        proxy_set_header Host $host;
+        # NOT Host: $host — a front proxy/edge in front of WM (or any public
+        # https upstream) routes by the Host header and would 404 the SPA's
+        # origin. With the variable-form proxy_pass, $proxy_host evaluates to
+        # the WM_API_URL authority (e.g. windband-manager.railway.internal or
+        # app.bandmanager.pl), which is exactly what the upstream expects.
+        proxy_set_header Host $proxy_host;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_read_timeout 60s;
