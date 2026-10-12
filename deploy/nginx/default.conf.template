@@ -1,0 +1,38 @@
+# windband-inventory — default server (nginx:alpine auto-renders this via
+# envsubst at container start; placeholders are $-variables from the container
+# environment). Serves the built SPA and reverse-proxies same-origin /api/v1
+# to windband-manager, mirroring the vite dev proxy used locally.
+
+server {
+    listen 80;
+    server_name _;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # Built assets are content-hashed by Vite — cache them hard.
+    location ^~ /assets/ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        try_files $uri =404;
+    }
+
+    # Same-origin API -> windband-manager.
+    # ${WM_API_URL} carries a scheme+authority only (no trailing path), so nginx
+    # forwards the ORIGINAL request URI unchanged (e.g. /api/v1/me/bands) to WM —
+    # identical to `vite dev`'s /api proxy.
+    location ^~ /api/ {
+        resolver 127.0.0.11 valid=30s ipv6=off;
+        proxy_pass ${WM_API_URL};
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 60s;
+    }
+
+    # Client-side routes (e.g. Keycloak /callback, deep links) fall back to the SPA.
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}

@@ -1,0 +1,9 @@
+# Not part of the image context (build happens from frontend/ only).
+.git
+node_modules
+frontend/node_modules
+docs
+tmp
+dev/evidence
+*.log
+.github
