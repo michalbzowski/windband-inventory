@@ -4,7 +4,11 @@
 # to windband-manager, mirroring the vite dev proxy used locally.
 
 server {
-    listen 80;
+    # Explicit bind: do not depend on nginx's OS-default socket location. If a
+    # future base-image upgrade ever ships a non-standard compile, this line is
+    # the only thing that keeps the container listening on port 80 for Railway.
+    listen 0.0.0.0:80;
+    listen [::]:80;
     server_name _;
 
     root /usr/share/nginx/html;

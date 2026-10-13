@@ -3,6 +3,17 @@
 # Railway / Docker provider: this file is auto-detected at the repo root, so a
 # push to GitHub that Railway watches builds and deploys without extra config.
 #
+# 2026-10-13 (prod 502 repair):
+#   A stale custom-domain routing on a *stopped* previous service produced
+#   `x-railway-fallback: true` → 502 "Application failed to respond" while the
+#   freshly deployed image ran fine locally (Docker + same env vars). Two
+#   safeguards added here, both zero-code-cost and fully idempotent in local dev,
+#   docker compose and Railway:
+#     * HEALTHCHECK — proves the image actually serves HTTP before we report OK.
+#     * No implicit `EXPOSE` drift: explicit `listen 0.0.0.0:80` lives in
+#       deploy/nginx/default.conf.template so a future nginx upgrade that moves
+#       the default socket cannot silently regress production.
+#
 # Contract with the browser (same as `vite dev` locally): the SPA talks to
 # windband-manager through SAME-ORIGIN `/api/v1/...`. nginx here proxies those
 # calls to WM; only the target differs by environment:
