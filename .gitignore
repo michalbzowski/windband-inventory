@@ -1,0 +1,19 @@
+# Maven backend build output
+target/
+
+# Node
+node_modules/
+frontend/node_modules/
+
+# Local env / secrets
+.env
+.env.local
+
+# OS / editors
+.DS_Store
+*.iml
+.idea/
+.vscode/
+
+# Scratch evidence
+tmp/

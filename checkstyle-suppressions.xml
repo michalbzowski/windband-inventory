@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<!DOCTYPE suppressions PUBLIC
+    "-//Checkstyle//DTD SuppressionFilter Configuration 1.2//EN"
+    "https://checkstyle.org/dtds/suppressions_1_2.dtd">
+<!--
+  Checkstyle suppression filter for windband-inventory.
+
+  InventoryApplication is the @SpringBootApplication (== @Configuration) main
+  class. Spring Boot enhances it with a CGLIB subclass at context startup, which
+  REQUIRES a non-private constructor. The HideUtilityClassConstructor rule would
+  force a private constructor here, which breaks every test that boots the
+  application context. The main class is not a utility class, so we suppress
+  the rule for it.
+-->
+<suppressions>
+    <suppress checks="HideUtilityClassConstructor"
+              files="InventoryApplication\.java"/>
+</suppressions>

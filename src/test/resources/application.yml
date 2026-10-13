@@ -1,0 +1,12 @@
+# Test-only overrides. Datasource/URLs come from Testcontainers at runtime
+# (@DynamicPropertySource in AbstractIntegrationTest); the two JWT properties
+# exist so the resource server builds a decoder WITHOUT fetching Keycloak
+# issuer metadata at context startup. Requests in tests are authorized with
+# spring-security-test's jwt() post-processor, which bypasses decoding.
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://issuer.test/realms/windband
+          jwk-set-uri: http://issuer.test/realms/windband/oauth2/jwks

@@ -1,0 +1,83 @@
+<?xml version="1.0"?>
+<!DOCTYPE module PUBLIC
+    "-//Checkstyle//DTD Checkstyle Configuration 1.3//EN"
+    "https://checkstyle.org/dtds/configuration_1_3.dtd">
+
+<!--
+  windband-inventory — Checkstyle configuration.
+  Same house ruleset as windband-manager (high-value, low-noise subset of
+  google_checks). Keep the two files in sync when a rule is added there.
+-->
+<module name="Checker">
+    <property name="charset" value="UTF-8"/>
+    <property name="severity" value="warning"/>
+    <property name="fileExtensions" value="java, properties, xml"/>
+
+    <!-- No tab characters -->
+    <module name="FileTabCharacter">
+        <property name="eachLine" value="true"/>
+    </module>
+
+    <!-- No trailing whitespace -->
+    <module name="RegexpSingleline">
+        <property name="format" value="\s+$"/>
+        <property name="message" value="Line has trailing whitespace."/>
+    </module>
+
+    <module name="TreeWalker">
+        <!-- ============ Imports ============ -->
+        <module name="UnusedImports"/>
+        <module name="RedundantImport"/>
+
+        <!-- ============ Block / braces ============ -->
+        <module name="EmptyBlock">
+            <property name="option" value="text"/>
+        </module>
+        <module name="EmptyCatchBlock">
+            <property name="commentFormat" value=".*"/>
+        </module>
+        <module name="RightCurly">
+            <property name="option" value="same"/>
+            <property name="tokens" value="LITERAL_TRY, LITERAL_CATCH, LITERAL_FINALLY, LITERAL_IF, LITERAL_ELSE, LITERAL_SWITCH, LITERAL_WHILE, LITERAL_DO, LITERAL_FOR, CLASS_DEF, INTERFACE_DEF, METHOD_DEF, CTOR_DEF"/>
+        </module>
+
+        <!-- ============ Statements ============ -->
+        <module name="OneStatementPerLine"/>
+        <module name="MultipleVariableDeclarations"/>
+        <module name="FallThrough"/>
+        <module name="MissingSwitchDefault"/>
+        <module name="DefaultComesLast"/>
+        <module name="SimplifyBooleanExpression"/>
+        <module name="SimplifyBooleanReturn"/>
+        <module name="StringLiteralEquality"/>
+        <module name="InnerAssignment"/>
+
+        <!-- ============ Whitespace ============ -->
+        <module name="GenericWhitespace"/>
+        <module name="WhitespaceAfter"/>
+        <module name="MethodParamPad"/>
+        <module name="ParenPad"/>
+
+        <!-- ============ Naming ============ -->
+        <module name="PackageName"/>
+        <module name="TypeName"/>
+        <module name="MethodName">
+            <!-- Allow underscores: BDD-style test method names -->
+            <property name="format" value="^[a-z][a-zA-Z0-9_]*$"/>
+        </module>
+        <module name="ConstantName">
+            <!-- Allow `log` logger field convention -->
+            <property name="format" value="^(log|[A-Z][A-Z0-9]*(_[A-Z0-9]+)*)$"/>
+        </module>
+        <module name="LocalVariableName"/>
+        <module name="MemberName"/>
+        <module name="ParameterName"/>
+
+        <!-- ============ Type / OO correctness ============ -->
+        <module name="EqualsHashCode"/>
+        <module name="HideUtilityClassConstructor"/>
+        <module name="RedundantModifier"/>
+        <module name="MissingOverride"/>
+        <module name="NoFinalizer"/>
+    </module>
+</module>
