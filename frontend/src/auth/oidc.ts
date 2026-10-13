@@ -7,6 +7,8 @@
  * stale token cannot outlive the user's browser session.
  */
 
+import { getAuthIssuer, getClientId } from '../config/env';
+
 export interface AuthUser {
   sub: string;
   username?: string;
@@ -23,18 +25,16 @@ export interface Session {
   user: AuthUser;
 }
 
-const ISSUER =
-  (import.meta.env.VITE_AUTH_ISSUER as string | undefined) ??
-  'http://localhost:8180/realms/windband';
-const CLIENT_ID =
-  (import.meta.env.VITE_CLIENT_ID as string | undefined) ??
-  'windband-inventory-local';
-
-/** Where Keycloak sends the browser back after login. Must be registered
- * on the client's Valid redirect URIs (http://localhost:5173/*). */
+/** Where Keycloak sends the browser back after login. The exact origin comes
+ * from wherever the SPA is served — that URL must be on the client's Valid
+ * redirect URIs in Keycloak (local dev: http://localhost:5173/*; production:
+ * the application origin, e.g. https://inventory.bandmanager.pl/callback). */
 export const REDIRECT_URI = `${window.location.origin}/callback`;
 
 const PKCE_KEY = 'wi.pkce.flow';
+
+/** ISSUER / CLIENT_ID are runtime env (see src/config/env.ts), loaded before
+ * first render — identical code in dev, local docker and production. */
 const SESSION_KEY = 'wi.session';
 
 interface PkceFlow {
@@ -76,6 +76,8 @@ export function isCallbackPage(search: string = window.location.search): boolean
 }
 
 async function exchangeCode(code: string, flow: PkceFlow): Promise<Session> {
+  const ISSUER = getAuthIssuer();
+  const CLIENT_ID = getClientId();
   const body = new URLSearchParams({
     grant_type: 'authorization_code',
     code,
@@ -115,6 +117,8 @@ async function exchangeCode(code: string, flow: PkceFlow): Promise<Session> {
 
 /** Starts the browser redirect to Keycloak login. */
 export async function beginLogin(prompt: 'login' | 'none' = 'login'): Promise<void> {
+  const ISSUER = getAuthIssuer();
+  const CLIENT_ID = getClientId();
   const flow: PkceFlow = {
     verifier: randomB64U(48),
     state: randomB64U(16),

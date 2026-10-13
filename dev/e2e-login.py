@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Headless E2E: Keycloak PKCE login (client windband-inventory-local) -> WM /api/v1/me/bands.
+"""Headless E2E: Keycloak PKCE login (client windband-inventory) -> WM /api/v1/me/bands.
 Redirects are captured (no :5173 server needed) instead of followed."""
 import base64, hashlib, json, re, secrets, urllib.parse, urllib.request, urllib.error, http.cookiejar, html as htmllib
 
 KC = "http://localhost:8180/realms/windband"
-CLIENT = "windband-inventory-local"
+CLIENT = "windband-inventory"
 REDIRECT = "http://localhost:5173/callback"
 
 def b64u(b: bytes) -> str:
