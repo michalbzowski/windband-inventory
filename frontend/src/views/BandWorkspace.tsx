@@ -6,6 +6,7 @@ import { CountQueue } from '../stocktake/queue';
 import Phone from '../ui/Phone';
 import { Tabs } from './LiczenieTab';
 import LiczenieTab from './LiczenieTab';
+import EkwipunekTab from './EkwipunekTab';
 import MojeTab from './MojeTab';
 
 type TabKey = 'pulpit' | 'ekwipunek' | 'liczenie' | 'moje';
@@ -16,18 +17,29 @@ interface Props {
   onLogout: () => void;
 }
 
-/** Four-tab shell from the frozen mockup (§.tabs). Only LICZENIE is live in
- * this slice; Pulpit links into it, Ekwipunek is the next slice, Moje shows
- * the queue/identity that counting actually uses. */
+/** Four-tab shell from the frozen mockup (§.tabs). PULPIT, LICZENIE and
+ * EKWIPEUNEK (registry slice) are live; Moje shows queue/identity/session. */
 export default function BandWorkspace({ band, onBack, onLogout }: Props) {
   const [tab, setTab] = useState<TabKey>('pulpit');
+  const [startCreate, setStartCreate] = useState(false);
 
   if (tab === 'liczenie') return <LiczenieTab band={band} onBackToPulpit={() => setTab('pulpit')} />;
+  if (tab === 'ekwipunek') {
+    return (
+      <EkwipunekTab
+        band={band}
+        onBackToPulpit={() => setTab('pulpit')}
+        onTab={setTab}
+        startCreate={startCreate}
+        onCreateConsumed={() => setStartCreate(false)}
+      />
+    );
+  }
   if (tab === 'moje') return <MojeTab band={band} onTab={setTab} onBack={onBack} onLogout={onLogout} />;
-  return <HomeTabs band={band} tab={tab} setTab={setTab} />;
+  return <HomeTabs band={band} tab={tab} setTab={setTab} onCreate={() => { setStartCreate(true); setTab('ekwipunek'); }} />;
 }
 
-function HomeTabs({ band, tab, setTab }: { band: BandView; tab: TabKey; setTab: (t: TabKey) => void }) {
+function HomeTabs({ band, tab, setTab, onCreate }: { band: BandView; tab: TabKey; setTab: (t: TabKey) => void; onCreate: () => void }) {
   const [stocktakes, setStocktakes] = useState<StocktakeView[] | null>(null);
   useEffect(() => {
     listStocktakes(band.bandId).then(setStocktakes).catch(() => setStocktakes([]));
@@ -40,7 +52,7 @@ function HomeTabs({ band, tab, setTab }: { band: BandView; tab: TabKey; setTab: 
     <Phone>
       <header className="appbar">
         <button type="button" className="back" onClick={() => setTab(tab)} aria-label="—"> </button>
-        <h3>{tab === 'pulpit' ? band.name : 'Ekwipunek'}</h3>
+        <h3>{band.name}</h3>
         <span className={`badge ${band.role === 'ADMIN' ? 'b-primary' : 'b-gray'}`}>{band.role}</span>
       </header>
 
@@ -71,7 +83,7 @@ function HomeTabs({ band, tab, setTab }: { band: BandView; tab: TabKey; setTab: 
             <h4>szybkie akcje</h4>
             <div className="grid-tiles">
               <button type="button" className="tile" onClick={() => setTab('liczenie')}><span>▶</span>Rozpocznij spis{band.role !== 'ADMIN' ? ' (ADMIN)' : ''}</button>
-              <button type="button" className="tile disabled" title="Moduł ekwipunku — następny slice"><span>＋</span>Nowa pozycja</button>
+              <button type="button" className={`tile${band.role === 'ADMIN' ? '' : ' disabled'}`} title={band.role === 'ADMIN' ? undefined : 'Rejestr pozycji prowadzi ADMIN (B8)'} onClick={band.role === 'ADMIN' ? onCreate : undefined}><span>＋</span>Nowa pozycja</button>
               <button type="button" className="tile" onClick={() => setTab('moje')}><span>🗲</span>Kolejka offline{queue.all().length ? ` (${queue.all().length})` : ' · pusta'}</button>
               <button type="button" className="tile" onClick={() => setTab('ekwipunek')}><span>♧</span>Ekwipunek</button>
             </div>
@@ -85,14 +97,6 @@ function HomeTabs({ band, tab, setTab }: { band: BandView; tab: TabKey; setTab: 
               </div>
             </div>
           </>
-        )}
-
-        {tab === 'ekwipunek' && (
-          <div className="state">
-            <span className="state-ico" aria-hidden>🚧</span>
-            <b>Ekwipunek — w budowie</b>
-            <span>Następny slice roadmapy (rejestr pozycji + listy oczekiwane).</span>
-          </div>
         )}
       </section>
 
