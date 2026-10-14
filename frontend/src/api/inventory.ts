@@ -227,6 +227,41 @@ export const transferItem = (
 export const listItemTransfers = (id: number): Promise<WarehouseTransferView[]> =>
   invGet(`/items/${id}/transfers`);
 
+/** F3 member picture — 1:1 with backend MemberPictureViews records. */
+export interface ExpectedItemView {
+  instrument: string;
+  primary: boolean;
+  satisfied: boolean;
+  matchedItemIds: number[];
+}
+
+export interface AssignmentHistoryView {
+  id: number;
+  itemId: number;
+  itemName: string;
+  assignedAt: string;
+  returnedAt: string | null;
+  returnedState: ItemLifecycleStatus | null;
+  assignNote: string | null;
+  returnNote: string | null;
+}
+
+export interface MemberPictureView {
+  memberId: number;
+  memberName: string;
+  active: boolean;
+  expected: ExpectedItemView[];
+  actual: ItemSummaryView[];
+  gapCount: number;
+  history: AssignmentHistoryView[];
+}
+
+export const getMemberPicture = (
+  bandId: number,
+  memberId: number,
+  signal?: AbortSignal,
+): Promise<MemberPictureView> => invGet(`/members/${memberId}/picture${qs({ bandId })}`, signal);
+
 export const listAttributeDefs = (
   bandId: number,
   type?: ItemType,
