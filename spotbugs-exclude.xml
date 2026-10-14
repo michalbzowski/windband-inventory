@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<!--
+  SpotBugs exclusion filter for windband-inventory.
+
+  Same policy as windband-manager: suppress EI_EXPOSE_REP / EI_EXPOSE_REP2
+  (they fire on every DTO/JPA getter/setter that stores or returns a mutable
+  object — in this app those are request/response records and JPA collections
+  where exposing the field is the point). Everything else stays enabled so real
+  defects (NPEs, dead stores, broad catches) still fail the build.
+-->
+<FindBugsFilter>
+    <Match>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+</FindBugsFilter>

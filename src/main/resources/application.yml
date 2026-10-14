@@ -1,0 +1,43 @@
+server:
+  # Railway injects PORT; 8090 locally so the backend never clashes with the
+  # WM dev instance on 8080.
+  port: ${PORT:8090}
+
+spring:
+  application:
+    name: windband-inventory
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/inventory}
+    username: ${SPRING_DATASOURCE_USERNAME:inventory}
+    password: ${SPRING_DATASOURCE_PASSWORD:***
+  jpa:
+    open-in-view: false
+    hibernate:
+      # Flyway owns the schema; Hibernate only validates the mapping.
+      ddl-auto: validate
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # Same realm as WM (decision B5). If the JWKS endpoint is reachable on a
+          # different (internal) host, set the standard Spring property
+          # SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI — never rewrite
+          # the issuer (WM lesson: an 'https://' prefix doubled in the var made
+          # every token fail 'iss not valid').
+          issuer-uri: ${AUTH_ISSUER:http://localhost:8180/realms/windband}
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+# Integration boundary (B1/B10): roles come from WM at request time.
+wm:
+  api-url: ${WM_API_URL:http://localhost:8080}
+  # TTL of the per-token roles cache — hard cap 60 s in code; this only lowers it.
+  cache-ttl-seconds: ${WM_CACHE_TTL_SECONDS:60}
+
+# Edge/load-balancer health probe only; no other endpoints exposed.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
