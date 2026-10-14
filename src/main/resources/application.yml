@@ -1,4 +1,6 @@
 server:
+  # Railway: behind nginx edge (BACKEND_API_URL) — honor forwarded headers.
+  forward-headers-strategy: native
   # Railway injects PORT; 8090 locally so the backend never clashes with the
   # WM dev instance on 8080.
   port: ${PORT:8090}
@@ -7,9 +9,12 @@ spring:
   application:
     name: windband-inventory
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/inventory}
-    username: ${SPRING_DATASOURCE_USERNAME:inventory}
-    password: ${SPRING_DATASOURCE_PASSWORD:***
+    # WM house style on Railway: discrete DB_* vars (never DATABASE_URL —
+    # its postgresql:// scheme is not a valid Spring JDBC URL).
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:inventory}
+    username: ${DB_USER:inventory}
+    password: ${DB_PASS:inventory}
+    driver-class-name: org.postgresql.Driver
   jpa:
     open-in-view: false
     hibernate:
