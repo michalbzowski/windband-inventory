@@ -3,15 +3,19 @@ import { listBandMembers, type BandMember, type BandView } from '../api/bands';
 import { ApiError } from '../api/client';
 import {
   assignItem,
+  completeItemService,
   deleteItem,
   getItem,
   listItems,
   listItemAssignments,
+  listItemServices,
   listItemTransfers,
+  sendItemToService,
   transferItem,
   unassignItem,
   type AssignmentView,
   type ItemView,
+  type ServiceEventView,
   type WarehouseTransferView,
   type WarehouseType,
 } from '../api/inventory';
@@ -30,7 +34,7 @@ interface Props {
   onTab?: (t: 'pulpit' | 'ekwipunek' | 'liczenie' | 'moje') => void;
 }
 
-type SheetKind = 'assign' | 'unassign' | 'transfer' | null;
+type SheetKind = 'assign' | 'unassign' | 'transfer' | 'service' | 'serviceComplete' | null;
 
 /**
  * Item detail (makieta screen 04): attributes rendered from the generator,
@@ -42,6 +46,7 @@ export default function ItemDetail({ band, itemId, focusForm = false, onBack, on
   const [item, setItem] = useState<ItemView | null>(null);
   const [assignments, setAssignments] = useState<AssignmentView[]>([]);
   const [transfers, setTransfers] = useState<WarehouseTransferView[]>([]);
+  const [services, setServices] = useState<ServiceEventView[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [sheet, setSheet] = useState<SheetKind>(null);
   const [editing, setEditing] = useState(focusForm);
@@ -59,6 +64,7 @@ export default function ItemDetail({ band, itemId, focusForm = false, onBack, on
       .catch((e) => setError((e as Error).message));
     listItemAssignments(itemId).then(setAssignments).catch(() => setAssignments([]));
     listItemTransfers(itemId).then(setTransfers).catch(() => setTransfers([]));
+    listItemServices(itemId).then(setServices).catch(() => setServices([]));
   }, [itemId]);
 
   useEffect(reload, [reload]);
@@ -105,7 +111,10 @@ export default function ItemDetail({ band, itemId, focusForm = false, onBack, on
   const canUnassign = isAdmin && item.lifecycleStatus === 'ASSIGNED';
   const canTransfer =
     isAdmin && (item.lifecycleStatus === 'AVAILABLE' || item.lifecycleStatus === 'IN_SERVICE' || item.lifecycleStatus === 'RETIRED');
-  const hasHistory = assignments.length > 0 || transfers.length > 0;
+  // F4: tylko AVAILABLE jedzie do serwisu; tylko IN_SERVICE można zamknąć (lustrzane 409 serwera).
+  const canSendToService = isAdmin && item.lifecycleStatus === 'AVAILABLE';
+  const canCompleteService = isAdmin && item.lifecycleStatus === 'IN_SERVICE';
+  const hasHistory = assignments.length > 0 || transfers.length > 0 || services.length > 0;
 
   const afterWrite = (msg: string) => {
     setToast(msg);
@@ -164,6 +173,7 @@ export default function ItemDetail({ band, itemId, focusForm = false, onBack, on
           <div className="kv">
             <div><dt>Magazyn</dt><dd>🏬 {WAREHOUSE_LABEL[item.warehouse]}</dd></div>
             <div><dt>Osoba</dt><dd>{item.assignedMemberName ? `👤 ${item.assignedMemberName}` : '—'}</dd></div>
+            {item.nextServiceDate && <div><dt>Następny serwis</dt><dd>🔧 {fmtDate(item.nextServiceDate)}</dd></div>}
             {openAssignment && <div><dt>Od</dt><dd>{fmtDate(openAssignment.assignedAt)}</dd></div>}
           </div>
         </div>
@@ -200,6 +210,25 @@ export default function ItemDetail({ band, itemId, focusForm = false, onBack, on
           ))}
         </div>
 
+        <div className="panel">
+          <h4>Historia serwisów</h4>
+          {services.length === 0 && <p className="hint">Brak — pozycja nigdy nie była w serwisie.</p>}
+          {services.map((s) => (
+            <div className="srow" key={s.id} style={{ cursor: 'default' }}>
+              <span>
+                <b>🔧 {s.completedAt ? fmtDate(s.sentAt) : 'w serwisie'}</b>
+                <span className="muted">
+                  {s.sentNote ? ` · ${s.sentNote}` : ''}
+                  {s.completedAt ? ` → zakończono ${fmtDate(s.completedAt)}` : ''}
+                  {s.completedNote ? ` · ${s.completedNote}` : ''}
+                  {s.nextServiceDate ? ` · następny: ${fmtDate(s.nextServiceDate)}` : ''}
+                </span>
+                {s.completedAt === null && <span className="badge b-warn"> otwarty</span>}
+              </span>
+            </div>
+          ))}
+        </div>
+
         {isAdmin ? (
           <div className="btnrow" style={{ marginBottom: 8 }}>
             <button
@@ -223,6 +252,8 @@ export default function ItemDetail({ band, itemId, focusForm = false, onBack, on
           {canAssign && <button type="button" className="btn primary" onClick={() => setSheet('assign')}>Przypisz… ↦</button>}
           {canUnassign && <button type="button" className="btn" onClick={() => setSheet('unassign')}>Zwróć ✋</button>}
           {canTransfer && <button type="button" className="btn ghost" onClick={() => setSheet('transfer')}>Transfer 🏬</button>}
+          {canSendToService && <button type="button" className="btn ghost" onClick={() => setSheet('service')}>Do serwisu 🔧</button>}
+          {canCompleteService && <button type="button" className="btn ghost" onClick={() => setSheet('serviceComplete')}>Zakończ serwis ✅</button>}
         </div>
       )}
 
@@ -234,6 +265,12 @@ export default function ItemDetail({ band, itemId, focusForm = false, onBack, on
       )}
       {sheet === 'transfer' && (
         <TransferSheet item={item} onClose={() => setSheet(null)} onDone={() => { setSheet(null); afterWrite('Przeniesiono ✓'); }} />
+      )}
+      {sheet === 'service' && (
+        <ServiceSheet item={item} onClose={() => setSheet(null)} onDone={() => { setSheet(null); afterWrite('Wysłano do serwisu ✓'); }} />
+      )}
+      {sheet === 'serviceComplete' && (
+        <ServiceCompleteSheet item={item} onClose={() => setSheet(null)} onDone={() => { setSheet(null); afterWrite('Serwis zamknięty ✓'); }} />
       )}
 
       {confirmDelete && (
@@ -408,6 +445,81 @@ function TransferSheet({ item, onClose, onDone }: { item: ItemView; onClose: () 
       </label>
       <button type="button" className="btn primary block" disabled={!to || busy} onClick={submit}>
         {busy ? 'Zapisywanie…' : to ? `Przenieś do: ${WAREHOUSE_LABEL[to]}` : 'Przenieś'}
+      </button>
+    </Sheet>
+  );
+}
+
+/** F4 sendToService: AVAILABLE → IN_SERVICE; notatka trafia do wiersza-dowodu. */
+function ServiceSheet({ item, onClose, onDone }: { item: ItemView; onClose: () => void; onDone: () => void }) {
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await sendItemToService(item.id, { note: note.trim() || null });
+      onDone();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Nie udało się wysłać do serwisu.');
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Sheet title={`Do serwisu: ${item.name}`} onClose={onClose}>
+      <p className="hint">Pozycja trafi do statusu „W serwisie” — powrót przez „Zakończ serwis”.</p>
+      {error && <p className="field-err">{error}</p>}
+      <label className="field">Usterka / zlecenie (opcjonalne)
+        <textarea value={note} onChange={(e) => setNote(e.target.value)} maxLength={2000} />
+      </label>
+      <button type="button" className="btn primary block" disabled={busy} onClick={submit}>
+        {busy ? 'Zapisywanie…' : 'Wyślij do serwisu 🔧'}
+      </button>
+    </Sheet>
+  );
+}
+
+/**
+ * F4 completeService: IN_SERVICE → AVAILABLE. nextServiceDate writes the plan
+ * shown in „Następny serwis” and drives the „Do serwisu” quick list; leaving it
+ * empty CLEARS the previous plan (server semantics, IT-covered).
+ */
+function ServiceCompleteSheet({ item, onClose, onDone }: { item: ItemView; onClose: () => void; onDone: () => void }) {
+  const [note, setNote] = useState('');
+  const [nextDate, setNextDate] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await completeItemService(item.id, {
+        note: note.trim() || null,
+        nextServiceDate: nextDate || null,
+      });
+      onDone();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Nie udało się zamknąć serwisu.');
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Sheet title={`Zakończ serwis: ${item.name}`} onClose={onClose}>
+      <p className="hint">Powrót do statusu „W magazynie”. Opcjonalnie wyznacz kolejny termin serwisu.</p>
+      {error && <p className="field-err">{error}</p>}
+      <label className="field">Co zrobiono (opcjonalne)
+        <textarea value={note} onChange={(e) => setNote(e.target.value)} maxLength={2000} />
+      </label>
+      <label className="field">Następny serwis (opcjonalnie)
+        <input type="date" value={nextDate} onChange={(e) => setNextDate(e.target.value)} />
+      </label>
+      <button type="button" className="btn primary block" disabled={busy} onClick={submit}>
+        {busy ? 'Zapisywanie…' : 'Zamknij serwis ✅'}
       </button>
     </Sheet>
   );

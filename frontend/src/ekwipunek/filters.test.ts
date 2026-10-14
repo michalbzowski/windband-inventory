@@ -37,6 +37,12 @@ describe('toQuery — GET /items params (server contract)', () => {
     expect(q.attributeDefId).toBe(12);
     expect(q.attributeValue).toBeUndefined();
   });
+
+  it('F4: serviceDue serializes to "true" only when set', () => {
+    expect(toQuery(emptyFilters()).serviceDue).toBeUndefined();
+    expect(toQuery({ ...emptyFilters(), serviceDue: true }).serviceDue).toBe('true');
+    expect(activeChipCount({ ...emptyFilters(), serviceDue: true })).toBe(1);
+  });
 });
 
 describe('chip counters + header summary', () => {

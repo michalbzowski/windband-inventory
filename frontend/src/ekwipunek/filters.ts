@@ -20,6 +20,8 @@ export interface ItemFilterState {
   /** empty = "has any value for this def" (server semantics, IT-covered) */
   attributeValue: string;
   search: string;
+  /** F4: lista „do serwisu” — AVAILABLE z minionym terminem (reguła po stronie serwera) */
+  serviceDue: boolean;
 }
 
 export const emptyFilters = (): ItemFilterState => ({
@@ -30,6 +32,7 @@ export const emptyFilters = (): ItemFilterState => ({
   attributeDefId: null,
   attributeValue: '',
   search: '',
+  serviceDue: false,
 });
 
 /** Query params for GET /items — undefined/blank values are dropped by qs(). */
@@ -42,13 +45,15 @@ export function toQuery(state: ItemFilterState): Record<string, string | number 
     attributeDefId: state.attributeDefId ?? undefined,
     attributeValue: state.attributeDefId && state.attributeValue ? state.attributeValue : undefined,
     search: state.search.trim() || undefined,
+    serviceDue: state.serviceDue ? 'true' : undefined,
   };
 }
 
 export function activeChipCount(state: ItemFilterState): number {
   return [state.type, state.status, state.warehouse].filter(Boolean).length
     + (state.assignedMemberId !== null ? 1 : 0)
-    + (state.attributeDefId !== null ? 1 : 0);
+    + (state.attributeDefId !== null ? 1 : 0)
+    + (state.serviceDue ? 1 : 0);
 }
 
 /* ---------- Polish labels + type icons (mirrors makieta screen 03/06) ---------- */
@@ -114,6 +119,7 @@ export function filterSummary(state: ItemFilterState, personName?: string, attri
       `Atrybut = ${attributeName ?? `#${state.attributeDefId}`}${state.attributeValue ? ` → ${state.attributeValue}` : ' (ustawiony)'}`,
     );
   }
+  if (state.serviceDue) parts.push('do serwisu (termin)');
   if (state.search.trim()) parts.push(`szukaj = „${state.search.trim()}"`);
   return parts.length ? `filtr: ${parts.join(' · ')}` : 'bez filtrów';
 }
