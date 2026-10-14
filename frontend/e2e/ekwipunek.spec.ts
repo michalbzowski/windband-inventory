@@ -26,6 +26,12 @@ const DEFS: Def[] = [
   { id: 4, itemType: 'INSTRUMENT', name: 'Liczba zaworów', dataType: 'NUMBER', options: [], required: false, active: true, displayOrder: 1 },
 ];
 
+/** WM roster mock — 1:1 with B10 MemberView record incl. expectedSet (feeds F3). */
+const MEMBERS = [
+  { memberId: 12, firstName: 'Anna', lastName: 'Nowak', active: true, expectedSet: [{ instrument: 'Flet', primary: true }, { instrument: 'Altówka', primary: false }] },
+  { memberId: 13, firstName: 'Bartosz', lastName: 'Kowal', active: true, expectedSet: [] },
+];
+
 function makeItems(): MockItem[] {
   return [
     { id: 1, name: 'Flet', type: 'INSTRUMENT', lifecycleStatus: 'AVAILABLE', warehouse: 'MAIN', serialNumber: 'FL-01', description: null, notes: null, attrs: { 4: '3' }, assignedMemberId: null, assignedName: null, assignments: [], transfers: [] },
@@ -174,6 +180,35 @@ async function mockInventory(route: Route, st: State): Promise<void> {
     return json(route, DEFS.filter((d) => (!type || d.itemType === type)).map((d) => ({ ...d, bandId: 1 })));
   }
 
+  const picMatch = p.match(/^\/members\/(\d+)\/picture$/);
+  if (picMatch && m === 'GET') {
+    const memberId = Number(picMatch[1]);
+    const member = MEMBERS.find((x) => x.memberId === memberId);
+    if (!member) return json(route, { error: 'not_found', message: 'Członek nie należy do tego bandu' }, 404);
+    const actual = st.items.filter((i) => i.assignedMemberId === memberId && i.lifecycleStatus === 'ASSIGNED');
+    const norm = (s: string) => s.trim().toLowerCase();
+    const expected = member.expectedSet.map((e) => {
+      const want = norm(e.instrument);
+      const matched = actual
+        .filter((i) => { const have = norm(i.name); return have === want || have.startsWith(want + ' '); })
+        .map((i) => i.id);
+      return { instrument: e.instrument, primary: e.primary, satisfied: matched.length > 0, matchedItemIds: matched };
+    });
+    const history = st.items
+      .flatMap((i) => i.assignments.filter((a) => a.memberId === memberId)
+        .map((a) => ({
+          id: a.id, itemId: i.id, itemName: i.name, assignedAt: a.assignedAt,
+          returnedAt: a.returnedAt, returnedState: a.returnedState,
+          assignNote: a.assignNote, returnNote: a.returnNote,
+        })))
+      .sort((x, y) => y.assignedAt.localeCompare(x.assignedAt));
+    return json(route, {
+      memberId, memberName: `${member.firstName} ${member.lastName}`, active: member.active,
+      expected, actual: actual.map(summary),
+      gapCount: expected.filter((e) => !e.satisfied).length, history,
+    });
+  }
+
   return json(route, { error: 'mock_miss', path: p, method: m }, 500);
 }
 
@@ -186,11 +221,7 @@ async function seed(page: Page, role: 'ADMIN' | 'MEMBER' = 'ADMIN'): Promise<Sta
     }));
   });
   await page.route('**/api/v1/me/bands', (r) => json(r, [{ bandId: 1, name: 'Orkiestra', role }]));
-  await page.route('**/api/v1/bands/1/members', (r) =>
-    json(r, [
-      { memberId: 12, firstName: 'Anna', lastName: 'Nowak', active: true, expectedSet: [{ instrument: 'Flet', primary: true }] },
-      { memberId: 13, firstName: 'Bartosz', lastName: 'Kowal', active: true, expectedSet: [] },
-    ]));
+  await page.route('**/api/v1/bands/1/members', (r) => json(r, MEMBERS));
   await page.route('**/api/inventory/**', (r) => mockInventory(r, st));
   await page.goto('/');
   return st;
@@ -238,6 +269,30 @@ test('P0 §3.1 list filters: typ, status, osoba, atrybut (wartość case-insensi
   await page.getByRole('button', { name: /👤 Anna Nowak/ }).click();
   await expect(page.getByText('filtr: Osoba = Anna Nowak')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Pozycja Marynarka' })).toBeVisible();
+});
+
+test('F3 pełny obraz: oczekiwane vs faktyczne, luki i historia widokowa', async ({ page }) => {
+  await seed(page);
+  await openEkwipunek(page);
+
+  await page.getByRole('button', { name: /Osoba ▾/ }).click();
+  await page.getByRole('button', { name: /👤 Anna Nowak/ }).click();
+  await page.getByRole('button', { name: /Osoba ▾/ }).click();
+  await page.getByRole('button', { name: /Pełny obraz: Anna Nowak/ }).click();
+
+  await expect(page.getByRole('heading', { name: '👤 Anna Nowak' })).toBeVisible();
+  await expect(page.getByText('Aktywny')).toBeVisible();
+  // Anna expects Flet + Altówka; she holds only the uniform Marynarka → 2 gaps
+  await expect(page.getByText('✗ Flet')).toBeVisible();
+  await expect(page.getByText('✗ Altówka')).toBeVisible();
+  await expect(page.getByText('Luki: 2')).toBeVisible();
+  await expect(page.getByText('Faktycznie przechowywane (1)')).toBeVisible();
+  await expect(page.getByText('Historia przydziałów')).toBeVisible();
+  await expect(page.getByText('tylko do odczytu', { exact: false })).toBeVisible();
+  await expect(page.getByText('koncert jesienny')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Pozycja Marynarka' }).click();
+  await expect(page.getByRole('heading', { name: '👕 Marynarka' })).toBeVisible();
 });
 
 test('assign → zwrot ze stanem → transfer + historia przydziałów (05/17)', async ({ page }) => {

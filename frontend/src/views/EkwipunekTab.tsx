@@ -22,6 +22,7 @@ import Sheet from '../ui/Sheet';
 import { Tabs } from './LiczenieTab';
 import ItemDetail from './ItemDetail';
 import ItemForm from './ItemForm';
+import MemberPicture from './MemberPicture';
 
 interface Props {
   band: BandView;
@@ -35,7 +36,8 @@ interface Props {
 type Screen =
   | { kind: 'list' }
   | { kind: 'detail'; itemId: number; focusForm?: boolean }
-  | { kind: 'create' };
+  | { kind: 'create' }
+  | { kind: 'picture'; memberId: number };
 
 /**
  * Ekwipunek tab — screens 03–07 of the frozen mockup: item list with
@@ -72,7 +74,24 @@ export default function EkwipunekTab({ band, onBackToPulpit, onTab, startCreate 
       />
     );
   }
-  return <ItemList band={band} onOpen={(id) => setScreen({ kind: 'detail', itemId: id })} onCreate={() => setScreen({ kind: 'create' })} onBackToPulpit={onBackToPulpit} onTab={onTab} />;
+  if (screen.kind === 'picture') {
+    return (
+      <MemberPicture
+        bandId={band.bandId}
+        memberId={screen.memberId}
+        onBack={() => setScreen({ kind: 'list' })}
+        onOpenItem={(id) => setScreen({ kind: 'detail', itemId: id })}
+      />
+    );
+  }
+  return <ItemList
+    band={band}
+    onOpen={(id) => setScreen({ kind: 'detail', itemId: id })}
+    onCreate={() => setScreen({ kind: 'create' })}
+    onOpenPicture={(memberId) => setScreen({ kind: 'picture', memberId })}
+    onBackToPulpit={onBackToPulpit}
+    onTab={onTab}
+  />;
 }
 
 /* ------------------------------------------------------------------ list */
@@ -81,12 +100,14 @@ function ItemList({
   band,
   onOpen,
   onCreate,
+  onOpenPicture,
   onBackToPulpit,
   onTab,
 }: {
   band: BandView;
   onOpen: (id: number) => void;
   onCreate: () => void;
+  onOpenPicture: (memberId: number) => void;
   onBackToPulpit: () => void;
   onTab?: Props['onTab'];
 }) {
@@ -237,6 +258,20 @@ function ItemList({
             />
           ))}
           {members.length === 0 && <p className="hint">Roster WM właśnie się wczytuje…</p>}
+          {filters.assignedMemberId != null && (
+            <button
+              type="button"
+              className="btn ghost"
+              style={{ marginTop: 10, width: '100%' }}
+              onClick={() => {
+                const id = filters.assignedMemberId as number;
+                setSheet(null);
+                onOpenPicture(id);
+              }}
+            >
+              👁 Pełny obraz: {personName}
+            </button>
+          )}
         </Sheet>
       )}
 
