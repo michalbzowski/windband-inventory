@@ -234,6 +234,15 @@ function ItemList({
           {(Object.keys(STATUS_LABEL) as (keyof typeof STATUS_LABEL)[]).map((s) => (
             <OptionRow key={s} active={filters.status === s} label={STATUS_LABEL[s]} onClick={() => { setFilters((f) => ({ ...f, status: s })); setSheet(null); }} />
           ))}
+          {/* F4: quick-list of items with a due service plan (server-side rule) */}
+          <OptionRow
+            active={filters.serviceDue}
+            label="🔧 Do serwisu (minął termin)"
+            onClick={() => {
+              setFilters((f) => ({ ...f, serviceDue: !f.serviceDue, status: '' }));
+              setSheet(null);
+            }}
+          />
         </Sheet>
       )}
 

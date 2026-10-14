@@ -15,8 +15,10 @@ interface MockItem {
   id: number; name: string; type: string; lifecycleStatus: string; warehouse: string;
   serialNumber: string | null; description: string | null; notes: string | null;
   attrs: Record<number, string>; assignedMemberId: number | null; assignedName: string | null;
+  nextServiceDate: string | null;
   assignments: { id: number; memberId: number; memberName: string; assignedAt: string; returnedAt: string | null; returnedState: string | null; assignNote: string | null; returnNote: string | null }[];
   transfers: { id: number; fromWarehouse: string; toWarehouse: string; note: string | null; transferredAt: string }[];
+  services: { id: number; sentAt: string; sentNote: string | null; completedAt: string | null; completedNote: string | null; nextServiceDate: string | null }[];
 }
 
 const DEFS: Def[] = [
@@ -34,9 +36,9 @@ const MEMBERS = [
 
 function makeItems(): MockItem[] {
   return [
-    { id: 1, name: 'Flet', type: 'INSTRUMENT', lifecycleStatus: 'AVAILABLE', warehouse: 'MAIN', serialNumber: 'FL-01', description: null, notes: null, attrs: { 4: '3' }, assignedMemberId: null, assignedName: null, assignments: [], transfers: [] },
-    { id: 2, name: 'Marynarka', type: 'UNIFORM', lifecycleStatus: 'ASSIGNED', warehouse: 'MAIN', serialNumber: null, description: null, notes: null, attrs: { 1: 'Zielony', 2: 'M', 3: 'true' }, assignedMemberId: 12, assignedName: 'Anna Nowak', assignments: [{ id: 1, memberId: 12, memberName: 'Anna Nowak', assignedAt: '2026-09-01T10:00:00', returnedAt: null, returnedState: null, assignNote: 'koncert jesienny', returnNote: null }], transfers: [] },
-    { id: 3, name: 'Spodnie', type: 'UNIFORM', lifecycleStatus: 'AVAILABLE', warehouse: 'MAIN', serialNumber: null, description: null, notes: null, attrs: { 1: 'czarny', 2: 'S' }, assignedMemberId: null, assignedName: null, assignments: [], transfers: [] },
+    { id: 1, name: 'Flet', type: 'INSTRUMENT', lifecycleStatus: 'AVAILABLE', warehouse: 'MAIN', serialNumber: 'FL-01', description: null, notes: null, attrs: { 4: '3' }, assignedMemberId: null, assignedName: null, nextServiceDate: '2026-10-01', assignments: [], transfers: [], services: [{ id: 1, sentAt: '2026-05-02T09:00:00', sentNote: 'klepki', completedAt: '2026-05-20T15:00:00', completedNote: 'regulacja', nextServiceDate: '2026-10-01' }] },
+    { id: 2, name: 'Marynarka', type: 'UNIFORM', lifecycleStatus: 'ASSIGNED', warehouse: 'MAIN', serialNumber: null, description: null, notes: null, attrs: { 1: 'Zielony', 2: 'M', 3: 'true' }, assignedMemberId: 12, assignedName: 'Anna Nowak', assignments: [{ id: 1, memberId: 12, memberName: 'Anna Nowak', assignedAt: '2026-09-01T10:00:00', returnedAt: null, returnedState: null, assignNote: 'koncert jesienny', returnNote: null }], transfers: [], nextServiceDate: null, services: [] },
+    { id: 3, name: 'Spodnie', type: 'UNIFORM', lifecycleStatus: 'AVAILABLE', warehouse: 'MAIN', serialNumber: null, description: null, notes: null, attrs: { 1: 'czarny', 2: 'S' }, assignedMemberId: null, assignedName: null, assignments: [], transfers: [], nextServiceDate: null, services: [] },
   ];
 }
 
@@ -52,6 +54,7 @@ function detail(i: MockItem) {
     serialNumber: i.serialNumber, description: i.description, notes: i.notes,
     attributes: DEFS.filter((d) => d.itemType === i.type && d.active).map((d) => ({ attributeDefId: d.id, name: d.name, dataType: d.dataType, value: i.attrs[d.id] ?? null })),
     assignedMemberId: i.assignedMemberId, assignedMemberName: i.assignedName,
+    nextServiceDate: i.nextServiceDate,
   };
 }
 
@@ -71,7 +74,7 @@ async function mockInventory(route: Route, st: State): Promise<void> {
   const p = url.pathname.replace('/api/inventory', '');
   const m = req.method();
   const body = (req.postDataJSON?.() ?? {}) as Record<string, unknown>;
-  const idMatch = p.match(/^\/items\/(\d+)(\/assignments|\/transfers|\/assign|\/unassign)?$/);
+  const idMatch = p.match(/^\/items\/(\d+)(\/assignments|\/transfers|\/assign|\/unassign|\/service\/complete|\/service|\/services)?$/);
   const id = idMatch ? Number(idMatch[1]) : NaN;
   const item = Number.isNaN(id) ? undefined : st.items.find((x) => x.id === id);
 
@@ -83,6 +86,11 @@ async function mockInventory(route: Route, st: State): Promise<void> {
     let rows = st.items;
     if (q.get('type')) rows = rows.filter((i) => i.type === q.get('type'));
     if (q.get('status')) rows = rows.filter((i) => i.lifecycleStatus === q.get('status'));
+    if (q.get('serviceDue')) {
+      // F4 mirror: AVAILABLE + plan set and due (<= today), server-side rule.
+      const today = new Date().toISOString().slice(0, 10);
+      rows = rows.filter((i) => i.lifecycleStatus === 'AVAILABLE' && !!i.nextServiceDate && i.nextServiceDate <= today);
+    }
     if (q.get('warehouse')) rows = rows.filter((i) => i.warehouse === q.get('warehouse'));
     if (q.get('assignedMemberId')) rows = rows.filter((i) => i.assignedMemberId === Number(q.get('assignedMemberId')));
     if (q.get('search')) {
@@ -107,7 +115,7 @@ async function mockInventory(route: Route, st: State): Promise<void> {
       id: Math.max(...st.items.map((i) => i.id)) + 1, name: body.name as string, type: body.type as string,
       lifecycleStatus: 'AVAILABLE', warehouse: (body.warehouse as string) ?? 'MAIN',
       serialNumber: (body.serialNumber as string) ?? null, description: (body.description as string) ?? null, notes: (body.notes as string) ?? null,
-      attrs, assignedMemberId: null, assignedName: null, assignments: [], transfers: [],
+      attrs, assignedMemberId: null, assignedName: null, nextServiceDate: null, assignments: [], transfers: [], services: [],
     };
     st.items.push(created);
     st.created.push({ name: created.name, attributes: (body.attributes ?? []) as never });
@@ -130,7 +138,7 @@ async function mockInventory(route: Route, st: State): Promise<void> {
     return json(route, detail(item));
   }
   if (idMatch && m === 'DELETE' && item) {
-    if (item.assignments.length || item.transfers.length) {
+    if (item.assignments.length || item.transfers.length || item.services.length) {
       return json(route, { error: 'status_conflict', message: 'Pozycja z historią jest nieusuwalna' }, 409);
     }
     st.items = st.items.filter((x) => x.id !== item.id);
@@ -139,6 +147,7 @@ async function mockInventory(route: Route, st: State): Promise<void> {
 
   if (idMatch?.[2] === '/assignments' && m === 'GET' && item) return json(route, item.assignments);
   if (idMatch?.[2] === '/transfers' && m === 'GET' && item) return json(route, item.transfers);
+  if (idMatch?.[2] === '/services' && m === 'GET' && item) return json(route, item.services);
 
   if (idMatch?.[2] === '/assign' && m === 'POST' && item) {
     if (item.lifecycleStatus !== 'AVAILABLE') return json(route, { error: 'status_conflict', message: 'Tylko dostępna pozycja trafia do przydziału' }, 409);
@@ -160,6 +169,29 @@ async function mockInventory(route: Route, st: State): Promise<void> {
     item.lifecycleStatus = state;
     item.assignedMemberId = null;
     item.assignedName = null;
+    if (state === 'IN_SERVICE') {
+      // F4 mirror: a return straight into service opens the evidence event.
+      item.services.push({ id: item.services.length + 1, sentAt: new Date().toISOString(), sentNote: (body.note as string) ?? null, completedAt: null, nextServiceDate: null, completedNote: null });
+    }
+    st.lastWrite = body;
+    return json(route, detail(item));
+  }
+
+  if (idMatch?.[2] === '/service' && m === 'POST' && item) {
+    if (item.lifecycleStatus !== 'AVAILABLE') return json(route, { error: 'status_conflict', message: 'Do serwisu można wysłać wyłącznie pozycję o statusie AVAILABLE' }, 409);
+    item.lifecycleStatus = 'IN_SERVICE';
+    item.services.push({ id: item.services.length + 1, sentAt: new Date().toISOString(), sentNote: (body.note as string) ?? null, completedAt: null, completedNote: null, nextServiceDate: null });
+    st.lastWrite = body;
+    return json(route, detail(item));
+  }
+
+  if (idMatch?.[2] === '/service/complete' && m === 'POST' && item) {
+    if (item.lifecycleStatus !== 'IN_SERVICE') return json(route, { error: 'status_conflict', message: 'Serwis można zamknąć wyłącznie dla pozycji o statusie IN_SERVICE' }, 409);
+    const next = (body.nextServiceDate as string) ?? null;
+    item.lifecycleStatus = 'AVAILABLE';
+    item.nextServiceDate = next;
+    const openSvc = [...item.services].reverse().find((s) => s.completedAt === null);
+    if (openSvc) { openSvc.completedAt = new Date().toISOString(); openSvc.completedNote = (body.note as string) ?? null; openSvc.nextServiceDate = next; }
     st.lastWrite = body;
     return json(route, detail(item));
   }
@@ -295,6 +327,51 @@ test('F3 pełny obraz: oczekiwane vs faktyczne, luki i historia widokowa', async
   await expect(page.getByRole('heading', { name: '👕 Marynarka' })).toBeVisible();
 });
 
+test('F4 serwis: lista „do serwisu”, wysłanie, zamknięcie z terminem i plan', async ({ page }) => {
+  const st = await seed(page);
+  await openEkwipunek(page);
+
+  // Flet ma zamknięty serwis z planem w przeszłości → tylko on trafia do listy due
+  await page.getByRole('button', { name: 'Status ▾' }).click();
+  await page.getByRole('button', { name: '🔧 Do serwisu (minął termin)' }).click();
+  await expect(page.getByText('filtr: do serwisu (termin)')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Pozycja Flet' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Pozycja Spodnie' })).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Wyczyść filtry' }).click();
+
+  // Spodnie: AVAILABLE → do serwisu → zamknięcie z kolejnym terminem
+  await page.getByRole('button', { name: 'Pozycja Spodnie' }).click();
+  await page.getByRole('button', { name: /Do serwisu 🔧/ }).click();
+  await page.getByLabel(/Usterka/).fill('rozsunięte szwy');
+  await page.getByRole('button', { name: 'Wyślij do serwisu 🔧' }).click();
+  await expect(page.getByText('Wysłano do serwisu ✓')).toBeVisible();
+  await expect(page.locator('.badge.b-warn', { hasText: 'W serwisie' })).toBeVisible();
+  await expect.poll(() => st.items.find((i) => i.id === 3)?.lifecycleStatus).toBe('IN_SERVICE');
+  await expect(page.getByText('Historia serwisów')).toBeVisible();
+  await expect(page.locator('.badge.b-warn', { hasText: 'otwarty' })).toBeVisible();
+
+  await page.getByRole('button', { name: /Zakończ serwis ✅/ }).click();
+  await page.getByLabel(/Co zrobiono/).fill('naprawa + impregnat');
+  await page.getByLabel(/Następny serwis/).fill('2027-05-01');
+  await page.getByRole('button', { name: 'Zamknij serwis ✅' }).click();
+  await expect(page.getByText('Serwis zamknięty ✓')).toBeVisible();
+  await expect.poll(() => st.items.find((i) => i.id === 3)?.nextServiceDate).toBe('2027-05-01');
+  await expect(page.getByText('Następny serwis')).toBeVisible();
+  await expect(page.getByText('🔧 1.05.2027')).toBeVisible();
+  await expect(page.getByText('naprawa + impregnat')).toBeVisible();
+
+  // serwis to dowód — usuwanie zablokowane
+  await expect(page.getByRole('button', { name: /Usuń \(ma historię\)/ })).toBeVisible();
+
+  // Flet wciąż w „do serwisu”, Spodnie już nie (termin przyszły)
+  await page.getByRole('button', { name: 'Wróć do listy' }).click();
+  await page.getByRole('button', { name: 'Status ▾' }).click();
+  await page.getByRole('button', { name: '🔧 Do serwisu (minął termin)' }).click();
+  await expect(page.getByRole('button', { name: 'Pozycja Flet' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Pozycja Spodnie' })).toHaveCount(0);
+});
+
 test('assign → zwrot ze stanem → transfer + historia przydziałów (05/17)', async ({ page }) => {
   const st = await seed(page);
   await openEkwipunek(page);
@@ -320,7 +397,8 @@ test('assign → zwrot ze stanem → transfer + historia przydziałów (05/17)',
   await expect(page.locator('.badge.b-warn', { hasText: 'W serwisie' })).toBeVisible();
   await expect.poll(() => st.items.find((i) => i.id === 2)?.lifecycleStatus).toBe('IN_SERVICE');
   await expect(page.getByText('zwrot: W serwisie')).toBeVisible();
-  await expect(page.getByText('pęknięty szew')).toBeVisible();
+  // notatka zwrotu jest w dwóch dowodach: przydział (returnNote) + serwis (sentNote)
+  await expect(page.getByText('pęknięty szew').first()).toBeVisible();
 
   // transfer magazynowy + historia przeniesień
   await page.getByRole('button', { name: /Transfer 🏬/ }).click();

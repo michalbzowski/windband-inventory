@@ -119,9 +119,17 @@ export const listItems = (
     assignedMemberId?: number;
     attributeDefId?: number;
     attributeValue?: string;
+    /** F4 "do serwisu": AVAILABLE with due nextServiceDate (server-side rule). */
+    serviceDue?: boolean;
   } = {},
   signal?: AbortSignal,
-): Promise<ItemSummaryView[]> => invGet(`/items${qs({ bandId, ...filters })}`, signal);
+): Promise<ItemSummaryView[]> => {
+  const { serviceDue, ...rest } = filters;
+  return invGet(
+    `/items${qs({ bandId, ...rest, serviceDue: serviceDue ? 'true' : undefined })}`,
+    signal,
+  );
+};
 
 /* ---------- item registry (Ekwipunek, P0 §3.1) ---------- */
 
@@ -149,6 +157,8 @@ export interface ItemView {
   attributes: AttributeValueView[];
   assignedMemberId: number | null;
   assignedMemberName: string | null;
+  /** F4: plan pisany wyłącznie przez workflow serwisu (null = brak terminu). */
+  nextServiceDate: string | null;
 }
 
 /** AssignmentView — one history event (returnedAt null = still held). */
@@ -226,6 +236,31 @@ export const transferItem = (
 
 export const listItemTransfers = (id: number): Promise<WarehouseTransferView[]> =>
   invGet(`/items/${id}/transfers`);
+
+/** F4 sendToService: AVAILABLE → IN_SERVICE (ADMIN). */
+export const sendItemToService = (
+  id: number,
+  req: { note?: string | null } = {},
+): Promise<ItemView> => invSend('POST', `/items/${id}/service`, req);
+
+/** F4 completeService: IN_SERVICE → AVAILABLE + optional next-service plan (ADMIN). */
+export const completeItemService = (
+  id: number,
+  req: { note?: string | null; nextServiceDate?: string | null },
+): Promise<ItemView> => invSend('POST', `/items/${id}/service/complete`, req);
+
+/** ServiceEventView — one service-workflow record (completedAt null = still in service). */
+export interface ServiceEventView {
+  id: number;
+  sentAt: string;
+  sentNote: string | null;
+  completedAt: string | null;
+  completedNote: string | null;
+  nextServiceDate: string | null;
+}
+
+export const listItemServices = (id: number): Promise<ServiceEventView[]> =>
+  invGet(`/items/${id}/services`);
 
 /** F3 member picture — 1:1 with backend MemberPictureViews records. */
 export interface ExpectedItemView {
