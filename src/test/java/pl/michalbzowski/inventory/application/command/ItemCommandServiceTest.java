@@ -3,6 +3,8 @@ package pl.michalbzowski.inventory.application.command;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
@@ -15,9 +17,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import pl.michalbzowski.inventory.domain.inventory.AttributeValueInvalidException;
 import pl.michalbzowski.inventory.domain.inventory.InventoryItem;
 import pl.michalbzowski.inventory.domain.inventory.InventoryItemRepository;
+import pl.michalbzowski.inventory.domain.inventory.ItemAssignmentRepository;
 import pl.michalbzowski.inventory.domain.inventory.ItemAttributeDef;
 import pl.michalbzowski.inventory.domain.inventory.ItemAttributeDefRepository;
 import pl.michalbzowski.inventory.domain.inventory.ItemType;
+import pl.michalbzowski.inventory.domain.inventory.WarehouseTransferRepository;
 import pl.michalbzowski.inventory.domain.inventory.WarehouseType;
 
 @ExtendWith(MockitoExtension.class)
@@ -28,6 +32,12 @@ class ItemCommandServiceTest {
 
     @Mock
     private ItemAttributeDefRepository defs;
+
+    @Mock
+    private ItemAssignmentRepository assignments;
+
+    @Mock
+    private WarehouseTransferRepository warehouseTransfers;
 
     @InjectMocks
     private ItemCommandService service;
@@ -105,5 +115,43 @@ class ItemCommandServiceTest {
                 null, "SN-1", null, null, List.of())))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("zajęty");
+    }
+
+    @Test
+    void deleteBlockedWhenTransferHistoryExists() {
+        InventoryItem item = InventoryItem.create(7L, "Flet", ItemType.INSTRUMENT,
+                WarehouseType.MAIN, null, null, null);
+        when(items.findById(1L)).thenReturn(Optional.of(item));
+        when(warehouseTransfers.existsByItemId(1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> service.delete(1L))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("histori");
+        verify(items, never()).delete(item);
+    }
+
+    @Test
+    void deleteBlockedWhenClosedAssignmentHistoryExists() {
+        InventoryItem item = InventoryItem.create(7L, "Flet", ItemType.INSTRUMENT,
+                WarehouseType.MAIN, null, null, null);
+        item.assignTo(11L, "Jan Kowalski");
+        item.unassign(null); // snapshot cleared, but history row remains
+        when(items.findById(1L)).thenReturn(Optional.of(item));
+        when(assignments.existsByItemId(1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> service.delete(1L))
+                .isInstanceOf(IllegalStateException.class);
+        verify(items, never()).delete(item);
+    }
+
+    @Test
+    void deleteOfFreshItemWithoutHistoryPasses() {
+        InventoryItem item = InventoryItem.create(7L, "Flet", ItemType.INSTRUMENT,
+                WarehouseType.MAIN, null, null, null);
+        when(items.findById(1L)).thenReturn(Optional.of(item));
+
+        service.delete(1L);
+
+        verify(items).delete(item);
     }
 }

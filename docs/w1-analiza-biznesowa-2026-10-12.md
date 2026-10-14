@@ -56,6 +56,12 @@ OIDC → inventory musi je brać z API WM (B10) i nie może ich wyprowadzać z t
   returnedAt, notka, stan przy zwrocie). Stan życia: AVAILABLE / ASSIGNED / IN_SERVICE /
   RETIRED / DISPOSED / LOST.
 - **Magazyny**: MAIN/SERVICE/ARCHIVE + `WarehouseTransfer` (historia przeniesień).
+  Doprecyzowanie (2026-10-14, feature "warehouse-transfers"): jedyną ścieżką zmiany
+  magazynu jest transfer (historia = fakt); PUT pozycji przyjmuje wyłącznie magazyn
+  niezmieniony. Przenosić można pozycje AVAILABLE/IN_SERVICE/RETIRED — ASSIGNED
+  (u osoby), LOST i DISPOSED nie zmieniają magazynu. Pozycja z jakąkolwiek
+  historią (przydziały lub przeniesienia) nie podlega DELETE (409) — historia
+  jest dowodem (baza pod F3 w v1.x).
 - **Listy z filtrami**: typ, status, magazyn, przypisana osoba (+ atrybut wg definicji z listy).
 
 ### 3.2 Core: moduł inwentaryzacji (stocktake, spec F5)

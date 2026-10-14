@@ -63,19 +63,26 @@ class InventoryItemsIT extends AbstractIntegrationTest {
         mvc.perform(put("/api/inventory/items/{id}", itemId)
                         .contentType("application/json")
                         .content("""
-                                {"name":"Marynarka wizytowa","warehouse":"ARCHIVE",
+                                {"name":"Marynarka wizytowa","warehouse":"MAIN",
                                  "attributes":[{"attributeDefId":%d,"value":"L"}]}"""
                                 .formatted(sizeDefId))
                         .with(as("tok-admin")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("Marynarka wizytowa"))
-                .andExpect(jsonPath("$.warehouse").value("ARCHIVE"))
+                .andExpect(jsonPath("$.warehouse").value("MAIN"))
                 .andExpect(jsonPath("$.attributes", org.hamcrest.Matchers.hasSize(1)));
 
+        // Warehouse changes go through the transfer endpoint (B6: history = fact).
+        postJson("/api/inventory/items/" + itemId + "/transfers", """
+                {"to":"ARCHIVE","note":"koniec sezonu"}""", "tok-admin")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.warehouse").value("ARCHIVE"));
+
+        // Transfer wrote history — such an item is no longer deletable (evidence base).
         mvc.perform(delete("/api/inventory/items/{id}", itemId).with(as("tok-admin")))
-                .andExpect(status().isNoContent());
-        mvc.perform(get("/api/inventory/items/{id}", itemId).with(as("tok-admin")))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isConflict());
+        mvc.perform(get("/api/inventory/items/{id}", itemId).with(as("tok-member")))
+                .andExpect(status().isOk());
     }
 
     @Test

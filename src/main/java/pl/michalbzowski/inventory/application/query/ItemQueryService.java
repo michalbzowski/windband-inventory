@@ -13,12 +13,14 @@ import pl.michalbzowski.inventory.application.query.ItemViews.AttributeValueView
 import pl.michalbzowski.inventory.application.query.ItemViews.AssignmentView;
 import pl.michalbzowski.inventory.application.query.ItemViews.ItemSummaryView;
 import pl.michalbzowski.inventory.application.query.ItemViews.ItemView;
+import pl.michalbzowski.inventory.application.query.ItemViews.WarehouseTransferView;
 import pl.michalbzowski.inventory.domain.inventory.InventoryItem;
 import pl.michalbzowski.inventory.domain.inventory.InventoryItemRepository;
 import pl.michalbzowski.inventory.domain.inventory.ItemAssignmentRepository;
 import pl.michalbzowski.inventory.domain.inventory.ItemAttributeValue;
 import pl.michalbzowski.inventory.domain.inventory.ItemLifecycleStatus;
 import pl.michalbzowski.inventory.domain.inventory.ItemType;
+import pl.michalbzowski.inventory.domain.inventory.WarehouseTransferRepository;
 import pl.michalbzowski.inventory.domain.inventory.WarehouseType;
 
 /**
@@ -32,6 +34,7 @@ public class ItemQueryService {
 
     private final InventoryItemRepository items;
     private final ItemAssignmentRepository assignments;
+    private final WarehouseTransferRepository warehouseTransfers;
 
     /** Band of an existing item — lets the REST layer guard BEFORE mutation. */
     public long bandOf(long id) {
@@ -96,6 +99,17 @@ public class ItemQueryService {
                 .map(a -> new AssignmentView(a.getId(), a.getMemberId(), a.getMemberName(),
                         a.getAssignedAt(), a.getReturnedAt(), a.getReturnedState(),
                         a.getAssignNote(), a.getReturnNote()))
+                .toList();
+    }
+
+    /** Transfer history of one item, newest first (readable by every member). */
+    public List<WarehouseTransferView> transfers(long itemId) {
+        if (!items.existsById(itemId)) {
+            throw new ItemNotFoundException(itemId);
+        }
+        return warehouseTransfers.findByItemIdOrderByTransferredAtDescIdDesc(itemId).stream()
+                .map(t -> new WarehouseTransferView(t.getId(), t.getFromWarehouse(),
+                        t.getToWarehouse(), t.getNote(), t.getTransferredAt()))
                 .toList();
     }
 

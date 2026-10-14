@@ -11,9 +11,11 @@ import pl.michalbzowski.inventory.domain.inventory.AttributeValueFormat;
 import pl.michalbzowski.inventory.domain.inventory.AttributeValueInvalidException;
 import pl.michalbzowski.inventory.domain.inventory.InventoryItem;
 import pl.michalbzowski.inventory.domain.inventory.InventoryItemRepository;
+import pl.michalbzowski.inventory.domain.inventory.ItemAssignmentRepository;
 import pl.michalbzowski.inventory.domain.inventory.ItemAttributeDef;
 import pl.michalbzowski.inventory.domain.inventory.ItemAttributeDefRepository;
 import pl.michalbzowski.inventory.domain.inventory.ItemAttributeValue;
+import pl.michalbzowski.inventory.domain.inventory.WarehouseTransferRepository;
 
 /**
  * Item write use-cases (ADMIN-checked by the REST layer before reaching here).
@@ -29,6 +31,8 @@ public class ItemCommandService {
 
     private final InventoryItemRepository items;
     private final ItemAttributeDefRepository defs;
+    private final ItemAssignmentRepository assignments;
+    private final WarehouseTransferRepository warehouseTransfers;
 
     @Transactional
     public InventoryItem create(long bandId, ItemWriteCommand cmd) {
@@ -56,6 +60,13 @@ public class ItemCommandService {
             throw new IllegalStateException(
                     "Pozycja przypisana do \"" + item.getAssignedMemberName()
                             + "\" — najpierw ją zwróć, potem usuwaj");
+        }
+        // History rows (assignments, transfers) carry FKs to the item and are
+        // the evidence base of v1.x (F3) — such items are archived, not deleted.
+        if (assignments.existsByItemId(id) || warehouseTransfers.existsByItemId(id)) {
+            throw new IllegalStateException(
+                    "Pozycja ma historię przydziałów/przeniesień — nie usuwaj dowodów;"
+                            + " do usunięcia tylko pozycje bez żadnej historii");
         }
         items.delete(item);
     }
