@@ -3,6 +3,7 @@ package pl.michalbzowski.inventory.application.query;
 import jakarta.persistence.criteria.Predicate;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Locale;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.jpa.domain.Specification;
@@ -44,10 +45,26 @@ public class ItemQueryService {
     }
 
     public List<ItemSummaryView> list(long bandId, ItemType type, ItemLifecycleStatus status,
-            WarehouseType warehouse, String search, Long assignedMemberId) {
+            WarehouseType warehouse, String search, Long assignedMemberId,
+            Long attributeDefId, String attributeValue) {
+        if (attributeValue != null && !attributeValue.isBlank() && attributeDefId == null) {
+            throw new IllegalArgumentException("attributeValue wymaga attributeDefId");
+        }
         Specification<InventoryItem> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
             predicates.add(cb.equal(root.get("bandId"), bandId));
+            if (attributeDefId != null) {
+                // Values are unique per (item, def) — the join cannot duplicate rows.
+                var attr = root.join("attributeValues");
+                predicates.add(cb.equal(attr.get("attributeDef").get("id"), attributeDefId));
+                if (attributeValue != null && !attributeValue.isBlank()) {
+                    predicates.add(cb.equal(cb.lower(attr.get("valueText")),
+                            attributeValue.trim().toLowerCase(Locale.ROOT)));
+                } else {
+                    predicates.add(cb.and(cb.isNotNull(attr.get("valueText")),
+                            cb.notEqual(attr.get("valueText"), "")));
+                }
+            }
             if (type != null) {
                 predicates.add(cb.equal(root.get("type"), type));
             }

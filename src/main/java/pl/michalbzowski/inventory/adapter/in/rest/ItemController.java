@@ -60,9 +60,12 @@ public class ItemController {
             @RequestParam(required = false) ItemLifecycleStatus status,
             @RequestParam(required = false) WarehouseType warehouse,
             @RequestParam(required = false) String search,
-            @RequestParam(required = false) Long assignedMemberId) {
+            @RequestParam(required = false) Long assignedMemberId,
+            @RequestParam(required = false) Long attributeDefId,
+            @RequestParam(required = false) String attributeValue) {
         guard.requireMember(bandId, BearerTokens.require());
-        return queries.list(bandId, type, status, warehouse, search, assignedMemberId);
+        return queries.list(bandId, type, status, warehouse, search, assignedMemberId,
+                attributeDefId, attributeValue);
     }
 
     @GetMapping("/{id}")
