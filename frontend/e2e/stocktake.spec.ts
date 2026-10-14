@@ -34,8 +34,17 @@ function makeState() {
     stocktake: null as null | { id: number; status: string; notes: string | null; startedAt: string; finishedAt: string | null; startedBySubject: string | null },
     lines: [] as Line[],
     nextLineId: 104,
+    needs: [] as NeedRow[],
+    nextNeedId: 501,
     writes: 0,
   };
+}
+
+/** 1:1 z NeedQueryService.NeedView (nazwy pól zamrożone w wierszu dowodu). */
+interface NeedRow {
+  id: number; bandId: number; itemId: number; name: string; serialNumber: string | null;
+  quantity: number; status: string; note: string | null; resolutionNote: string | null;
+  createdMemberId: number | null; createdMemberName: string | null; createdAt: string; resolvedAt: string | null;
 }
 
 type State = ReturnType<typeof makeState>;
@@ -134,6 +143,43 @@ async function mockInventory(route: Route, st: State): Promise<void> {
     if (next === 'CLOSED') st.stocktake.finishedAt = new Date().toISOString();
     return json(route, view(st));
   }
+  // --- Potrzeby/Zamówienia (v1.x #3) — lustrzane reguły domenowe ---
+  if (p === '/needs' && m === 'GET') {
+    const status = url.searchParams.get('status');
+    return json(route, status ? st.needs.filter((n) => n.status === status) : st.needs);
+  }
+  if (p === '/needs' && m === 'POST') {
+    const item = st.items.find((i) => i.id === body.itemId);
+    if (!item) return json(route, { error: 'not_found' }, 404);
+    if (st.needs.some((n) => n.itemId === item.id && (n.status === 'OPEN' || n.status === 'ORDERED'))) {
+      return json(route, { error: 'status_conflict', message: 'Ta pozycja ma już niezamkniętą potrzebę — najpierw ją rozstrzygnij' }, 409);
+    }
+    const now = new Date().toISOString();
+    const n: NeedRow = {
+      id: st.nextNeedId++, bandId: 1, itemId: item.id, name: item.name, serialNumber: item.serialNumber,
+      quantity: body.quantity ?? 1, status: 'OPEN', note: body.note ?? null, resolutionNote: null,
+      createdMemberId: body.createdMemberId ?? 12, createdMemberName: 'Anna Nowak', createdAt: now, resolvedAt: null,
+    };
+    st.needs.push(n);
+    st.writes++;
+    return json(route, n, 201);
+  }
+  const needStatus = p.match(/^\/needs\/(\d+)\/status$/);
+  if (needStatus && m === 'POST') {
+    const n = st.needs.find((x) => x.id === Number(needStatus[1]));
+    if (!n) return json(route, { error: 'not_found' }, 404);
+    const target = body.status;
+    const bad = (target === 'ORDERED' && n.status !== 'OPEN')
+      || (target === 'RECEIVED' && n.status !== 'ORDERED')
+      || (target === 'CANCELLED' && n.status !== 'OPEN' && n.status !== 'ORDERED');
+    if (bad) return json(route, { error: 'status_conflict', message: 'Niedozwolone przejście statusu' }, 409);
+    n.status = target;
+    if (body.note) n.resolutionNote = body.note;
+    if (target === 'RECEIVED' || target === 'CANCELLED') n.resolvedAt = new Date().toISOString();
+    st.writes++;
+    return json(route, n);
+  }
+
   return json(route, { error: 'mock_miss', path: p, method: m }, 500);
 }
 
@@ -265,4 +311,45 @@ test('single-open guard: active stocktake hides the start CTA', async ({ page })
   await expect(page.getByText('Aktywny spis')).toBeVisible();
   await expect(page.getByText('Dołącz i licz')).toBeVisible();
   await expect(page.getByRole('button', { name: /Rozpocznij spis/ })).toBeHidden();
+});
+
+test('F5 potrzeby: BRAK w raporcie → „→ Potrzeba” → Zgłoszona → Zamówiona → Dostarczona', async ({ page }) => {
+  const st = makeState();
+  await seed(page, st);
+  await startCounting(page);
+
+  // Flet OK, Tuba BRAK (bez notatki), Klarnet OK
+  await page.getByRole('button', { name: /OK — jest i sprawny/ }).click();
+  await page.getByRole('button', { name: /BRAK/ }).click();
+  await page.getByRole('button', { name: /Zapisz i dalej/ }).click();
+  await page.getByRole('button', { name: /OK — jest i sprawny/ }).click();
+  await expect(page.getByText('Wszystkie pozycje policzone')).toBeVisible();
+  await page.getByRole('button', { name: /Zamknij spis/ }).click();
+  await expect(page.getByText('Spis zamknięty')).toBeVisible();
+  await page.getByRole('button', { name: 'Wróć' }).click();
+  await page.getByRole('button', { name: /#7 —/ }).click();
+  await expect(page.getByText('Brakuje')).toBeVisible();
+
+  // B9: akcja BRAK odblokowana — wiersz MISSING dostaje CTA „→ Potrzeba”
+  const missingRow = page.locator('.panel', { hasText: 'Brakuje' }).locator('.srow', { hasText: 'Tuba' });
+  await expect(missingRow.getByRole('button', { name: '→ Potrzeba' })).toBeVisible();
+  await missingRow.getByRole('button', { name: '→ Potrzeba' }).click();
+  await expect(page.getByRole('dialog', { name: 'Potrzeba: Tuba' })).toBeVisible();
+  await page.getByRole('button', { name: 'Zgłoś potrzebę ✓' }).click();
+  await expect(page.getByText('Potrzeba zgłoszona ✓')).toBeVisible();
+  await expect.poll(() => st.needs.length).toBe(1);
+
+  // CTA zmienia się w chip statusu — brak duplikatu (serwer i tak dałby 409)
+  await expect(missingRow.getByText('Zgłoszona')).toBeVisible();
+  await expect(missingRow.getByRole('button', { name: '→ Potrzeba' })).toHaveCount(0);
+
+  // Panel „Potrzeby zespołu”: pełna ścieżka zamówienia
+  const needRow = page.locator('.panel', { hasText: 'Potrzeby zespołu' }).locator('.srow', { hasText: 'Tuba ×1' });
+  await expect(needRow.locator('.badge', { hasText: 'Zgłoszona' })).toBeVisible();
+  await needRow.getByRole('button', { name: 'Zamów 📦' }).click();
+  await expect(needRow.locator('.badge', { hasText: 'Zamówiona' })).toBeVisible();
+  await needRow.getByRole('button', { name: 'Dostarczono ✅' }).click();
+  await expect(needRow.locator('.badge', { hasText: 'Dostarczona' })).toBeVisible();
+  await expect(needRow.getByRole('button', { name: 'Anuluj ✕' })).toHaveCount(0);
+  await expect(needRow.getByRole('button', { name: 'Zamów 📦' })).toHaveCount(0);
 });

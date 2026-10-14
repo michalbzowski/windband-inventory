@@ -1,10 +1,14 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import type { BandView } from '../api/bands';
 import {
   closeStocktake,
+  createNeed,
   getLines,
   getStocktake,
   getSummary,
+  listNeeds,
+  setNeedStatus,
+  type NeedView,
   type StocktakeLineView,
   type StocktakeSummaryView,
   type StocktakeView,
@@ -13,6 +17,16 @@ import { CountQueue } from '../stocktake/queue';
 import type { CounterIdentity } from '../stocktake/identity';
 import { ApiError } from '../api/client';
 import Phone from '../ui/Phone';
+import Sheet from '../ui/Sheet';
+import {
+  canCancel,
+  canOrder,
+  canReceive,
+  NEED_BADGE_CLASS,
+  NEED_STATUS_LABEL,
+  openNeedCount,
+  openNeedFor,
+} from '../needs/model';
 
 const queue = new CountQueue();
 
@@ -37,6 +51,19 @@ export default function StocktakeReport({ band, identity, stocktakeId, onExit }:
   const [confirmClose, setConfirmClose] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // F5 Potrzeby (backlog v1.x #3): BRAK → „→ Potrzeba” unfrozen (B9).
+  const [needs, setNeeds] = useState<NeedView[]>([]);
+  const [needSheet, setNeedSheet] = useState<StocktakeLineView | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+  const [needBusy, setNeedBusy] = useState(false);
+  const isAdmin = band.role === 'ADMIN';
+  const flash = (msg: string) => {
+    setToast(msg);
+    window.setTimeout(() => setToast(null), 3500);
+  };
+  const reloadNeeds = useCallback(() => {
+    listNeeds(band.bandId).then(setNeeds).catch(() => setNeeds([]));
+  }, [band.bandId]);
   const pending = queue.count(stocktakeId);
 
   const load = useCallback(() => {
@@ -54,6 +81,7 @@ export default function StocktakeReport({ band, identity, stocktakeId, onExit }:
   }, [stocktakeId]);
 
   useEffect(load, [load]);
+  useEffect(reloadNeeds, [reloadNeeds]);
 
   const close = async () => {
     setBusy(true);
@@ -86,7 +114,7 @@ export default function StocktakeReport({ band, identity, stocktakeId, onExit }:
   const mine = lines.filter((l) => l.countedByMemberId === identity.memberId);
   const closed = stocktake.status === 'CLOSED';
 
-  const row = (l: StocktakeLineView) => (
+  const row = (l: StocktakeLineView, action?: ReactNode) => (
     <div className="srow" key={l.id}>
       <b>
         {l.name}
@@ -94,8 +122,54 @@ export default function StocktakeReport({ band, identity, stocktakeId, onExit }:
         {l.note && <span className="note-q"> „{l.note}”</span>}
       </b>
       <span className="muted">{l.countedByMemberName ?? ''}</span>
+      {action}
     </div>
   );
+
+  // B9 unfreeze: every MISSING row can raise a need; once unresolved-need
+  // exists the CTA turns into a status chip (no duplicate OPEN server-side).
+  const needAction = (l: StocktakeLineView) => {
+    if (!isAdmin) return null;
+    const existing = openNeedFor(needs, l.itemId);
+    if (existing) {
+      return <span className={`badge ${NEED_BADGE_CLASS[existing.status]}`}>{NEED_STATUS_LABEL[existing.status]}</span>;
+    }
+    return (
+      <button type="button" className="btn sm ghost" onClick={() => setNeedSheet(l)}>
+        → Potrzeba
+      </button>
+    );
+  };
+
+  const walkNeed = async (n: NeedView, status: 'ORDERED' | 'RECEIVED' | 'CANCELLED') => {
+    try {
+      await setNeedStatus(n.id, status);
+      flash(status === 'ORDERED' ? 'Zamówiono ✓' : status === 'RECEIVED' ? 'Dostarczono ✓' : 'Anulowano ✓');
+      reloadNeeds();
+    } catch (e) {
+      flash(e instanceof ApiError ? e.message : 'Nie udało się zmienić statusu.');
+    }
+  };
+
+  const submitNeed = async (quantity: number, note: string | null) => {
+    if (!needSheet) return;
+    setNeedBusy(true);
+    try {
+      await createNeed(band.bandId, {
+        itemId: needSheet.itemId,
+        quantity,
+        note,
+        createdMemberId: identity.memberId,
+      });
+      setNeedSheet(null);
+      flash('Potrzeba zgłoszona ✓');
+      reloadNeeds();
+    } catch (e) {
+      flash(e instanceof ApiError ? e.message : 'Nie udało się zgłosić potrzeby.');
+    } finally {
+      setNeedBusy(false);
+    }
+  };
 
   return (
     <Phone>
@@ -130,7 +204,7 @@ export default function StocktakeReport({ band, identity, stocktakeId, onExit }:
           <div className="panel">
             <h4>Moje decyzje — {identity.name}</h4>
             {mine.length === 0 && <p className="hint">Nic tu nie zapisałeś(-aś) w tym spisie.</p>}
-            {mine.map(row)}
+            {mine.map((l) => row(l))}
           </div>
         ) : (
           <>
@@ -140,17 +214,40 @@ export default function StocktakeReport({ band, identity, stocktakeId, onExit }:
                 <p className="hint">Serwer oznaczy je MISSING dopiero przy zamknięciu — dopóki spis otwarty, liczymy dalej.</p>
               </div>
             )}
-            <div className="panel"><h4>Brakuje <span className="badge b-danger">{missing.length}</span></h4>{missing.map(row)}{missing.length === 0 && <p className="hint">—</p>}</div>
-            <div className="panel"><h4>Uszkodzone <span className="badge b-warn">{broken.length}</span></h4>{broken.map(row)}{broken.length === 0 && <p className="hint">—</p>}</div>
-            <div className="panel"><h4>Nadwyżki <span className="badge b-primary">{extras.length}</span></h4>{extras.map(row)}{extras.length === 0 && <p className="hint">—</p>}</div>
+            <div className="panel"><h4>Brakuje <span className="badge b-danger">{missing.length}</span></h4>{missing.map((l) => row(l, needAction(l)))}{missing.length === 0 && <p className="hint">—</p>}</div>
+            <div className="panel"><h4>Uszkodzone <span className="badge b-warn">{broken.length}</span></h4>{broken.map((l) => row(l))}{broken.length === 0 && <p className="hint">—</p>}</div>
+            <div className="panel"><h4>Nadwyżki <span className="badge b-primary">{extras.length}</span></h4>{extras.map((l) => row(l))}{extras.length === 0 && <p className="hint">—</p>}</div>
             <div className="panel">
               <h4>
                 <button type="button" className="linkbtn" onClick={() => setShowOk((v) => !v)}>{showOk ? '▾' : '▸'} Sprawne {okLines.length} / {snapshotLines.length}</button>
               </h4>
-              {showOk && okLines.map(row)}
+              {showOk && okLines.map((l) => row(l))}
             </div>
           </>
         )}
+
+        <div className="panel">
+          <h4>Potrzeby zespołu <span className="badge b-primary">{openNeedCount(needs)}</span></h4>
+          <p className="hint">Zgłoszone z raportu spisu (akcja BRAK, B9) — ścieżka: Zgłoszona → Zamówiona → Dostarczona.</p>
+          {needs.length === 0 && <p className="hint">Brak potrzeb — na razie cisza.</p>}
+          {needs.map((n) => (
+            <div className="srow" key={n.id}>
+              <b>
+                {n.name} ×{n.quantity}
+                <span className="muted">{n.serialNumber ? ` · SN ${n.serialNumber}` : ''}{n.createdMemberName ? ` · 👤 ${n.createdMemberName}` : ''}</span>
+                {n.note && <span className="note-q"> „{n.note}”</span>}
+              </b>
+              <span className={`badge ${NEED_BADGE_CLASS[n.status]}`}>{NEED_STATUS_LABEL[n.status]}</span>
+              {isAdmin && (
+                <span className="row-actions">
+                  {canOrder(n) && <button type="button" className="btn sm ghost" onClick={() => void walkNeed(n, 'ORDERED')}>Zamów 📦</button>}
+                  {canReceive(n) && <button type="button" className="btn sm ok" onClick={() => void walkNeed(n, 'RECEIVED')}>Dostarczono ✅</button>}
+                  {canCancel(n) && <button type="button" className="btn sm ghost" onClick={() => void walkNeed(n, 'CANCELLED')}>Anuluj ✕</button>}
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
 
         {closed ? (
           <div className="stamp">
@@ -183,6 +280,39 @@ export default function StocktakeReport({ band, identity, stocktakeId, onExit }:
           </div>
         </div>
       )}
+      {needSheet && (
+        <NeedSheet line={needSheet} busy={needBusy} onClose={() => setNeedSheet(null)} onSubmit={submitNeed} />
+      )}
+      {toast && (
+        <div className="toast" role="status">{toast}<button type="button" onClick={() => setToast(null)}>✕</button></div>
+      )}
     </Phone>
+  );
+}
+
+/** Bottom sheet for the unfrozen BRAK action (makieta 14: „→ Potrzeba”). */
+function NeedSheet({ line, busy, onClose, onSubmit }: {
+  line: StocktakeLineView;
+  busy: boolean;
+  onClose: () => void;
+  onSubmit: (quantity: number, note: string | null) => void;
+}) {
+  const [quantity, setQuantity] = useState(1);
+  const [note, setNote] = useState('');
+  return (
+    <Sheet title={`Potrzeba: ${line.name}`} onClose={onClose}>
+      <p className="hint">Zgłoszenie trafia do „Potrzeby zespołu” — dalej zamówienie i dostawa (v1.x #3).</p>
+      <label className="field">Ilość
+        <input type="number" min={1} max={999} value={quantity}
+          onChange={(e) => setQuantity(Math.max(1, Math.min(999, Number(e.target.value) || 1)))} />
+      </label>
+      <label className="field">Notatka (opcjonalna)
+        <textarea value={note} onChange={(e) => setNote(e.target.value)} maxLength={2000}
+          placeholder="np. brak na spisie, szukać przed koncertem" />
+      </label>
+      <button type="button" className="btn primary block" disabled={busy} onClick={() => onSubmit(quantity, note.trim() || null)}>
+        {busy ? 'Zapisywanie…' : 'Zgłoś potrzebę ✓'}
+      </button>
+    </Sheet>
   );
 }

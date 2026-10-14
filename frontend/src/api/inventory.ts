@@ -262,6 +262,40 @@ export interface ServiceEventView {
 export const listItemServices = (id: number): Promise<ServiceEventView[]> =>
   invGet(`/items/${id}/services`);
 
+// --- Potrzeby/Zamówienia (backlog v1.x #3, odblokowanie akcji BRAK z raportu, B9) ---
+
+export type NeedStatus = 'OPEN' | 'ORDERED' | 'RECEIVED' | 'CANCELLED';
+
+export interface NeedView {
+  id: number;
+  bandId: number;
+  itemId: number;
+  name: string;
+  serialNumber: string | null;
+  quantity: number;
+  status: NeedStatus;
+  note: string | null;
+  resolutionNote: string | null;
+  createdMemberId: number | null;
+  createdMemberName: string | null;
+  createdAt: string;
+  resolvedAt: string | null;
+}
+
+export const listNeeds = (bandId: number, status?: NeedStatus, signal?: AbortSignal): Promise<NeedView[]> =>
+  invGet(`/needs${qs({ bandId, status })}`, signal);
+
+/** zgłasza AKTYWNY członek listy WM (B10 — serwer re-waliduje createdMemberId). */
+export const createNeed = (bandId: number, req: {
+  itemId: number;
+  quantity: number;
+  note?: string | null;
+  createdMemberId: number;
+}): Promise<NeedView> => invSend('POST', `/needs?bandId=${bandId}`, req);
+
+export const setNeedStatus = (id: number, status: Exclude<NeedStatus, 'OPEN'>, note?: string | null): Promise<NeedView> =>
+  invSend('POST', `/needs/${id}/status`, { status, note: note ?? null });
+
 /** F3 member picture — 1:1 with backend MemberPictureViews records. */
 export interface ExpectedItemView {
   instrument: string;
