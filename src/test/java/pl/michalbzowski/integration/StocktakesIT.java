@@ -188,11 +188,13 @@ class StocktakesIT extends AbstractIntegrationTest {
 
         long instruments = startInstrumentStocktake("{\"type\":\"INSTRUMENT\"}");
         org.hamcrest.MatcherAssert.assertThat(lineIds(instruments).keySet(), hasSize(2));
+        patchStocktake(instruments, "close", "tok-admin").andExpect(status().isOk());
 
         long serviceWarehouse = startInstrumentStocktake("{\"warehouse\":\"SERVICE\"}");
         Map<String, Long> lines = lineIds(serviceWarehouse);
         org.hamcrest.MatcherAssert.assertThat(lines.keySet(), hasSize(1));
         org.junit.jupiter.api.Assertions.assertEquals("Tuba kontrabasowa", lines.keySet().iterator().next());
+        patchStocktake(serviceWarehouse, "close", "tok-admin").andExpect(status().isOk());
 
         // IN_SERVICE via return-to-service is also excluded from snapshots.
         assign(flet, 11L);
@@ -341,7 +343,9 @@ class StocktakesIT extends AbstractIntegrationTest {
     @Test
     void unknownStocktakeAndForeignLineGiveNotFound() throws Exception {
         createInstrument("Kontra");
-        startInstrumentStocktake("{}");
+        long first = startInstrumentStocktake("{}");
+        // single-open invariant: close before a second start in the same band
+        patchStocktake(first, "close", "tok-admin").andExpect(status().isOk());
 
         patchStocktake(987654L, "close", "tok-admin").andExpect(status().isNotFound());
         summary(987654L, "tok-admin").andExpect(status().isNotFound());
@@ -355,6 +359,17 @@ class StocktakesIT extends AbstractIntegrationTest {
                 .andExpect(status().isNotFound());
         count(stocktake, line, "{\"foundState\":\"OK\",\"countedMemberId\":11}", "tok-admin")
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    void secondStartWhileAnotherStocktakeIsOpenIsRejected() throws Exception {
+        // The hub/join/report UX assumes ONE editable stocktake per band.
+        createInstrument("Flet");
+        startAllStocktake();
+
+        start("{\"notes\":\"drugi na to samo\"}", "tok-admin")
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error").value("status_conflict"));
     }
 
     @Test

@@ -3,7 +3,7 @@ import * as oidc from './auth/oidc';
 import { listBandMembers, listMyBands, type BandView } from './api/bands';
 import { ApiError } from './api/client';
 import BandSelection from './views/BandSelection';
-import DashboardStub from './views/DashboardStub';
+import BandWorkspace from './views/BandWorkspace';
 
 type Phase =
   | { kind: 'boot' }
@@ -134,15 +134,8 @@ export default function App() {
     );
   }
 
-  // dashboard stub
-  return shell(
-    <>
-      <button type="button" className="back" onClick={handleBackToPicker} aria-label="Wróć do wyboru zespołu">←</button>
-      <h3>{phase.band.name}</h3>
-      <span className={`badge ${phase.band.role === 'ADMIN' ? 'b-primary' : 'b-gray'}`}>{phase.band.role}</span>
-    </>,
-    <DashboardStub band={phase.band} onBack={handleBackToPicker} onLogout={() => void handleLogout()} />,
-  );
+  // four-tab workspace — LICZENIE (F5) is the live module
+  return <BandWorkspace band={phase.band} onBack={handleBackToPicker} onLogout={() => void handleLogout()} />;
 }
 
 function shell(appbar: ReactNode, body: ReactNode) {

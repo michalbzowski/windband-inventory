@@ -55,6 +55,13 @@ export default defineConfig({
     port: 5173,
     host: true,
     proxy: {
+      // More specific prefix first: the inventory backend has its own Spring
+      // service; /api/v1 (bands, roster) keeps going to WM. Mirrors the
+      // nginx template (location ^~ /api/inventory/ vs location ^~ /api/).
+      '/api/inventory': {
+        target: process.env.WI_TARGET ?? 'http://localhost:8090',
+        changeOrigin: false,
+      },
       '/api': {
         target: process.env.WM_TARGET ?? 'http://localhost:8080',
         changeOrigin: false,
