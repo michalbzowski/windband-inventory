@@ -63,6 +63,7 @@ export interface ItemSummaryView {
   lifecycleStatus: ItemLifecycleStatus;
   warehouse: WarehouseType;
   serialNumber: string | null;
+  assignedMemberId: number | null;
   assignedMemberName: string | null;
 }
 
@@ -110,6 +111,124 @@ export const closeStocktake = (id: number): Promise<StocktakeView> => invSend('P
 
 export const listItems = (
   bandId: number,
-  filters: { type?: ItemType; status?: ItemLifecycleStatus; warehouse?: WarehouseType; search?: string } = {},
+  filters: {
+    type?: ItemType;
+    status?: ItemLifecycleStatus;
+    warehouse?: WarehouseType;
+    search?: string;
+    assignedMemberId?: number;
+    attributeDefId?: number;
+    attributeValue?: string;
+  } = {},
   signal?: AbortSignal,
 ): Promise<ItemSummaryView[]> => invGet(`/items${qs({ bandId, ...filters })}`, signal);
+
+/* ---------- item registry (Ekwipunek, P0 §3.1) ---------- */
+
+export type AttributeDataType = 'TEXT' | 'NUMBER' | 'SELECT' | 'MULTI' | 'BOOLEAN' | 'DATE';
+
+/** ItemAttributeValueView — value already normalized by the server. */
+export interface AttributeValueView {
+  attributeDefId: number;
+  name: string;
+  dataType: AttributeDataType;
+  value: string | null;
+}
+
+/** ItemView — full detail incl. description/notes and attribute values. */
+export interface ItemView {
+  id: number;
+  bandId: number;
+  name: string;
+  type: ItemType;
+  lifecycleStatus: ItemLifecycleStatus;
+  warehouse: WarehouseType;
+  serialNumber: string | null;
+  description: string | null;
+  notes: string | null;
+  attributes: AttributeValueView[];
+  assignedMemberId: number | null;
+  assignedMemberName: string | null;
+}
+
+/** AssignmentView — one history event (returnedAt null = still held). */
+export interface AssignmentView {
+  id: number;
+  memberId: number;
+  memberName: string;
+  assignedAt: string;
+  returnedAt: string | null;
+  returnedState: ItemLifecycleStatus | null;
+  assignNote: string | null;
+  returnNote: string | null;
+}
+
+/** WarehouseTransferView — one movement row. */
+export interface WarehouseTransferView {
+  id: number;
+  fromWarehouse: WarehouseType;
+  toWarehouse: WarehouseType;
+  note: string | null;
+  transferredAt: string;
+}
+
+/** AttributeDefView — the form generator (B6: defs per band + type). */
+export interface AttributeDefView {
+  id: number;
+  bandId: number;
+  itemType: ItemType;
+  name: string;
+  dataType: AttributeDataType;
+  displayOrder: number;
+  required: boolean;
+  displayInList: boolean;
+  options: string[];
+  active: boolean;
+}
+
+export interface ItemWritePayload {
+  name: string;
+  type?: ItemType; // required on POST, absent on PUT (type is immutable)
+  warehouse?: WarehouseType;
+  serialNumber?: string | null;
+  description?: string | null;
+  notes?: string | null;
+  attributes: { attributeDefId: number; value: string | null }[];
+}
+
+export const getItem = (id: number): Promise<ItemView> => invGet(`/items/${id}`);
+
+export const createItem = (bandId: number, payload: ItemWritePayload): Promise<ItemView> =>
+  invSend('POST', `/items${qs({ bandId })}`, { ...payload });
+
+export const updateItem = (id: number, payload: ItemWritePayload): Promise<ItemView> =>
+  invSend('PUT', `/items/${id}`, { ...payload });
+
+export const deleteItem = (id: number): Promise<void> => invSend('DELETE', `/items/${id}`);
+
+export const assignItem = (
+  id: number,
+  req: { memberId: number; note?: string | null },
+): Promise<ItemView> => invSend('POST', `/items/${id}/assign`, req);
+
+export const unassignItem = (
+  id: number,
+  req: { state?: ItemLifecycleStatus | null; note?: string | null },
+): Promise<ItemView> => invSend('POST', `/items/${id}/unassign`, req);
+
+export const listItemAssignments = (id: number): Promise<AssignmentView[]> =>
+  invGet(`/items/${id}/assignments`);
+
+export const transferItem = (
+  id: number,
+  req: { to: WarehouseType; note?: string | null },
+): Promise<ItemView> => invSend('POST', `/items/${id}/transfers`, req);
+
+export const listItemTransfers = (id: number): Promise<WarehouseTransferView[]> =>
+  invGet(`/items/${id}/transfers`);
+
+export const listAttributeDefs = (
+  bandId: number,
+  type?: ItemType,
+  signal?: AbortSignal,
+): Promise<AttributeDefView[]> => invGet(`/attribute-defs${qs({ bandId, type })}`, signal);

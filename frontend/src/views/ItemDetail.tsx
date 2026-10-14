@@ -1,0 +1,414 @@
+import { useCallback, useEffect, useState } from 'react';
+import { listBandMembers, type BandMember, type BandView } from '../api/bands';
+import { ApiError } from '../api/client';
+import {
+  assignItem,
+  deleteItem,
+  getItem,
+  listItems,
+  listItemAssignments,
+  listItemTransfers,
+  transferItem,
+  unassignItem,
+  type AssignmentView,
+  type ItemView,
+  type WarehouseTransferView,
+  type WarehouseType,
+} from '../api/inventory';
+import { STATUS_BADGE, STATUS_LABEL, TYPE_ICON, TYPE_LABEL, WAREHOUSE_LABEL } from '../ekwipunek/filters';
+import { fmtAttrValue, fmtDate, fmtDateTime } from '../ekwipunek/format';
+import Phone from '../ui/Phone';
+import Sheet from '../ui/Sheet';
+import { Tabs } from './LiczenieTab';
+import ItemForm from './ItemForm';
+
+interface Props {
+  band: BandView;
+  itemId: number;
+  focusForm?: boolean;
+  onBack: () => void;
+  onTab?: (t: 'pulpit' | 'ekwipunek' | 'liczenie' | 'moje') => void;
+}
+
+type SheetKind = 'assign' | 'unassign' | 'transfer' | null;
+
+/**
+ * Item detail (makieta screen 04): attributes rendered from the generator,
+ * storage + assignee block, the two histories, and — ADMIN only — the pinned
+ * action zone with assign (05), unassign (17) and transfer sheets. MEMBER
+ * sees the same data with no write affordances (B8, server-enforced too).
+ */
+export default function ItemDetail({ band, itemId, focusForm = false, onBack, onTab }: Props) {
+  const [item, setItem] = useState<ItemView | null>(null);
+  const [assignments, setAssignments] = useState<AssignmentView[]>([]);
+  const [transfers, setTransfers] = useState<WarehouseTransferView[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [sheet, setSheet] = useState<SheetKind>(null);
+  const [editing, setEditing] = useState(focusForm);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+
+  const isAdmin = band.role === 'ADMIN';
+
+  const reload = useCallback(() => {
+    getItem(itemId)
+      .then((v) => {
+        setItem(v);
+        setError(null);
+      })
+      .catch((e) => setError((e as Error).message));
+    listItemAssignments(itemId).then(setAssignments).catch(() => setAssignments([]));
+    listItemTransfers(itemId).then(setTransfers).catch(() => setTransfers([]));
+  }, [itemId]);
+
+  useEffect(reload, [reload]);
+
+  if (editing) {
+    return (
+      <ItemForm
+        band={band}
+        editId={itemId}
+        onDone={() => {
+          setEditing(false);
+          reload();
+        }}
+        onCancel={() => setEditing(false)}
+        onTab={onTab}
+      />
+    );
+  }
+
+  if (error && !item) {
+    return (
+      <Phone>
+        <header className="appbar">
+          <button type="button" className="back" onClick={onBack} aria-label="Wróć">‹</button>
+          <h3>Pozycja</h3>
+        </header>
+        <section className="content">
+          <div className="state"><span className="state-ico">⚠</span><b>Nie udało się wczytać</b><span>{error}</span></div>
+        </section>
+        <Tabs active="ekwipunek" onPulpit={onBack} onEkwipunek={onBack} onLiczenie={() => onTab?.('liczenie')} onMoje={() => onTab?.('moje')} />
+      </Phone>
+    );
+  }
+  if (!item) {
+    return (
+      <Phone>
+        <section className="content"><p className="hint">Wczytywanie…</p></section>
+      </Phone>
+    );
+  }
+
+  const openAssignment = assignments.find((a) => a.returnedAt === null) ?? null;
+  const canAssign = isAdmin && item.lifecycleStatus === 'AVAILABLE';
+  const canUnassign = isAdmin && item.lifecycleStatus === 'ASSIGNED';
+  const canTransfer =
+    isAdmin && (item.lifecycleStatus === 'AVAILABLE' || item.lifecycleStatus === 'IN_SERVICE' || item.lifecycleStatus === 'RETIRED');
+  const hasHistory = assignments.length > 0 || transfers.length > 0;
+
+  const afterWrite = (msg: string) => {
+    setToast(msg);
+    window.setTimeout(() => setToast(null), 3500);
+    reload();
+  };
+
+  const runDelete = async () => {
+    try {
+      await deleteItem(item.id);
+      setConfirmDelete(false);
+      onBack();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Nie udało się usunąć.');
+      setConfirmDelete(false);
+    }
+  };
+
+  return (
+    <Phone>
+      <header className="appbar">
+        <button type="button" className="back" onClick={onBack} aria-label="Wróć do listy">‹</button>
+        <h3>{TYPE_ICON[item.type]} {item.name}</h3>
+        {isAdmin ? (
+          <button type="button" className="ic" onClick={() => setEditing(true)} aria-label="Edytuj pozycję">✎</button>
+        ) : (
+          <span />
+        )}
+      </header>
+
+      <section className="content">
+        <p>
+          <span className={`badge ${STATUS_BADGE[item.lifecycleStatus]}`}>{STATUS_LABEL[item.lifecycleStatus]}</span>{' '}
+          <span className="badge b-gray">{TYPE_LABEL[item.type]}</span>
+        </p>
+
+        {error && <p className="field-err">{error}</p>}
+
+        <div className="panel">
+          <h4>Atrybuty</h4>
+          <div className="kv">
+            {item.serialNumber && <div><dt>Nr seryjny</dt><dd>{item.serialNumber}</dd></div>}
+            {item.description && <div><dt>Opis</dt><dd>{item.description}</dd></div>}
+            {item.attributes.map((a) => (
+              <div key={a.attributeDefId}>
+                <dt>{a.name}</dt>
+                <dd>{fmtAttrValue(a.dataType, a.value)}</dd>
+              </div>
+            ))}
+            {item.notes && <div><dt>Notatki</dt><dd>{item.notes}</dd></div>}
+          </div>
+        </div>
+
+        <div className="panel">
+          <h4>Przechowywanie</h4>
+          <div className="kv">
+            <div><dt>Magazyn</dt><dd>🏬 {WAREHOUSE_LABEL[item.warehouse]}</dd></div>
+            <div><dt>Osoba</dt><dd>{item.assignedMemberName ? `👤 ${item.assignedMemberName}` : '—'}</dd></div>
+            {openAssignment && <div><dt>Od</dt><dd>{fmtDate(openAssignment.assignedAt)}</dd></div>}
+          </div>
+        </div>
+
+        <div className="panel">
+          <h4>Historia przydziałów</h4>
+          {assignments.length === 0 && <p className="hint">Brak — pozycja nigdy nie była przypisana.</p>}
+          {assignments.map((a) => (
+            <div className="srow" key={a.id} style={{ cursor: 'default' }}>
+              <span>
+                <b>👤 {a.memberName}</b>
+                <span className="muted">
+                  {' '}{fmtDate(a.assignedAt)} → {a.returnedAt ? fmtDate(a.returnedAt) : 'teraz'}
+                  {a.returnedState ? ` · zwrot: ${STATUS_LABEL[a.returnedState]}` : ''}
+                </span>
+                {(a.assignNote || a.returnNote) && (
+                  <span className="muted"> · {a.assignNote ?? ''}{a.returnNote ? ` / zwrot: ${a.returnNote}` : ''}</span>
+                )}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        <div className="panel">
+          <h4>Historia przeniesień</h4>
+          {transfers.length === 0 && <p className="hint">Brak przeniesień magazynowych.</p>}
+          {transfers.map((t) => (
+            <div className="srow" key={t.id} style={{ cursor: 'default' }}>
+              <span>
+                <b>🏬 {WAREHOUSE_LABEL[t.fromWarehouse]} → {WAREHOUSE_LABEL[t.toWarehouse]}</b>
+                <span className="muted"> {fmtDateTime(t.transferredAt)}{t.note ? ` · ${t.note}` : ''}</span>
+              </span>
+            </div>
+          ))}
+        </div>
+
+        {isAdmin ? (
+          <div className="btnrow" style={{ marginBottom: 8 }}>
+            <button
+              type="button"
+              className="btn ghost"
+              onClick={() => setConfirmDelete(true)}
+              disabled={hasHistory}
+              title={hasHistory ? 'Pozycja z historią jest nieusuwalna (baza dowodów)' : undefined}
+            >
+              🗑 Usuń{hasHistory ? ' (ma historię)' : ''}
+            </button>
+          </div>
+        ) : (
+          <p className="hint">MEMBER: podgląd bez zapisów (B8) — przydziałem i magazynem zarządza administrator.</p>
+        )}
+      </section>
+
+      {/* pinned save-action zone (makieta §04) */}
+      {isAdmin && (canAssign || canUnassign || canTransfer) && (
+        <div className="actionbar" role="toolbar" aria-label="Akcje pozycji">
+          {canAssign && <button type="button" className="btn primary" onClick={() => setSheet('assign')}>Przypisz… ↦</button>}
+          {canUnassign && <button type="button" className="btn" onClick={() => setSheet('unassign')}>Zwróć ✋</button>}
+          {canTransfer && <button type="button" className="btn ghost" onClick={() => setSheet('transfer')}>Transfer 🏬</button>}
+        </div>
+      )}
+
+      {sheet === 'assign' && (
+        <AssignSheet band={band} item={item} onClose={() => setSheet(null)} onDone={() => { setSheet(null); afterWrite('Przypisano ✓'); }} />
+      )}
+      {sheet === 'unassign' && (
+        <UnassignSheet item={item} onClose={() => setSheet(null)} onDone={() => { setSheet(null); afterWrite('Zwrócono ✓'); }} />
+      )}
+      {sheet === 'transfer' && (
+        <TransferSheet item={item} onClose={() => setSheet(null)} onDone={() => { setSheet(null); afterWrite('Przeniesiono ✓'); }} />
+      )}
+
+      {confirmDelete && (
+        <div className="dim center" role="dialog" aria-label="Potwierdź usunięcie">
+          <div className="modal">
+            <b>Usunąć „{item.name}"?</b>
+            <span>Pozycja bez historii jest usuwana trwale. Pozycje z historią są nieusuwalne (dowody F3).</span>
+            <div className="row">
+              <button type="button" className="btn sm ghost" onClick={() => setConfirmDelete(false)}>Anuluj</button>
+              <button type="button" className="btn sm danger" onClick={runDelete}>Usuń</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {toast && (
+        <div className="toast" role="status">{toast}<button type="button" onClick={() => setToast(null)}>✕</button></div>
+      )}
+
+      <Tabs active="ekwipunek" onPulpit={onBack} onEkwipunek={onBack} onLiczenie={() => onTab?.('liczenie')} onMoje={() => onTab?.('moje')} />
+    </Phone>
+  );
+}
+
+/* ------------------------------------------------------------------ sheets */
+
+/** Screen 05: full-screen member picker from the WM roster + held counters. */
+function AssignSheet({ band, item, onClose, onDone }: {
+  band: BandView;
+  item: ItemView;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const [members, setMembers] = useState<BandMember[]>([]);
+  const [held, setHeld] = useState<Record<number, number>>({});
+  const [picked, setPicked] = useState<BandMember | null>(null);
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    listBandMembers(band.bandId).then((m) => setMembers(m.filter((x) => x.active))).catch(() => setMembers([]));
+    // Held counters: one ASSIGNED-list call, counted client-side per member.
+    listItems(band.bandId, { status: 'ASSIGNED' })
+      .then((rows) => {
+        const out: Record<number, number> = {};
+        for (const r of rows) if (r.assignedMemberId !== null) out[r.assignedMemberId] = (out[r.assignedMemberId] ?? 0) + 1;
+        setHeld(out);
+      })
+      .catch(() => setHeld({}));
+  }, [band.bandId]);
+
+  const submit = async () => {
+    if (!picked) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await assignItem(item.id, { memberId: picked.memberId, note: note.trim() || null });
+      onDone();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Nie udało się przypisać.');
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Sheet title="Przypisz do osoby" onClose={onClose}>
+      <p className="hint">Członkowie bandu — dane z windband-manager (B10).</p>
+      {error && <p className="field-err">{error}</p>}
+      <div className="sheetlist">
+        {members.map((m) => (
+          <button
+            type="button"
+            key={m.memberId}
+            className="srow"
+            style={picked?.memberId === m.memberId ? { color: 'var(--primary)' } : undefined}
+            onClick={() => setPicked(m)}
+          >
+            <span>
+              <b>👤 {m.firstName} {m.lastName}</b>
+              <span className="muted"> {(m.expectedSet?.[0]?.instrument ?? '—')} · trzyma {held[m.memberId] ?? 0} poz.</span>
+            </span>
+            {picked?.memberId === m.memberId && <span aria-hidden>✓</span>}
+          </button>
+        ))}
+        {members.length === 0 && <p className="hint">Roster WM właśnie się wczytuje…</p>}
+      </div>
+      <label className="field">Notatka (opcjonalna)
+        <textarea value={note} onChange={(e) => setNote(e.target.value)} maxLength={2000} />
+      </label>
+      <button type="button" className="btn primary block" disabled={!picked || busy} onClick={submit}>
+        {busy ? 'Zapisywanie…' : `Przypisz${picked ? ` — ${picked.firstName} ${picked.lastName}` : ''} · stan: Przypisany`}
+      </button>
+    </Sheet>
+  );
+}
+
+/** Screen 17: return with the forced end-state chips (server: AVAILABLE / IN_SERVICE / LOST). */
+function UnassignSheet({ item, onClose, onDone }: { item: ItemView; onClose: () => void; onDone: () => void }) {
+  const [state, setState] = useState<'AVAILABLE' | 'IN_SERVICE' | 'LOST'>('AVAILABLE');
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await unassignItem(item.id, { state, note: note.trim() || null });
+      onDone();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Nie udało się przyjąć zwrotu.');
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Sheet title={`Zwrot: ${item.name}`} onClose={onClose}>
+      <p className="hint">{item.serialNumber ? `SN ${item.serialNumber} · ` : ''}przydział zakończy się natychmiast po zapisie.</p>
+      {error && <p className="field-err">{error}</p>}
+      <div className="chips">
+        <button type="button" className={`chip oth${state === 'AVAILABLE' ? ' sel' : ''}`} onClick={() => setState('AVAILABLE')}>✓ sprawny</button>
+        <button type="button" className={`chip oth${state === 'IN_SERVICE' ? ' sel' : ''}`} onClick={() => setState('IN_SERVICE')}>⚠ uszkodzony → serwis</button>
+        <button type="button" className={`chip oth${state === 'LOST' ? ' sel' : ''}`} onClick={() => setState('LOST')}>✗ zgubiony</button>
+      </div>
+      <label className="field">
+        Notatka (opcjonalna)
+        {state !== 'AVAILABLE' && <span className="hint warn">rekomendowana — dane do F4 serwisów w v1.x</span>}
+        <textarea value={note} onChange={(e) => setNote(e.target.value)} maxLength={2000} />
+      </label>
+      <button type="button" className="btn primary block" disabled={busy} onClick={submit}>
+        {busy ? 'Zapisywanie…' : 'Zatwierdź zwrot'}
+      </button>
+    </Sheet>
+  );
+}
+
+/** B6: warehouse move — history = fact, one movement per call. */
+function TransferSheet({ item, onClose, onDone }: { item: ItemView; onClose: () => void; onDone: () => void }) {
+  const options = (['MAIN', 'SERVICE', 'ARCHIVE'] as const).filter((w) => w !== item.warehouse);
+  const [to, setTo] = useState<WarehouseType | null>(options[0] ?? null);
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async () => {
+    if (!to) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await transferItem(item.id, { to, note: note.trim() || null });
+      onDone();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Nie udało się przenieść.');
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Sheet title={`Transfer: ${item.name}`} onClose={onClose}>
+      <p className="hint">Obecnie 🏬 {WAREHOUSE_LABEL[item.warehouse]} — wybierz magazyn docelowy.</p>
+      {error && <p className="field-err">{error}</p>}
+      <div className="chips">
+        {options.map((w) => (
+          <button type="button" key={w} className={`chip oth${to === w ? ' sel' : ''}`} onClick={() => setTo(w)}>
+            🏬 {WAREHOUSE_LABEL[w]}
+          </button>
+        ))}
+      </div>
+      <label className="field">Notatka (opcjonalna)
+        <textarea value={note} onChange={(e) => setNote(e.target.value)} maxLength={2000} />
+      </label>
+      <button type="button" className="btn primary block" disabled={!to || busy} onClick={submit}>
+        {busy ? 'Zapisywanie…' : to ? `Przenieś do: ${WAREHOUSE_LABEL[to]}` : 'Przenieś'}
+      </button>
+    </Sheet>
+  );
+}
