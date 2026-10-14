@@ -17,15 +17,18 @@ import org.springframework.web.bind.annotation.RestController;
 import pl.michalbzowski.inventory.adapter.in.rest.dto.AssignRequest;
 import pl.michalbzowski.inventory.adapter.in.rest.dto.ItemCreateRequest;
 import pl.michalbzowski.inventory.adapter.in.rest.dto.ItemUpdateRequest;
+import pl.michalbzowski.inventory.adapter.in.rest.dto.TransferRequest;
 import pl.michalbzowski.inventory.adapter.in.rest.dto.UnassignRequest;
 import pl.michalbzowski.inventory.adapter.in.security.BearerTokens;
 import pl.michalbzowski.inventory.application.authz.BandAccessGuard;
 import pl.michalbzowski.inventory.application.command.AssignCommandService;
 import pl.michalbzowski.inventory.application.command.ItemCommandService;
+import pl.michalbzowski.inventory.application.command.TransferCommandService;
 import pl.michalbzowski.inventory.application.query.ItemQueryService;
 import pl.michalbzowski.inventory.application.query.ItemViews.AssignmentView;
 import pl.michalbzowski.inventory.application.query.ItemViews.ItemSummaryView;
 import pl.michalbzowski.inventory.application.query.ItemViews.ItemView;
+import pl.michalbzowski.inventory.application.query.ItemViews.WarehouseTransferView;
 import pl.michalbzowski.inventory.domain.inventory.InventoryItem;
 import pl.michalbzowski.inventory.domain.inventory.ItemLifecycleStatus;
 import pl.michalbzowski.inventory.domain.inventory.ItemType;
@@ -47,6 +50,7 @@ public class ItemController {
     private final ItemQueryService queries;
     private final ItemCommandService commands;
     private final AssignCommandService assignments;
+    private final TransferCommandService transfers;
     private final BandAccessGuard guard;
 
     @GetMapping
@@ -118,5 +122,22 @@ public class ItemController {
         long bandId = queries.bandOf(id);
         guard.requireMember(bandId, BearerTokens.require());
         return queries.assignments(id);
+    }
+
+    /** Move between warehouses — ADMIN only (role matrix §2 "transfery", B6). */
+    @PostMapping("/{id}/transfers")
+    public ItemView transfer(@PathVariable long id, @Valid @RequestBody TransferRequest request) {
+        long bandId = queries.bandOf(id);
+        guard.requireAdmin(bandId, BearerTokens.require());
+        InventoryItem item = transfers.transfer(id, request.to(), request.note());
+        return queries.detail(item.getId());
+    }
+
+    /** Transfer history of the item (every band member may read it). */
+    @GetMapping("/{id}/transfers")
+    public List<WarehouseTransferView> transferHistory(@PathVariable long id) {
+        long bandId = queries.bandOf(id);
+        guard.requireMember(bandId, BearerTokens.require());
+        return queries.transfers(id);
     }
 }

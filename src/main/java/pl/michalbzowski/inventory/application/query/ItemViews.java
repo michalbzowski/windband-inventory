@@ -42,6 +42,12 @@ public final class ItemViews {
                                  String returnNote) {
     }
 
+    /** One warehouse-movement event (decision B6: transfer history). */
+    public record WarehouseTransferView(long id, WarehouseType fromWarehouse,
+                                       WarehouseType toWarehouse, String note,
+                                       LocalDateTime transferredAt) {
+    }
+
     public record AttributeDefView(long id, long bandId, ItemType itemType, String name,
                                    AttributeDataType dataType, int displayOrder, boolean required,
                                    boolean displayInList, List<String> options, boolean active) {

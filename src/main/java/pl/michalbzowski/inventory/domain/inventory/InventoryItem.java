@@ -47,6 +47,14 @@ public class InventoryItem {
     private static final Set<ItemLifecycleStatus> RETURNABLE_STATES = EnumSet.of(
             ItemLifecycleStatus.AVAILABLE, ItemLifecycleStatus.IN_SERVICE, ItemLifecycleStatus.LOST);
 
+    /**
+     * States whose item physically sits IN a warehouse (decision B6). ASSIGNED
+     * is with a member, LOST/DISPOSED left the inventory — moving them would
+     * corrupt the location truth the stocktake snapshot reads.
+     */
+    private static final Set<ItemLifecycleStatus> MOVABLE_STATES = EnumSet.of(
+            ItemLifecycleStatus.AVAILABLE, ItemLifecycleStatus.IN_SERVICE, ItemLifecycleStatus.RETIRED);
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -121,13 +129,16 @@ public class InventoryItem {
     /**
      * Full-field update of the editable basics. {@code type} is immutable in v1
      * (attributes are defined per type — changing it would orphan values);
-     * recreate the item instead.
+     * recreate the item instead. The warehouse is immutable here as well: a
+     * DIFFERENT value is rejected because every physical move must exist in the
+     * {@link WarehouseTransfer} history (B6) — pass the current value or null.
      */
     public void replaceDetails(String name, WarehouseType warehouse, String serialNumber,
             String description, String notes) {
         this.name = requireNotBlank(name, "name required");
-        if (warehouse != null) {
-            this.warehouse = warehouse;
+        if (warehouse != null && warehouse != this.warehouse) {
+            throw new IllegalArgumentException(
+                    "Magazynu nie zmienia się edycją pozycji — wykonaj transfer (POST /items/{id}/transfers)");
         }
         this.serialNumber = blankToNull(serialNumber);
         this.description = description;
@@ -197,6 +208,23 @@ public class InventoryItem {
         this.assignedMemberId = null;
         this.assignedMemberName = null;
         this.lifecycleStatus = target;
+    }
+
+    /**
+     * Physical move between the fixed warehouses (decision B6). Only items that
+     * actually sit in a warehouse may move; the caller writes the matching
+     * {@link WarehouseTransfer} history row in the same transaction.
+     */
+    public void moveTo(WarehouseType target) {
+        Objects.requireNonNull(target, "target warehouse required");
+        if (target == warehouse) {
+            throw new IllegalArgumentException("Pozycja jest już w magazynie " + warehouse);
+        }
+        if (!MOVABLE_STATES.contains(lifecycleStatus)) {
+            throw new IllegalStateException("Pozycja w statusie " + lifecycleStatus
+                    + " nie może zmienić magazynu");
+        }
+        this.warehouse = target;
     }
 
     @PrePersist

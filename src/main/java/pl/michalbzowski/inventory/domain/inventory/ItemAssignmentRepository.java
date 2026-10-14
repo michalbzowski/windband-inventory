@@ -15,4 +15,7 @@ public interface ItemAssignmentRepository extends JpaRepository<ItemAssignment, 
     List<ItemAssignment> findByItemIdOrderByAssignedAtDescIdDesc(Long itemId);
 
     List<ItemAssignment> findByBandIdAndMemberIdOrderByAssignedAtDesc(Long bandId, Long memberId);
+
+    /** Existence gate for item deletion: history is evidence, items WITH history are not deletable. */
+    boolean existsByItemId(Long itemId);
 }
