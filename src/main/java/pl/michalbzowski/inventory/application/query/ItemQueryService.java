@@ -1,6 +1,7 @@
 package pl.michalbzowski.inventory.application.query;
 
 import jakarta.persistence.criteria.Predicate;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Locale;
@@ -14,12 +15,14 @@ import pl.michalbzowski.inventory.application.query.ItemViews.AttributeValueView
 import pl.michalbzowski.inventory.application.query.ItemViews.AssignmentView;
 import pl.michalbzowski.inventory.application.query.ItemViews.ItemSummaryView;
 import pl.michalbzowski.inventory.application.query.ItemViews.ItemView;
+import pl.michalbzowski.inventory.application.query.ItemViews.ServiceEventView;
 import pl.michalbzowski.inventory.application.query.ItemViews.WarehouseTransferView;
 import pl.michalbzowski.inventory.domain.inventory.InventoryItem;
 import pl.michalbzowski.inventory.domain.inventory.InventoryItemRepository;
 import pl.michalbzowski.inventory.domain.inventory.ItemAssignmentRepository;
 import pl.michalbzowski.inventory.domain.inventory.ItemAttributeValue;
 import pl.michalbzowski.inventory.domain.inventory.ItemLifecycleStatus;
+import pl.michalbzowski.inventory.domain.inventory.ItemServiceEventRepository;
 import pl.michalbzowski.inventory.domain.inventory.ItemType;
 import pl.michalbzowski.inventory.domain.inventory.WarehouseTransferRepository;
 import pl.michalbzowski.inventory.domain.inventory.WarehouseType;
@@ -35,6 +38,7 @@ public class ItemQueryService {
 
     private final InventoryItemRepository items;
     private final ItemAssignmentRepository assignments;
+    private final ItemServiceEventRepository serviceEvents;
     private final WarehouseTransferRepository warehouseTransfers;
 
     /** Band of an existing item — lets the REST layer guard BEFORE mutation. */
@@ -47,6 +51,13 @@ public class ItemQueryService {
     public List<ItemSummaryView> list(long bandId, ItemType type, ItemLifecycleStatus status,
             WarehouseType warehouse, String search, Long assignedMemberId,
             Long attributeDefId, String attributeValue) {
+        return list(bandId, type, status, warehouse, search, assignedMemberId,
+                attributeDefId, attributeValue, null);
+    }
+
+    public List<ItemSummaryView> list(long bandId, ItemType type, ItemLifecycleStatus status,
+            WarehouseType warehouse, String search, Long assignedMemberId,
+            Long attributeDefId, String attributeValue, Boolean serviceDue) {
         if (attributeValue != null && !attributeValue.isBlank() && attributeDefId == null) {
             throw new IllegalArgumentException("attributeValue wymaga attributeDefId");
         }
@@ -84,6 +95,12 @@ public class ItemQueryService {
                         cb.like(cb.lower(root.get("name")), like),
                         cb.like(cb.lower(root.get("serialNumber")), like)));
             }
+            if (Boolean.TRUE.equals(serviceDue)) {
+                // F4 "do serwisu": physically in the band, plan set and due today.
+                predicates.add(cb.equal(root.get("lifecycleStatus"), ItemLifecycleStatus.AVAILABLE));
+                predicates.add(cb.isNotNull(root.get("nextServiceDate")));
+                predicates.add(cb.lessThanOrEqualTo(root.get("nextServiceDate"), LocalDate.now()));
+            }
             return cb.and(predicates.toArray(Predicate[]::new));
         };
         return items.findAll(spec).stream()
@@ -104,7 +121,19 @@ public class ItemQueryService {
         return new ItemView(item.getId(), item.getBandId(), item.getName(), item.getType(),
                 item.getLifecycleStatus(), item.getWarehouse(), item.getSerialNumber(),
                 item.getDescription(), item.getNotes(), values,
-                item.getAssignedMemberId(), item.getAssignedMemberName());
+                item.getAssignedMemberId(), item.getAssignedMemberName(),
+                item.getNextServiceDate());
+    }
+
+    /** Service-workflow history of one item, newest first (F4; every member may read). */
+    public List<ServiceEventView> services(long itemId) {
+        if (!items.existsById(itemId)) {
+            throw new ItemNotFoundException(itemId);
+        }
+        return serviceEvents.findByItemIdOrderBySentAtDescIdDesc(itemId).stream()
+                .map(e -> new ServiceEventView(e.getId(), e.getSentAt(), e.getSentNote(),
+                        e.getCompletedAt(), e.getCompletedNote(), e.getNextServiceDate()))
+                .toList();
     }
 
     /** Assignment history of one item, newest first (members may read it). */

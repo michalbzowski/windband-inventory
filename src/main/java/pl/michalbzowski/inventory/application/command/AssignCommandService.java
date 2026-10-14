@@ -10,6 +10,8 @@ import pl.michalbzowski.inventory.domain.inventory.InventoryItemRepository;
 import pl.michalbzowski.inventory.domain.inventory.ItemAssignment;
 import pl.michalbzowski.inventory.domain.inventory.ItemAssignmentRepository;
 import pl.michalbzowski.inventory.domain.inventory.ItemLifecycleStatus;
+import pl.michalbzowski.inventory.domain.inventory.ItemServiceEvent;
+import pl.michalbzowski.inventory.domain.inventory.ItemServiceEventRepository;
 
 /**
  * Assign / return use-cases (analysis 3.1; ADMIN-only — role matrix §2).
@@ -26,6 +28,7 @@ public class AssignCommandService {
 
     private final InventoryItemRepository items;
     private final ItemAssignmentRepository assignments;
+    private final ItemServiceEventRepository serviceEvents;
     private final BandDirectory bandDirectory;
 
     @Transactional
@@ -55,6 +58,12 @@ public class AssignCommandService {
                 ? ItemLifecycleStatus.AVAILABLE : returnedState;
         item.unassign(state);
         open.close(state, note);
+        if (state == ItemLifecycleStatus.IN_SERVICE) {
+            // F4: a return straight into service IS an entry to service — open
+            // the evidence event so completeService can close it (one open row
+            // per item, partial unique index uq_item_service_events_open).
+            serviceEvents.save(ItemServiceEvent.open(item, note));
+        }
         return item;
     }
 

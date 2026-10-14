@@ -1,6 +1,7 @@
 package pl.michalbzowski.inventory.adapter.in.rest;
 
 import jakarta.validation.Valid;
+import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -17,17 +18,21 @@ import org.springframework.web.bind.annotation.RestController;
 import pl.michalbzowski.inventory.adapter.in.rest.dto.AssignRequest;
 import pl.michalbzowski.inventory.adapter.in.rest.dto.ItemCreateRequest;
 import pl.michalbzowski.inventory.adapter.in.rest.dto.ItemUpdateRequest;
+import pl.michalbzowski.inventory.adapter.in.rest.dto.ServiceCompleteRequest;
+import pl.michalbzowski.inventory.adapter.in.rest.dto.ServiceSendRequest;
 import pl.michalbzowski.inventory.adapter.in.rest.dto.TransferRequest;
 import pl.michalbzowski.inventory.adapter.in.rest.dto.UnassignRequest;
 import pl.michalbzowski.inventory.adapter.in.security.BearerTokens;
 import pl.michalbzowski.inventory.application.authz.BandAccessGuard;
 import pl.michalbzowski.inventory.application.command.AssignCommandService;
 import pl.michalbzowski.inventory.application.command.ItemCommandService;
+import pl.michalbzowski.inventory.application.command.ServiceCommandService;
 import pl.michalbzowski.inventory.application.command.TransferCommandService;
 import pl.michalbzowski.inventory.application.query.ItemQueryService;
 import pl.michalbzowski.inventory.application.query.ItemViews.AssignmentView;
 import pl.michalbzowski.inventory.application.query.ItemViews.ItemSummaryView;
 import pl.michalbzowski.inventory.application.query.ItemViews.ItemView;
+import pl.michalbzowski.inventory.application.query.ItemViews.ServiceEventView;
 import pl.michalbzowski.inventory.application.query.ItemViews.WarehouseTransferView;
 import pl.michalbzowski.inventory.domain.inventory.InventoryItem;
 import pl.michalbzowski.inventory.domain.inventory.ItemLifecycleStatus;
@@ -51,6 +56,7 @@ public class ItemController {
     private final ItemCommandService commands;
     private final AssignCommandService assignments;
     private final TransferCommandService transfers;
+    private final ServiceCommandService services;
     private final BandAccessGuard guard;
 
     @GetMapping
@@ -62,10 +68,11 @@ public class ItemController {
             @RequestParam(required = false) String search,
             @RequestParam(required = false) Long assignedMemberId,
             @RequestParam(required = false) Long attributeDefId,
-            @RequestParam(required = false) String attributeValue) {
+            @RequestParam(required = false) String attributeValue,
+            @RequestParam(required = false) Boolean serviceDue) {
         guard.requireMember(bandId, BearerTokens.require());
         return queries.list(bandId, type, status, warehouse, search, assignedMemberId,
-                attributeDefId, attributeValue);
+                attributeDefId, attributeValue, serviceDue);
     }
 
     @GetMapping("/{id}")
@@ -142,5 +149,36 @@ public class ItemController {
         long bandId = queries.bandOf(id);
         guard.requireMember(bandId, BearerTokens.require());
         return queries.transfers(id);
+    }
+
+    /** F4 sendToService: AVAILABLE → IN_SERVICE — ADMIN only (B8). */
+    @PostMapping("/{id}/service")
+    public ItemView sendToService(@PathVariable long id,
+            @Valid @RequestBody(required = false) ServiceSendRequest request) {
+        long bandId = queries.bandOf(id);
+        guard.requireAdmin(bandId, BearerTokens.require());
+        String note = request == null ? null : request.note();
+        InventoryItem item = services.send(id, note);
+        return queries.detail(item.getId());
+    }
+
+    /** F4 completeService: IN_SERVICE → AVAILABLE (+ next-service plan) — ADMIN only. */
+    @PostMapping("/{id}/service/complete")
+    public ItemView completeService(@PathVariable long id,
+            @Valid @RequestBody(required = false) ServiceCompleteRequest request) {
+        long bandId = queries.bandOf(id);
+        guard.requireAdmin(bandId, BearerTokens.require());
+        String note = request == null ? null : request.note();
+        LocalDate next = request == null ? null : request.nextServiceDate();
+        InventoryItem item = services.complete(id, note, next);
+        return queries.detail(item.getId());
+    }
+
+    /** Service-workflow history of the item (every band member may read it). */
+    @GetMapping("/{id}/services")
+    public List<ServiceEventView> serviceHistory(@PathVariable long id) {
+        long bandId = queries.bandOf(id);
+        guard.requireMember(bandId, BearerTokens.require());
+        return queries.services(id);
     }
 }

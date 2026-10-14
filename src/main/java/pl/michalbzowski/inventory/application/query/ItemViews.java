@@ -1,5 +1,6 @@
 package pl.michalbzowski.inventory.application.query;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import pl.michalbzowski.inventory.domain.inventory.AttributeDataType;
@@ -32,7 +33,13 @@ public final class ItemViews {
                            ItemLifecycleStatus lifecycleStatus, WarehouseType warehouse,
                            String serialNumber, String description, String notes,
                            List<AttributeValueView> attributes, Long assignedMemberId,
-                           String assignedMemberName) {
+                           String assignedMemberName, LocalDate nextServiceDate) {
+    }
+
+    /** One service-workflow event (F4): open send + possibly completed return. */
+    public record ServiceEventView(long id, LocalDateTime sentAt, String sentNote,
+                                   LocalDateTime completedAt, String completedNote,
+                                   LocalDate nextServiceDate) {
     }
 
     /** One assignment-history event (open + possibly closed return). */

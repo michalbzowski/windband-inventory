@@ -20,6 +20,7 @@ import pl.michalbzowski.inventory.domain.inventory.InventoryItemRepository;
 import pl.michalbzowski.inventory.domain.inventory.ItemAssignmentRepository;
 import pl.michalbzowski.inventory.domain.inventory.ItemAttributeDef;
 import pl.michalbzowski.inventory.domain.inventory.ItemAttributeDefRepository;
+import pl.michalbzowski.inventory.domain.inventory.ItemServiceEventRepository;
 import pl.michalbzowski.inventory.domain.inventory.ItemType;
 import pl.michalbzowski.inventory.domain.inventory.StocktakeLineRepository;
 import pl.michalbzowski.inventory.domain.inventory.WarehouseTransferRepository;
@@ -36,6 +37,9 @@ class ItemCommandServiceTest {
 
     @Mock
     private ItemAssignmentRepository assignments;
+
+    @Mock
+    private ItemServiceEventRepository serviceEvents;
 
     @Mock
     private WarehouseTransferRepository warehouseTransfers;
