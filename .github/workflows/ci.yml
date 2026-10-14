@@ -34,7 +34,7 @@ jobs:
       - name: npm ci
         working-directory: frontend
         run: npm ci --no-audit --no-fund
-      - name: Install Playwright browsers (e2e: mocked-API stocktake flow)
+      - name: Install Playwright browsers for e2e
         working-directory: frontend
         run: npx playwright install --with-deps chromium
       - name: npm run ci
