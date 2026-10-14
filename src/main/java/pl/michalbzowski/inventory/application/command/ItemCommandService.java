@@ -11,6 +11,7 @@ import pl.michalbzowski.inventory.domain.inventory.AttributeValueFormat;
 import pl.michalbzowski.inventory.domain.inventory.AttributeValueInvalidException;
 import pl.michalbzowski.inventory.domain.inventory.InventoryItem;
 import pl.michalbzowski.inventory.domain.inventory.InventoryItemRepository;
+import pl.michalbzowski.inventory.domain.inventory.InventoryNeedRepository;
 import pl.michalbzowski.inventory.domain.inventory.ItemAssignmentRepository;
 import pl.michalbzowski.inventory.domain.inventory.ItemAttributeDef;
 import pl.michalbzowski.inventory.domain.inventory.ItemAttributeDefRepository;
@@ -35,6 +36,7 @@ public class ItemCommandService {
     private final ItemAttributeDefRepository defs;
     private final ItemAssignmentRepository assignments;
     private final ItemServiceEventRepository serviceEvents;
+    private final InventoryNeedRepository needs;
     private final WarehouseTransferRepository warehouseTransfers;
     private final StocktakeLineRepository stocktakeLines;
 
@@ -65,14 +67,15 @@ public class ItemCommandService {
                     "Pozycja przypisana do \"" + item.getAssignedMemberName()
                             + "\" — najpierw ją zwróć, potem usuwaj");
         }
-        // History rows (assignments, service events, transfers, stocktake lines)
-        // carry FKs to the item and are the evidence base of v1.x (F3) — such
-        // items are archived, not deleted.
+        // History rows (assignments, service events, transfers, stocktake lines,
+        // needs) carry FKs to the item and are the evidence base of v1.x (F3) —
+        // such items are archived, not deleted.
         if (assignments.existsByItemId(id) || serviceEvents.existsByItemId(id)
+                || needs.existsByItemId(id)
                 || warehouseTransfers.existsByItemId(id)
                 || stocktakeLines.existsByItem_Id(id)) {
             throw new IllegalStateException(
-                    "Pozycja ma historię (przydziały/serwisy/przeniesienia/spisy) — nie usuwaj dowodów;"
+                    "Pozycja ma historię (przydziały/serwisy/przeniesienia/spisy/potrzeby) — nie usuwaj dowodów;"
                             + " do usunięcia tylko pozycje bez żadnej historii");
         }
         items.delete(item);

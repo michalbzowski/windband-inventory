@@ -45,6 +45,9 @@ class ItemCommandServiceTest {
     private WarehouseTransferRepository warehouseTransfers;
 
     @Mock
+    private pl.michalbzowski.inventory.domain.inventory.InventoryNeedRepository needs;
+
+    @Mock
     private StocktakeLineRepository stocktakeLines;
 
     @InjectMocks
