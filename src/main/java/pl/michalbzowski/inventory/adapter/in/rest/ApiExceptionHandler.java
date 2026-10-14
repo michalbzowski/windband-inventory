@@ -44,6 +44,13 @@ public class ApiExceptionHandler {
         return body(HttpStatus.CONFLICT, "duplicate", ex.getMessage());
     }
 
+    /** Lifecycle conflicts: assign to a non-AVAILABLE item, return a non-ASSIGNED one,
+     *  delete an assigned one — the current state forbids the operation. */
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<Map<String, String>> conflict(IllegalStateException ex) {
+        return body(HttpStatus.CONFLICT, "status_conflict", ex.getMessage());
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, String>> payloadInvalid(MethodArgumentNotValidException ex) {
         String message = ex.getBindingResult().getFieldErrors().stream()

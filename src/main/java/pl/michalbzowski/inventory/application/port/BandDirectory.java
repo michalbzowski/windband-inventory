@@ -1,5 +1,6 @@
 package pl.michalbzowski.inventory.application.port;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -17,4 +18,12 @@ public interface BandDirectory {
      * @throws WmUnavailableException when WM cannot be reached
      */
     Map<Long, BandRole> myBands(String bearerToken);
+
+    /**
+     * Band roster with active flags (WM: {@code GET /api/v1/bands/{bandId}/members}).
+     * Called on assign only — never cached: the ACTIVE check must reflect WM now.
+     *
+     * @throws WmUnavailableException when WM cannot be reached
+     */
+    List<BandMember> members(String bearerToken, long bandId);
 }

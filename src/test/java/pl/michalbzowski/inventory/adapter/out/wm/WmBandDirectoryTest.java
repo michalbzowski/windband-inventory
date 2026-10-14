@@ -9,6 +9,7 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -17,6 +18,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 import pl.michalbzowski.inventory.application.authz.BandForbiddenException;
+import pl.michalbzowski.inventory.application.port.BandMember;
 import pl.michalbzowski.inventory.application.port.BandRole;
 import pl.michalbzowski.inventory.application.port.WmUnavailableException;
 
@@ -107,5 +109,34 @@ class WmBandDirectoryTest {
                 .andRespond(withStatus(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR));
         assertThatThrownBy(() -> directory(60_000).myBands("tok"))
                 .isInstanceOf(WmUnavailableException.class);
+    }
+
+    @Test
+    void rosterIsFetchedWithCallerTokenAndKeepsActiveFlags() {
+        server.expect(requestTo("http://wm.test/api/v1/bands/7/members"))
+                .andExpect(method(HttpMethod.GET))
+                .andExpect(header("Authorization", "Bearer tok-9"))
+                .andRespond(withSuccess("""
+                        [{"memberId":11,"firstName":"Jan","lastName":"Kowalski","active":true,
+                          "expectedSet":[{"instrument":"Flet","primary":true}]},
+                         {"memberId":13,"firstName":"Stefan","lastName":"Stary","active":false,
+                          "expectedSet":[]}]""", MediaType.APPLICATION_JSON));
+
+        List<BandMember> roster = directory(60_000).members("tok-9", 7L);
+
+        assertThat(roster).hasSize(2);
+        assertThat(roster.get(0).fullName()).isEqualTo("Jan Kowalski");
+        assertThat(roster.get(1).active()).isFalse();
+        server.verify();
+    }
+
+    @Test
+    void rosterForForeignUserIsBandForbidden() {
+        server.expect(requestTo("http://wm.test/api/v1/bands/9/members"))
+                .andRespond(withStatus(org.springframework.http.HttpStatus.FORBIDDEN));
+
+        assertThatThrownBy(() -> directory(60_000).members("tok-x", 9L))
+                .isInstanceOf(BandForbiddenException.class);
+        server.verify();
     }
 }

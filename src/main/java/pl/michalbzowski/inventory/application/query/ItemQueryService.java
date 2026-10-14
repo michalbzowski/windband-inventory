@@ -10,10 +10,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pl.michalbzowski.inventory.application.command.ItemNotFoundException;
 import pl.michalbzowski.inventory.application.query.ItemViews.AttributeValueView;
+import pl.michalbzowski.inventory.application.query.ItemViews.AssignmentView;
 import pl.michalbzowski.inventory.application.query.ItemViews.ItemSummaryView;
 import pl.michalbzowski.inventory.application.query.ItemViews.ItemView;
 import pl.michalbzowski.inventory.domain.inventory.InventoryItem;
 import pl.michalbzowski.inventory.domain.inventory.InventoryItemRepository;
+import pl.michalbzowski.inventory.domain.inventory.ItemAssignmentRepository;
 import pl.michalbzowski.inventory.domain.inventory.ItemAttributeValue;
 import pl.michalbzowski.inventory.domain.inventory.ItemLifecycleStatus;
 import pl.michalbzowski.inventory.domain.inventory.ItemType;
@@ -29,6 +31,7 @@ import pl.michalbzowski.inventory.domain.inventory.WarehouseType;
 public class ItemQueryService {
 
     private final InventoryItemRepository items;
+    private final ItemAssignmentRepository assignments;
 
     /** Band of an existing item — lets the REST layer guard BEFORE mutation. */
     public long bandOf(long id) {
@@ -38,7 +41,7 @@ public class ItemQueryService {
     }
 
     public List<ItemSummaryView> list(long bandId, ItemType type, ItemLifecycleStatus status,
-            WarehouseType warehouse, String search) {
+            WarehouseType warehouse, String search, Long assignedMemberId) {
         Specification<InventoryItem> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
             predicates.add(cb.equal(root.get("bandId"), bandId));
@@ -50,6 +53,9 @@ public class ItemQueryService {
             }
             if (warehouse != null) {
                 predicates.add(cb.equal(root.get("warehouse"), warehouse));
+            }
+            if (assignedMemberId != null) {
+                predicates.add(cb.equal(root.get("assignedMemberId"), assignedMemberId));
             }
             if (search != null && !search.isBlank()) {
                 String like = "%" + search.trim().toLowerCase() + "%";
@@ -77,11 +83,25 @@ public class ItemQueryService {
                 .toList();
         return new ItemView(item.getId(), item.getBandId(), item.getName(), item.getType(),
                 item.getLifecycleStatus(), item.getWarehouse(), item.getSerialNumber(),
-                item.getDescription(), item.getNotes(), values);
+                item.getDescription(), item.getNotes(), values,
+                item.getAssignedMemberId(), item.getAssignedMemberName());
+    }
+
+    /** Assignment history of one item, newest first (members may read it). */
+    public List<AssignmentView> assignments(long itemId) {
+        if (!items.existsById(itemId)) {
+            throw new ItemNotFoundException(itemId);
+        }
+        return assignments.findByItemIdOrderByAssignedAtDescIdDesc(itemId).stream()
+                .map(a -> new AssignmentView(a.getId(), a.getMemberId(), a.getMemberName(),
+                        a.getAssignedAt(), a.getReturnedAt(), a.getReturnedState(),
+                        a.getAssignNote(), a.getReturnNote()))
+                .toList();
     }
 
     private static ItemSummaryView summary(InventoryItem item) {
         return new ItemSummaryView(item.getId(), item.getName(), item.getType(),
-                item.getLifecycleStatus(), item.getWarehouse(), item.getSerialNumber());
+                item.getLifecycleStatus(), item.getWarehouse(), item.getSerialNumber(),
+                item.getAssignedMemberId(), item.getAssignedMemberName());
     }
 }

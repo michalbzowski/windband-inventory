@@ -1,5 +1,6 @@
 package pl.michalbzowski.inventory.application.query;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import pl.michalbzowski.inventory.domain.inventory.AttributeDataType;
 import pl.michalbzowski.inventory.domain.inventory.ItemLifecycleStatus;
@@ -23,13 +24,22 @@ public final class ItemViews {
 
     public record ItemSummaryView(long id, String name, ItemType type,
                                   ItemLifecycleStatus lifecycleStatus, WarehouseType warehouse,
-                                  String serialNumber) {
+                                  String serialNumber, Long assignedMemberId,
+                                  String assignedMemberName) {
     }
 
     public record ItemView(long id, long bandId, String name, ItemType type,
                            ItemLifecycleStatus lifecycleStatus, WarehouseType warehouse,
                            String serialNumber, String description, String notes,
-                           List<AttributeValueView> attributes) {
+                           List<AttributeValueView> attributes, Long assignedMemberId,
+                           String assignedMemberName) {
+    }
+
+    /** One assignment-history event (open + possibly closed return). */
+    public record AssignmentView(long id, long memberId, String memberName,
+                                 LocalDateTime assignedAt, LocalDateTime returnedAt,
+                                 ItemLifecycleStatus returnedState, String assignNote,
+                                 String returnNote) {
     }
 
     public record AttributeDefView(long id, long bandId, ItemType itemType, String name,
