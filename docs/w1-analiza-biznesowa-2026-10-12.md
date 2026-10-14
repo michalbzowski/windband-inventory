@@ -83,6 +83,24 @@ OIDC → inventory musi je brać z API WM (B10) i nie może ich wyprowadzać z t
 - **Testy**: pełny flow start→liczenie (≥5 pozycji z rozbieżnościami)→close→raport;
   double-close reject; permission test (użytkownik innego bandu → 403);
   E2E UI na viewport 360 px; update linii < 500 ms.
+- **Doprecyzowanie (2026-10-14, implementacja F5)**:
+  - ścieżki kanoniczne REST: `POST /api/inventory/stocktakes?bandId=` (start +
+    snapshot synchronicznie), `GET /{id}`, `GET /{id}/lines[?state=OK|MISSING|BROKEN|EXTRA]`,
+    `GET /{id}/summary`, `PUT /{id}/lines/{lineId}` (liczenie/poprawka),
+    `POST /{id}/lines` (dopisanie nadwyżki), `PATCH /{id}/pause|resume|close`.
+    Skrót „stocktake-{id}” z pierwotnego zapisu = `/stocktakes/{id}/…`.
+  - `DRAFT` = stan pauzy; start daje od razu `IN_PROGRESS`; jedyna dopuszczalna
+    ścieżka domknięcia to `IN_PROGRESS → CLOSED` (pauza wymusza wznowienie przed close).
+  - `countedBy`: WM celowo nie mapuje członków na użytkowników (kontrakt §B10),
+    więc żądanie liczenia niesie `countedMemberId`, a serwer weryfikuje je przy
+    każdym zapisie względem żywej listy roster WM (jak przy przydziałach);
+    `startedBy` = subject Keycloaka administratora, który otworzył spis.
+  - `foundState` OK/BROKEN/MISSING należą do liczenia snapshotu; EXTRA jest
+    zarezerwowane dla dopisanych jednostek (POST lines). Ostatnie słowo liczącego
+    wygrywa do momentu zamknięcia (korekty offline flush).
+  - pauza/wznowienie = ADMIN (analogia B8: sterowanie biegiem spisu).
+  - pozycja ujęta w jakimkolwiek spisie staje się nieusuwalna (DELETE → 409 —
+    dowody F3); NFR < 500 ms na update linii nie jest asercją w CI (flaky).
 
 ### 3.3 Poza zakresem v1 (wprost)
 Brak: migracja danych (B3), dwustronna nawigacja (B11), stany członka/kontaktowe z API

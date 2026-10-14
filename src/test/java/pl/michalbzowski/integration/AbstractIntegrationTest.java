@@ -23,6 +23,8 @@ import pl.michalbzowski.inventory.application.port.BandRole;
 import pl.michalbzowski.inventory.domain.inventory.InventoryItemRepository;
 import pl.michalbzowski.inventory.domain.inventory.ItemAssignmentRepository;
 import pl.michalbzowski.inventory.domain.inventory.ItemAttributeDefRepository;
+import pl.michalbzowski.inventory.domain.inventory.StocktakeLineRepository;
+import pl.michalbzowski.inventory.domain.inventory.StocktakeRepository;
 import pl.michalbzowski.inventory.domain.inventory.WarehouseTransferRepository;
 
 import static org.mockito.ArgumentMatchers.anyString;
@@ -103,6 +105,10 @@ public abstract class AbstractIntegrationTest {
 
     @Autowired
     protected WarehouseTransferRepository warehouseTransfers;
+    @Autowired
+    protected StocktakeRepository stocktakes;
+    @Autowired
+    protected StocktakeLineRepository stocktakeLines;
 
     @BeforeEach
     void resetFixtures() {
@@ -118,6 +124,8 @@ public abstract class AbstractIntegrationTest {
                 .expiresAt(java.time.Instant.now().plusSeconds(3_600))
                 .build());
         // History rows reference items — children before parents.
+        stocktakeLines.deleteAll();
+        stocktakes.deleteAll();
         warehouseTransfers.deleteAll();
         assignments.deleteAll();
         items.deleteAll();
