@@ -186,6 +186,53 @@ class InventoryItemsIT extends AbstractIntegrationTest {
     }
 
     @Test
+    void listFiltersByAttributeDefinitionAndValue() throws Exception {
+        // P0 §3.1: lists filterable by attribute per definition from the list.
+        long colorDef = createDef("""
+                {"name":"Kolor","itemType":"UNIFORM","dataType":"TEXT","displayOrder":1}""");
+        long sizeDef = createDef("""
+                {"name":"Rozmiar","itemType":"UNIFORM","dataType":"SELECT",
+                 "displayOrder":2,"options":["S","M"]}""");
+        createItem("""
+                {"name":"Marynarka","type":"UNIFORM","attributes":[
+                 {"attributeDefId":%d,"value":"Zielony"},{"attributeDefId":%d,"value":"M"}]}"""
+                .formatted(colorDef, sizeDef));
+        createItem("""
+                {"name":"Spornia","type":"UNIFORM","attributes":[
+                 {"attributeDefId":%d,"value":"Czarny"},{"attributeDefId":%d,"value":"S"}]}"""
+                .formatted(colorDef, sizeDef));
+        createItem("{\"name\":\"Pulpit\",\"type\":\"EQUIPMENT\"}");
+
+        // Exact value match is case-insensitive (SELECT chips arrive verbatim, TEXT is typed).
+        mvc.perform(get("/api/inventory/items?bandId=7&attributeDefId=" + colorDef
+                + "&attributeValue=zielony").with(as("tok-member")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(1)))
+                .andExpect(jsonPath("$[0].name").value("Marynarka"));
+
+        // Definition without value = "has any value set for this attribute".
+        mvc.perform(get("/api/inventory/items?bandId=7&attributeDefId=" + sizeDef).with(as("tok-member")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(2)));
+
+        // Combines with the classic filters (type narrows within the attribute hit).
+        mvc.perform(get("/api/inventory/items?bandId=7&type=INSTRUMENT&attributeDefId=" + colorDef)
+                        .with(as("tok-member")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(0)));
+
+        // A value without a definition is meaningless (values are per-def) -> 400.
+        mvc.perform(get("/api/inventory/items?bandId=7&attributeValue=M").with(as("tok-member")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("invalid_request"));
+
+        // Foreign band's definition yields an empty page, never another band's data.
+        mvc.perform(get("/api/inventory/items?bandId=7&attributeDefId=999999").with(as("tok-member")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(0)));
+    }
+
+    @Test
     void wmOutageSurfacesAsServiceUnavailable() throws Exception {
         willThrow(new WmUnavailableException("awaria testowa"))
                 .given(bandDirectory).myBands("tok-admin");
