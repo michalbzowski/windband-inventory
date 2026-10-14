@@ -1,8 +1,14 @@
 import { getSession, beginLogin } from '../auth/oidc';
 
-/** Same-origin base: in dev the Vite proxy forwards /api → windband-manager,
- * in production a reverse proxy does the same. */
-const BASE = '/api/v1';
+/**
+ * Two same-origin API bases (the proxy contract, see vite.config.ts and
+ * deploy/nginx/default.conf.template):
+ *  - /api/v1        → windband-manager (bands, roster, roles — B11/B10)
+ *  - /api/inventory → this app's own backend (items, stocktakes — canonical REST)
+ */
+export type ApiBase = '/api/v1' | '/api/inventory';
+const WM: ApiBase = '/api/v1';
+const INV: ApiBase = '/api/inventory';
 
 export class ApiError extends Error {
   constructor(
@@ -19,13 +25,18 @@ interface RequestOptions {
   reauth?: boolean;
 }
 
-async function request<T>(path: string, init: RequestInit, opts: RequestOptions = {}): Promise<T> {
+async function request<T>(
+  base: ApiBase,
+  path: string,
+  init: RequestInit,
+  opts: RequestOptions = {},
+): Promise<T> {
   const session = getSession();
   if (!session) {
     window.location.assign('/'); // App will redirect to login on boot.
     throw new Error('Not authenticated');
   }
-  const res = await fetch(BASE + path, {
+  const res = await fetch(base + path, {
     ...init,
     headers: {
       ...(init.headers ?? {}),
@@ -49,9 +60,33 @@ async function request<T>(path: string, init: RequestInit, opts: RequestOptions 
     }
     throw new ApiError(res.status, detail || `Zapytanie zakończone błędem (${res.status})`);
   }
+  if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
 }
 
+/** WM read (kept for bands.ts — identical behaviour to before). */
 export function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
-  return request<T>(path, { method: 'GET' }, { signal });
+  return request<T>(WM, path, { method: 'GET' }, { signal });
+}
+
+export function invGet<T>(path: string, signal?: AbortSignal): Promise<T> {
+  return request<T>(INV, path, { method: 'GET' }, { signal });
+}
+
+export function invSend<T>(
+  method: 'POST' | 'PUT' | 'PATCH',
+  path: string,
+  body?: unknown,
+  signal?: AbortSignal,
+): Promise<T> {
+  return request<T>(
+    INV,
+    path,
+    {
+      method,
+      headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    },
+    { signal },
+  );
 }

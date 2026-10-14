@@ -91,6 +91,16 @@ OIDC → inventory musi je brać z API WM (B10) i nie może ich wyprowadzać z t
     Skrót „stocktake-{id}” z pierwotnego zapisu = `/stocktakes/{id}/…`.
   - `DRAFT` = stan pauzy; start daje od razu `IN_PROGRESS`; jedyna dopuszczalna
     ścieżka domknięcia to `IN_PROGRESS → CLOSED` (pauza wymusza wznowienie przed close).
+  - **Single-open**: w jednym bandzie istnieje co najwyżej jeden spis edytowalny
+    (`DRAFT` lub `IN_PROGRESS`); drugi `POST` → `409 status_conflict`. Hub UI,
+    „dołącz do liczenia" i raport zakładają jednoznaczność aktywnego spisu.
+  - **Kroj frontendu (2026-10-14)**: mobilny moduł Liczenie w `frontend/` — ekran
+    startu (snapshot + podgląd zakresu), karta liczenia (OK/BRAK/USZKODZONE,
+    nadwyżka, notacje, auto-next, toast Cofnij), pauza/wznowienie, raport 4-sekcyjny
+    ze stemplem, kolejka offline w localStorage (klucz `wi.countQueue.v1`,
+    last-word-wins) z auto-flushem po sieci; tożsamość liczącego wybierana z
+    rosteru WM raz na band (`wi.identity.<bandId>`). Testy: vitest (queue/progress)
+    + Playwright e2e na mocku kontraktu (flow pełny, offline, nadwyżka, single-open).
   - `countedBy`: WM celowo nie mapuje członków na użytkowników (kontrakt §B10),
     więc żądanie liczenia niesie `countedMemberId`, a serwer weryfikuje je przy
     każdym zapisie względem żywej listy roster WM (jak przy przydziałach);

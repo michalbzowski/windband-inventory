@@ -181,4 +181,15 @@ class StocktakeCommandServiceTest {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("IN_PROGRESS");
     }
+
+    @Test
+    void startRejectedWhileAnotherStocktakeIsStillOpen() {
+        // Hub/join/report semantics require at most one editable stocktake per band.
+        when(stocktakes.existsByBandIdAndStatusIn(anyLong(), any())).thenReturn(true);
+
+        assertThatThrownBy(() -> service.start("tok", 7L, "subj", null, null, null, "drugi"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("spis");
+        verify(stocktakes, never()).save(any());
+    }
 }

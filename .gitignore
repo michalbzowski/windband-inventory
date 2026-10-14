@@ -17,3 +17,7 @@ frontend/node_modules/
 
 # Scratch evidence
 tmp/
+
+# Playwright artifacts
+frontend/test-results/
+frontend/playwright-report/

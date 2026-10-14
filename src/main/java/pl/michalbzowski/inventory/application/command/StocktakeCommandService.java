@@ -2,6 +2,7 @@ package pl.michalbzowski.inventory.application.command;
 
 import java.util.EnumSet;
 import java.util.List;
+import pl.michalbzowski.inventory.domain.inventory.StocktakeStatus;
 import java.util.Objects;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
@@ -50,6 +51,13 @@ public class StocktakeCommandService {
     @Transactional
     public Stocktake start(String bearerToken, long bandId, String startedBySubject,
             ItemType type, ItemLifecycleStatus status, WarehouseType warehouse, String notes) {
+        // The hub, "dołącz do liczenia" and the report all assume ONE editable
+        // stocktake per band; a second open would silently split the counts.
+        if (stocktakes.existsByBandIdAndStatusIn(bandId,
+                List.of(StocktakeStatus.DRAFT, StocktakeStatus.IN_PROGRESS))) {
+            throw new IllegalStateException(
+                    "Zespół ma już otwarty spis (w toku lub wstrzymany) — dokończ i zamknij go przed nowym");
+        }
         if (status != null && !SNAPSHOT_STATUSES.contains(status)) {
             throw new IllegalArgumentException(
                     "Spis może zawężać tylko do statusów AVAILABLE/ASSIGNED — reszta nie jest spodziewana w magazynie");
