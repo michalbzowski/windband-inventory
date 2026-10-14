@@ -22,6 +22,7 @@ import pl.michalbzowski.inventory.application.authz.BandForbiddenException;
 import pl.michalbzowski.inventory.application.port.BandDirectory;
 import pl.michalbzowski.inventory.application.port.BandMember;
 import pl.michalbzowski.inventory.application.port.BandRole;
+import pl.michalbzowski.inventory.application.port.ExpectedEntry;
 import pl.michalbzowski.inventory.application.port.WmUnavailableException;
 
 /**
@@ -89,7 +90,10 @@ public class WmBandDirectory implements BandDirectory {
         List<MemberDto> rows = getFromWm("/api/v1/bands/{bandId}/members",
                 MEMBERS_LIST, bearerToken, bandId);
         return (rows == null ? List.<MemberDto>of() : rows).stream()
-                .map(m -> new BandMember(m.memberId(), m.firstName(), m.lastName(), m.active()))
+                .map(m -> new BandMember(m.memberId(), m.firstName(), m.lastName(), m.active(),
+                        (m.expectedSet() == null ? List.<ExpectedDto>of() : m.expectedSet()).stream()
+                                .map(e -> new ExpectedEntry(e.instrument(), e.primary()))
+                                .toList()))
                 .toList();
     }
 
@@ -142,8 +146,13 @@ public class WmBandDirectory implements BandDirectory {
     }
 
     /** WM roster row: {memberId, firstName, lastName, active, expectedSet} —
-     *  expectedSet is intentionally NOT mapped here (F3 view, v1.x). */
-    record MemberDto(long memberId, String firstName, String lastName, boolean active) {
+     *  frozen B10 contract; expectedSet feeds the F3 member picture (v1.x). */
+    record MemberDto(long memberId, String firstName, String lastName, boolean active,
+                     List<ExpectedDto> expectedSet) {
+    }
+
+    /** WM expected-set entry: {instrument, primary}. */
+    record ExpectedDto(String instrument, boolean primary) {
     }
 
     private record CacheEntry(Map<Long, BandRole> roles, long expiresAtMillis) {

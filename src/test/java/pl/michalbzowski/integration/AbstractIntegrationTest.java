@@ -20,6 +20,7 @@ import pl.michalbzowski.inventory.InventoryApplication;
 import pl.michalbzowski.inventory.application.port.BandDirectory;
 import pl.michalbzowski.inventory.application.port.BandMember;
 import pl.michalbzowski.inventory.application.port.BandRole;
+import pl.michalbzowski.inventory.application.port.ExpectedEntry;
 import pl.michalbzowski.inventory.domain.inventory.InventoryItemRepository;
 import pl.michalbzowski.inventory.domain.inventory.ItemAssignmentRepository;
 import pl.michalbzowski.inventory.domain.inventory.ItemAttributeDefRepository;
@@ -73,10 +74,12 @@ public abstract class AbstractIntegrationTest {
             "tok-member", Map.of(7L, BandRole.MEMBER),
             "tok-outsider", Map.of(9L, BandRole.ADMIN));
 
-    /** WM roster fixtures (B10 port): band 7 — 11/12 active, 13 inactive; band 3 — 21. */
+    /** WM roster fixtures (B10 port): band 7 — 11/12 active, 13 inactive; band 3 — 21.
+     *  expectedSet feeds F3 (member picture): Jan expects Flet (primary) + Altówka. */
     private static final Map<Long, java.util.List<BandMember>> ROSTER_BY_BAND = Map.of(
             7L, java.util.List.of(
-                    new BandMember(11L, "Jan", "Kowalski", true),
+                    new BandMember(11L, "Jan", "Kowalski", true, java.util.List.of(
+                            new ExpectedEntry("Flet", true), new ExpectedEntry("Altówka", false))),
                     new BandMember(12L, "Anna", "Nowak", true),
                     new BandMember(13L, "Stefan", "Stary", false)),
             3L, java.util.List.of(new BandMember(21L, "Ewa", "Duda", true)));
