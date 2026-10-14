@@ -113,6 +113,9 @@ public abstract class AbstractIntegrationTest {
     @Autowired
     protected StocktakeLineRepository stocktakeLines;
 
+    @Autowired
+    protected pl.michalbzowski.inventory.domain.inventory.InventoryNeedRepository needs;
+
     @BeforeEach
     void resetFixtures() {
         reset(bandDirectory);
@@ -127,6 +130,7 @@ public abstract class AbstractIntegrationTest {
                 .expiresAt(java.time.Instant.now().plusSeconds(3_600))
                 .build());
         // History rows reference items — children before parents.
+        needs.deleteAll();
         stocktakeLines.deleteAll();
         stocktakes.deleteAll();
         warehouseTransfers.deleteAll();
