@@ -10,8 +10,11 @@ Inwentaryzacja orkiestry dętej — osobna aplikacja, blisko zintegrowana z
 
 ## Deploy (Railway)
 
-Kontener jest budowany przez **Dockerfile w korzeniu repo** (provider Docker —
-Railway wykrywa go automatycznie po podpięciu tego repo do projektu):
+Frontend/edge jest budowany przez **Dockerfile w korzeniu repo** (nginx+SPA —
+provider Docker, Railway wykrywa go automatycznie po podpięciu repo):
+Backend Spring buduje **`Dockerfile.backend`** — to DRUGA usługa z tego samego
+repo: Settings → Build → Dockerfile path = `Dockerfile.backend`, target port
+usługi/domeny **8090**, zmienne wg komentarza w tym pliku.
 
 1. Railway: podłącz repo `michalbzowski/windband-inventory` do Projektu
    **obok serwisów windband-manager / keycloak** (push = build). Dzięki temu
@@ -29,7 +32,18 @@ lokalnie serwer dev Vite serwuje ten sam `/env.js` z `process.env`.
 |---|---|---|---|
 | `AUTH_ISSUER` | Issuer Keycloak (URL realmu) do loginu i wymiany kodu | `http://localhost:8180/realms/windband` | `https://login.bandmanager.pl/realms/windband` |
 | `AUTH_CLIENT_ID` | OIDC `client_id` (kanoniczna nazwa klienta) | `windband-inventory` | `windband-inventory` (domyślna wystarczy) |
-| `WM_API_URL` | Cel proxy same-origin `/api/v1` → windband-manager | `http://localhost:8080` | `http://windband-manager.railway.internal:8080` |
+| `WM_API_URL` | Cel proxy same-origin `/api/v1` → windband-manager | `http://localhost:8080` | `https://app.bandmanager.pl` (razem z `NGINX_RESOLVER=8.8.8.8`) |
+| `NGINX_RESOLVER` | DNS używany przez nginx do nazw upstreamów | `127.0.0.11` (DNS Dockera) | `8.8.8.8` — uwaga poniżej |
+| `BACKEND_API_URL` | Cel proxy same-origin `/api/inventory/` → backend Spring | `http://localhost:8090` | publiczna domena usługi backendu lub internal (patrz ostrzeżenie niżej) |
+
+⚠️ **Pułapka DNS (potwierdzona produkcyjnie 2026-10-14):** z `NGINX_RESOLVER=8.8.8.8`
+nginx NIE rozwiąże `*.railway.internal` — to publiczny DNS, a nazwy prywatnej sieci
+są dostępne tylko z wewnętrznego DNS Railway (`/etc/resolv.conf` kontenera; obraz
+nginx eksportuje go jako `NGINX_LOCAL_RESOLVER`). Stąd: adresy `…railway.internal`
+działają **w JVM** (backend → WM/Keycloak — Java czyta resolv.conf) i **nie** mogą
+być wpisywane wprost do zmiennych proxy nginx, dopóki resolver nie wskazuje na DNS
+Railway. Bezpieczny wariant dla nginx: publiczne domeny (`app.bandmanager.pl`,
+`<backend>.up.railway.app`).
 
 Redirect powrotny po logowaniu to ZAWSZE `<origin aplikacji>/callback`, liczony w
 przeglądarce z `window.location.origin` — nie jest zmenną ani parametrem buildu.

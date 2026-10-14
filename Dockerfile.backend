@@ -1,0 +1,41 @@
+# windband-inventory — SPRING BACKEND image (second Railway service).
+#
+# The repo-root Dockerfile is the nginx/SPA edge (auto-detected by Railway);
+# create the backend service from the SAME repo and set its
+# Settings -> Build -> Dockerfile path to `Dockerfile.backend`.
+#
+# Pattern mirrors windband-manager/Dockerfile (proven on Railway):
+# multi-stage temurin JDK build via the Maven wrapper, JRE-alpine runtime.
+# `mvnw` on alpine REQUIRES curl+bash (skill: "mvnw: line 46: curl: not found").
+# No fonts here — inventory backend renders no JasperReports (that is WM).
+#
+# Runtime env (set on the Railway service; names follow application.yml):
+#   AUTH_ISSUER   https://login.bandmanager.pl/realms/windband   (one scheme!)
+#   SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI
+#               http://keycloak.railway.internal:8080/realms/windband/protocol/openid-connect/certs
+#               (JVM reads /etc/resolv.conf -> internal DNS works from Java;
+#                the nginx resolver trap does NOT apply here)
+#   WM_API_URL    http://windband-manager.railway.internal:8080  (no trailing /)
+#   DB_HOST / DB_PORT / DB_NAME / DB_USER / DB_PASS  (inventory-db; never DATABASE_URL)
+#   PORT          injected by Railway; defaults to 8090
+#
+# After deploy: point the nginx service's BACKEND_API_URL at this service and
+# set its domain TARGET PORT to 8090 (postmortem: default 8080 -> edge 502).
+
+FROM eclipse-temurin:21-jdk-alpine AS build
+WORKDIR /app
+RUN apk add --no-cache curl bash
+COPY pom.xml mvnw ./
+COPY .mvn .mvn
+COPY checkstyle.xml checkstyle-suppressions.xml ./
+COPY src ./src
+RUN ./mvnw -B clean package -DskipTests
+
+FROM eclipse-temurin:21-jre-alpine
+WORKDIR /app
+COPY --from=build /app/target/*.jar app.jar
+EXPOSE 8090
+# /actuator/health is permitAll (SecurityConfig); proves the app really serves.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=40s \
+  CMD wget -q -O- "http://127.0.0.1:${PORT:-8090}/actuator/health" | grep -q '"UP"' || exit 1
+ENTRYPOINT ["java", "-jar", "app.jar"]
