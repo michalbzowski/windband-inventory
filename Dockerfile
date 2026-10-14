@@ -45,6 +45,10 @@ ENV AUTH_CLIENT_ID=windband-inventory
 # Docker built-in DNS (user-defined networks, Railway internal DNS). When the
 # container runs with --network host, override to your host's resolver.
 ENV NGINX_RESOLVER=127.0.0.11
+# Inventory Spring backend target (nginx routes /api/inventory/ here).
+# Non-empty default is a SAFETY REQUIREMENT: an unset var would render an
+# invalid `proxy_pass ;` and prevent nginx from starting at all.
+ENV BACKEND_API_URL=http://localhost:8090
 COPY deploy/nginx/default.conf.template /etc/nginx/templates/default.conf.template
 COPY deploy/nginx/env.js.template /etc/nginx/templates/env.js.template
 COPY --from=build /app/dist/ /usr/share/nginx/html/
