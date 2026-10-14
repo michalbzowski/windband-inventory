@@ -11,6 +11,8 @@ import pl.michalbzowski.inventory.application.authz.BandForbiddenException;
 import pl.michalbzowski.inventory.application.command.AttributeDefDuplicateException;
 import pl.michalbzowski.inventory.application.command.AttributeDefNotFoundException;
 import pl.michalbzowski.inventory.application.command.ItemNotFoundException;
+import pl.michalbzowski.inventory.application.command.StocktakeLineNotFoundException;
+import pl.michalbzowski.inventory.application.command.StocktakeNotFoundException;
 import pl.michalbzowski.inventory.application.port.WmUnavailableException;
 import pl.michalbzowski.inventory.domain.inventory.AttributeValueInvalidException;
 
@@ -24,7 +26,8 @@ import pl.michalbzowski.inventory.domain.inventory.AttributeValueInvalidExceptio
 @RestControllerAdvice
 public class ApiExceptionHandler {
 
-    @ExceptionHandler({ItemNotFoundException.class, AttributeDefNotFoundException.class})
+    @ExceptionHandler({ItemNotFoundException.class, AttributeDefNotFoundException.class,
+            StocktakeNotFoundException.class, StocktakeLineNotFoundException.class})
     public ResponseEntity<Map<String, String>> notFound(RuntimeException ex) {
         return body(HttpStatus.NOT_FOUND, "not_found", ex.getMessage());
     }

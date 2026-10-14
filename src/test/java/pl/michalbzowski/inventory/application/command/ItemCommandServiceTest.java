@@ -21,6 +21,7 @@ import pl.michalbzowski.inventory.domain.inventory.ItemAssignmentRepository;
 import pl.michalbzowski.inventory.domain.inventory.ItemAttributeDef;
 import pl.michalbzowski.inventory.domain.inventory.ItemAttributeDefRepository;
 import pl.michalbzowski.inventory.domain.inventory.ItemType;
+import pl.michalbzowski.inventory.domain.inventory.StocktakeLineRepository;
 import pl.michalbzowski.inventory.domain.inventory.WarehouseTransferRepository;
 import pl.michalbzowski.inventory.domain.inventory.WarehouseType;
 
@@ -38,6 +39,9 @@ class ItemCommandServiceTest {
 
     @Mock
     private WarehouseTransferRepository warehouseTransfers;
+
+    @Mock
+    private StocktakeLineRepository stocktakeLines;
 
     @InjectMocks
     private ItemCommandService service;
@@ -153,5 +157,18 @@ class ItemCommandServiceTest {
         service.delete(1L);
 
         verify(items).delete(item);
+    }
+
+    @Test
+    void deleteBlockedWhenStocktakeEvidenceExists() {
+        InventoryItem item = InventoryItem.create(7L, "Flet", ItemType.INSTRUMENT,
+                WarehouseType.MAIN, null, null, null);
+        when(items.findById(1L)).thenReturn(Optional.of(item));
+        when(stocktakeLines.existsByItem_Id(1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> service.delete(1L))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("spisy");
+        verify(items, never()).delete(item);
     }
 }
