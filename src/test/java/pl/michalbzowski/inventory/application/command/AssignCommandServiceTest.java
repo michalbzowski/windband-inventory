@@ -22,6 +22,7 @@ import pl.michalbzowski.inventory.domain.inventory.InventoryItemRepository;
 import pl.michalbzowski.inventory.domain.inventory.ItemAssignment;
 import pl.michalbzowski.inventory.domain.inventory.ItemAssignmentRepository;
 import pl.michalbzowski.inventory.domain.inventory.ItemLifecycleStatus;
+import pl.michalbzowski.inventory.domain.inventory.ItemServiceEventRepository;
 import pl.michalbzowski.inventory.domain.inventory.ItemType;
 import pl.michalbzowski.inventory.domain.inventory.WarehouseType;
 
@@ -34,6 +35,7 @@ class AssignCommandServiceTest {
 
     private InventoryItemRepository items;
     private ItemAssignmentRepository assignments;
+    private ItemServiceEventRepository serviceEvents;
     private BandDirectory directory;
     private AssignCommandService service;
     private InventoryItem item;
@@ -42,8 +44,9 @@ class AssignCommandServiceTest {
     void setUp() {
         items = mock(InventoryItemRepository.class);
         assignments = mock(ItemAssignmentRepository.class);
+        serviceEvents = mock(ItemServiceEventRepository.class);
         directory = mock(BandDirectory.class);
-        service = new AssignCommandService(items, assignments, directory);
+        service = new AssignCommandService(items, assignments, serviceEvents, directory);
         item = InventoryItem.create(7L, "Trąbka", ItemType.INSTRUMENT,
                 WarehouseType.MAIN, null, null, null);
         when(items.findById(anyLong())).thenReturn(Optional.of(item));

@@ -12,6 +12,7 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -99,6 +100,14 @@ public class InventoryItem {
 
     @Column(name = "assigned_member_name")
     private String assignedMemberName;
+
+    /**
+     * Planned next service date (F4, analysis §4 item 2). Written ONLY by the
+     * service workflow ({@code completeService}); the item editor never touches
+     * it. Drives the "do serwisu" list ({@code serviceDue=true}).
+     */
+    @Column(name = "next_service_date")
+    private LocalDate nextServiceDate;
 
     @OneToMany(mappedBy = "item", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ItemAttributeValue> attributeValues = new ArrayList<>();
@@ -225,6 +234,34 @@ public class InventoryItem {
                     + " nie może zmienić magazynu");
         }
         this.warehouse = target;
+    }
+
+    /**
+     * F4 service workflow: only an AVAILABLE item may be sent to service —
+     * an ASSIGNED one must be returned first (optionally straight to
+     * IN_SERVICE via {@link #unassign}). The command service opens the
+     * {@link ItemServiceEvent} evidence row in the same transaction.
+     */
+    public void sendToService() {
+        if (lifecycleStatus != ItemLifecycleStatus.AVAILABLE) {
+            throw new IllegalStateException(
+                    "Do serwisu można wysłać wyłącznie pozycję o statusie AVAILABLE");
+        }
+        this.lifecycleStatus = ItemLifecycleStatus.IN_SERVICE;
+    }
+
+    /**
+     * Close the service: back to AVAILABLE; {@code nextServiceDate} (nullable)
+     * becomes the plan driving the "do serwisu" list. Passing null CLEARS the
+     * old plan — the completion is the only writer of the field.
+     */
+    public void completeService(LocalDate nextServiceDate) {
+        if (lifecycleStatus != ItemLifecycleStatus.IN_SERVICE) {
+            throw new IllegalStateException(
+                    "Serwis można zamknąć wyłącznie dla pozycji o statusie IN_SERVICE");
+        }
+        this.lifecycleStatus = ItemLifecycleStatus.AVAILABLE;
+        this.nextServiceDate = nextServiceDate;
     }
 
     @PrePersist
