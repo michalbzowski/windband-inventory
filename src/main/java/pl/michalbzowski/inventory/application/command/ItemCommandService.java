@@ -52,6 +52,11 @@ public class ItemCommandService {
     @Transactional
     public void delete(long id) {
         InventoryItem item = items.findById(id).orElseThrow(() -> new ItemNotFoundException(id));
+        if (item.getAssignedMemberId() != null) {
+            throw new IllegalStateException(
+                    "Pozycja przypisana do \"" + item.getAssignedMemberName()
+                            + "\" — najpierw ją zwróć, potem usuwaj");
+        }
         items.delete(item);
     }
 

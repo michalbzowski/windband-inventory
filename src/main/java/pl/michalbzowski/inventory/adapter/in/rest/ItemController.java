@@ -14,12 +14,16 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import pl.michalbzowski.inventory.adapter.in.rest.dto.AssignRequest;
 import pl.michalbzowski.inventory.adapter.in.rest.dto.ItemCreateRequest;
 import pl.michalbzowski.inventory.adapter.in.rest.dto.ItemUpdateRequest;
+import pl.michalbzowski.inventory.adapter.in.rest.dto.UnassignRequest;
 import pl.michalbzowski.inventory.adapter.in.security.BearerTokens;
 import pl.michalbzowski.inventory.application.authz.BandAccessGuard;
+import pl.michalbzowski.inventory.application.command.AssignCommandService;
 import pl.michalbzowski.inventory.application.command.ItemCommandService;
 import pl.michalbzowski.inventory.application.query.ItemQueryService;
+import pl.michalbzowski.inventory.application.query.ItemViews.AssignmentView;
 import pl.michalbzowski.inventory.application.query.ItemViews.ItemSummaryView;
 import pl.michalbzowski.inventory.application.query.ItemViews.ItemView;
 import pl.michalbzowski.inventory.domain.inventory.InventoryItem;
@@ -42,6 +46,7 @@ public class ItemController {
 
     private final ItemQueryService queries;
     private final ItemCommandService commands;
+    private final AssignCommandService assignments;
     private final BandAccessGuard guard;
 
     @GetMapping
@@ -50,9 +55,10 @@ public class ItemController {
             @RequestParam(required = false) ItemType type,
             @RequestParam(required = false) ItemLifecycleStatus status,
             @RequestParam(required = false) WarehouseType warehouse,
-            @RequestParam(required = false) String search) {
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Long assignedMemberId) {
         guard.requireMember(bandId, BearerTokens.require());
-        return queries.list(bandId, type, status, warehouse, search);
+        return queries.list(bandId, type, status, warehouse, search, assignedMemberId);
     }
 
     @GetMapping("/{id}")
@@ -85,5 +91,32 @@ public class ItemController {
         long bandId = queries.bandOf(id);
         guard.requireAdmin(bandId, BearerTokens.require());
         commands.delete(id);
+    }
+
+    /** Assign to an ACTIVE band member — ADMIN only (role matrix §2). */
+    @PostMapping("/{id}/assign")
+    public ItemView assign(@PathVariable long id, @Valid @RequestBody AssignRequest request) {
+        long bandId = queries.bandOf(id);
+        guard.requireAdmin(bandId, BearerTokens.require());
+        InventoryItem item = assignments.assign(id, BearerTokens.require(),
+                request.memberId(), request.note());
+        return queries.detail(item.getId());
+    }
+
+    /** Return from the member; {@code state} = condition it comes back in. */
+    @PostMapping("/{id}/unassign")
+    public ItemView unassign(@PathVariable long id, @Valid @RequestBody UnassignRequest request) {
+        long bandId = queries.bandOf(id);
+        guard.requireAdmin(bandId, BearerTokens.require());
+        InventoryItem item = assignments.unassign(id, request.state(), request.note());
+        return queries.detail(item.getId());
+    }
+
+    /** Assignment history (readable by every band member — §2 "przegląd"). */
+    @GetMapping("/{id}/assignments")
+    public List<AssignmentView> history(@PathVariable long id) {
+        long bandId = queries.bandOf(id);
+        guard.requireMember(bandId, BearerTokens.require());
+        return queries.assignments(id);
     }
 }

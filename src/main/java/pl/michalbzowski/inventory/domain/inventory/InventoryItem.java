@@ -14,10 +14,12 @@ import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -40,6 +42,10 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class InventoryItem {
+
+    /** States an item may be returned into (analysis 3.1 "stan przy zwrocie"). */
+    private static final Set<ItemLifecycleStatus> RETURNABLE_STATES = EnumSet.of(
+            ItemLifecycleStatus.AVAILABLE, ItemLifecycleStatus.IN_SERVICE, ItemLifecycleStatus.LOST);
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -72,6 +78,19 @@ public class InventoryItem {
 
     @Column(columnDefinition = "TEXT")
     private String notes;
+
+    /**
+     * Snapshot of the ACTIVE assignment (member id / "First Last" as taken
+     * from WM at assign time). Kept on the item so lists and the future
+     * stocktake snapshot (B7: card shows the person when assigned) stay
+     * join-free; cleared on return. The authoritative history lives in
+     * {@link ItemAssignment}.
+     */
+    @Column(name = "assigned_member_id")
+    private Long assignedMemberId;
+
+    @Column(name = "assigned_member_name")
+    private String assignedMemberName;
 
     @OneToMany(mappedBy = "item", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ItemAttributeValue> attributeValues = new ArrayList<>();
@@ -143,6 +162,41 @@ public class InventoryItem {
     /** Lifecycle transitions are driven by the assignment/return and service slices. */
     void changeLifecycle(ItemLifecycleStatus newStatus) {
         this.lifecycleStatus = Objects.requireNonNull(newStatus, "newStatus required");
+    }
+
+    /**
+     * Assign to an ACTIVE band member (analysis 3.1; ADMIN-only at the REST
+     * boundary). Only an AVAILABLE item may be assigned; the history row is
+     * opened by the command service — here the snapshot + status move.
+     */
+    public void assignTo(long memberId, String memberName) {
+        if (lifecycleStatus != ItemLifecycleStatus.AVAILABLE) {
+            throw new IllegalStateException("Przypisać można wyłącznie pozycję o statusie AVAILABLE");
+        }
+        Objects.requireNonNull(memberName, "memberName required");
+        this.assignedMemberId = memberId;
+        this.assignedMemberName = memberName;
+        this.lifecycleStatus = ItemLifecycleStatus.ASSIGNED;
+    }
+
+    /**
+     * Return from the member into {@code returnedState} (null = AVAILABLE);
+     * any other target must be one of IN_SERVICE/LOST (see RETURNABLE_STATES)
+     * so the history cannot lie about the item.
+     */
+    public void unassign(ItemLifecycleStatus returnedState) {
+        if (lifecycleStatus != ItemLifecycleStatus.ASSIGNED || assignedMemberId == null) {
+            throw new IllegalStateException("Zwrócić można wyłącznie pozycję o statusie ASSIGNED");
+        }
+        ItemLifecycleStatus target = returnedState == null
+                ? ItemLifecycleStatus.AVAILABLE : returnedState;
+        if (!RETURNABLE_STATES.contains(target)) {
+            throw new IllegalArgumentException(
+                    "Zwrot może zakończyć się statusem AVAILABLE, IN_SERVICE lub LOST");
+        }
+        this.assignedMemberId = null;
+        this.assignedMemberName = null;
+        this.lifecycleStatus = target;
     }
 
     @PrePersist

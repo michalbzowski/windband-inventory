@@ -18,8 +18,10 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.testcontainers.containers.PostgreSQLContainer;
 import pl.michalbzowski.inventory.InventoryApplication;
 import pl.michalbzowski.inventory.application.port.BandDirectory;
+import pl.michalbzowski.inventory.application.port.BandMember;
 import pl.michalbzowski.inventory.application.port.BandRole;
 import pl.michalbzowski.inventory.domain.inventory.InventoryItemRepository;
+import pl.michalbzowski.inventory.domain.inventory.ItemAssignmentRepository;
 import pl.michalbzowski.inventory.domain.inventory.ItemAttributeDefRepository;
 
 import static org.mockito.ArgumentMatchers.anyString;
@@ -68,6 +70,14 @@ public abstract class AbstractIntegrationTest {
             "tok-member", Map.of(7L, BandRole.MEMBER),
             "tok-outsider", Map.of(9L, BandRole.ADMIN));
 
+    /** WM roster fixtures (B10 port): band 7 — 11/12 active, 13 inactive; band 3 — 21. */
+    private static final Map<Long, java.util.List<BandMember>> ROSTER_BY_BAND = Map.of(
+            7L, java.util.List.of(
+                    new BandMember(11L, "Jan", "Kowalski", true),
+                    new BandMember(12L, "Anna", "Nowak", true),
+                    new BandMember(13L, "Stefan", "Stary", false)),
+            3L, java.util.List.of(new BandMember(21L, "Ewa", "Duda", true)));
+
     @MockBean
     protected BandDirectory bandDirectory;
 
@@ -84,6 +94,8 @@ public abstract class AbstractIntegrationTest {
 
     @Autowired
     protected InventoryItemRepository items;
+    @Autowired
+    protected ItemAssignmentRepository assignments;
 
     @Autowired
     protected ItemAttributeDefRepository attributeDefs;
@@ -93,12 +105,16 @@ public abstract class AbstractIntegrationTest {
         reset(bandDirectory);
         when(bandDirectory.myBands(anyString())).thenAnswer(inv ->
                 ROLES_BY_TOKEN.getOrDefault(inv.<String>getArgument(0), new LinkedHashMap<Long, BandRole>()));
+        when(bandDirectory.members(anyString(), org.mockito.ArgumentMatchers.anyLong())).thenAnswer(inv ->
+                ROSTER_BY_BAND.getOrDefault(inv.<Long>getArgument(1), java.util.List.of()));
         when(jwtDecoder.decode(anyString())).thenAnswer(inv -> Jwt.withTokenValue(inv.getArgument(0))
                 .header("alg", "none")
                 .subject("user")
                 .issuedAt(java.time.Instant.now())
                 .expiresAt(java.time.Instant.now().plusSeconds(3_600))
                 .build());
+        // History rows reference items — children before parents.
+        assignments.deleteAll();
         items.deleteAll();
         attributeDefs.deleteAll();
     }

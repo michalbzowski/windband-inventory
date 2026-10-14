@@ -20,6 +20,7 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
 import pl.michalbzowski.inventory.application.authz.BandForbiddenException;
 import pl.michalbzowski.inventory.application.port.BandDirectory;
+import pl.michalbzowski.inventory.application.port.BandMember;
 import pl.michalbzowski.inventory.application.port.BandRole;
 import pl.michalbzowski.inventory.application.port.WmUnavailableException;
 
@@ -36,6 +37,9 @@ import pl.michalbzowski.inventory.application.port.WmUnavailableException;
 public class WmBandDirectory implements BandDirectory {
 
     private static final ParameterizedTypeReference<List<BandDto>> BANDS_LIST =
+            new ParameterizedTypeReference<>() {
+            };
+    private static final ParameterizedTypeReference<List<MemberDto>> MEMBERS_LIST =
             new ParameterizedTypeReference<>() {
             };
     /** Hard cap against memory abuse under token churn. */
@@ -66,13 +70,38 @@ public class WmBandDirectory implements BandDirectory {
         if (hit != null && hit.expiresAtMillis() > now) {
             return hit.roles();
         }
-        List<BandDto> bands;
+        List<BandDto> bands = getFromWm("/api/v1/me/bands", BANDS_LIST, bearerToken);
+        Map<Long, BandRole> roles = (bands == null ? List.<BandDto>of() : bands).stream()
+                .collect(Collectors.toUnmodifiableMap(BandDto::bandId, BandDto::role, (a, b) -> a));
+        if (cache.size() >= MAX_ENTRIES) {
+            evictExpired(now);
+            if (cache.size() >= MAX_ENTRIES) {
+                cache.clear();
+            }
+        }
+        cache.put(key, new CacheEntry(roles, now + ttlMillis));
+        return roles;
+    }
+
+    @Override
+    public List<BandMember> members(String bearerToken, long bandId) {
+        // No cache: the ACTIVE roster check must reflect WM at write time.
+        List<MemberDto> rows = getFromWm("/api/v1/bands/{bandId}/members",
+                MEMBERS_LIST, bearerToken, bandId);
+        return (rows == null ? List.<MemberDto>of() : rows).stream()
+                .map(m -> new BandMember(m.memberId(), m.firstName(), m.lastName(), m.active()))
+                .toList();
+    }
+
+    /** GET with caller-token auth + frozen error mapping (B10: WM outage = 503). */
+    private <T> T getFromWm(String path, ParameterizedTypeReference<T> type,
+            String bearerToken, Object... uriVars) {
         try {
-            bands = restClient.get()
-                    .uri("/api/v1/me/bands")
+            return restClient.get()
+                    .uri(path, uriVars)
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + bearerToken)
                     .retrieve()
-                    .body(BANDS_LIST);
+                    .body(type);
         } catch (RestClientResponseException ex) {
             int status = ex.getStatusCode().value();
             if (status == 401 || status == 403) {
@@ -86,16 +115,6 @@ public class WmBandDirectory implements BandDirectory {
             throw new WmUnavailableException(
                     "Brak odpowiedzi z windband-manager: " + ex.getMessage());
         }
-        Map<Long, BandRole> roles = (bands == null ? List.<BandDto>of() : bands).stream()
-                .collect(Collectors.toUnmodifiableMap(BandDto::bandId, BandDto::role, (a, b) -> a));
-        if (cache.size() >= MAX_ENTRIES) {
-            evictExpired(now);
-            if (cache.size() >= MAX_ENTRIES) {
-                cache.clear();
-            }
-        }
-        cache.put(key, new CacheEntry(roles, now + ttlMillis));
-        return roles;
     }
 
     private void evictExpired(long now) {
@@ -120,6 +139,11 @@ public class WmBandDirectory implements BandDirectory {
 
     /** WM row: {bandId, name, role} (frozen B10 contract). */
     record BandDto(long bandId, String name, BandRole role) {
+    }
+
+    /** WM roster row: {memberId, firstName, lastName, active, expectedSet} —
+     *  expectedSet is intentionally NOT mapped here (F3 view, v1.x). */
+    record MemberDto(long memberId, String firstName, String lastName, boolean active) {
     }
 
     private record CacheEntry(Map<Long, BandRole> roles, long expiresAtMillis) {
