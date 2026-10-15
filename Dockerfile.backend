@@ -35,6 +35,9 @@ FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 COPY --from=build /app/target/*.jar app.jar
 EXPOSE 8090
+# Pin the listener so a lost Railway variable cannot silently drift the app
+# to 8080 while the service-domain target stays 8090 (2026-10-15 502 outage).
+ENV SERVER_PORT=${SERVER_PORT:-8090}
 # /actuator/health is permitAll (SecurityConfig); proves the app really serves.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s \
   CMD wget -q -O- "http://127.0.0.1:${PORT:-8090}/actuator/health" | grep -q '"UP"' || exit 1
