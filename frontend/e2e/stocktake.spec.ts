@@ -180,6 +180,19 @@ async function mockInventory(route: Route, st: State): Promise<void> {
     return json(route, n);
   }
 
+  // v1.x #5: akcja „→ Serwis” (F4 kontrakt: AVAILABLE → IN_SERVICE, ADMIN)
+  const serviceMatch = p.match(/^\/items\/(\d+)\/service$/);
+  if (serviceMatch && m === 'POST') {
+    const item = st.items.find((i) => i.id === Number(serviceMatch[1]));
+    if (!item) return json(route, { error: 'not_found', message: 'Pozycja nie istnieje' }, 404);
+    if (item.lifecycleStatus !== 'AVAILABLE') {
+      return json(route, { error: 'status_conflict', message: 'Do serwisu wyśle tylko pozycję dostępną z magazynu' }, 409);
+    }
+    item.lifecycleStatus = 'IN_SERVICE';
+    st.writes++;
+    return json(route, item);
+  }
+
   return json(route, { error: 'mock_miss', path: p, method: m }, 500);
 }
 
@@ -352,4 +365,76 @@ test('F5 potrzeby: BRAK w raporcie → „→ Potrzeba” → Zgłoszona → Zam
   await expect(needRow.locator('.badge', { hasText: 'Dostarczona' })).toBeVisible();
   await expect(needRow.getByRole('button', { name: 'Anuluj ✕' })).toHaveCount(0);
   await expect(needRow.getByRole('button', { name: 'Zamów 📦' })).toHaveCount(0);
+});
+
+
+test('liczenie v1.x #5: BRAK → „→ Potrzeba”, USZKODZONE → „→ Serwis” prosto ze spisu', async ({ page }) => {
+  const st = makeState();
+  await seed(page, st);
+  await startCounting(page);
+
+  // Flet OK; Tuba BRAK (bez notatki); Klarnet USZKODZONE
+  await page.getByRole('button', { name: /OK — jest i sprawny/ }).click();
+  await expect(page.locator('.stepper', { hasText: 'Pozycja 2 z 3' })).toBeVisible();
+  await page.getByRole('button', { name: /BRAK/ }).click();
+  await expect(page.getByPlaceholder(/waga w progu/)).toBeVisible();
+  await page.getByRole('button', { name: /Zapisz i dalej/ }).click();
+  await expect(page.locator('.stepper', { hasText: 'Pozycja 3 z 3' })).toBeVisible();
+  await page.getByRole('button', { name: /USZKODZONE/ }).click();
+  await expect(page.getByPlaceholder(/pęknięta czara/)).toBeVisible();
+  await page.getByRole('button', { name: /Zapisz i dalej/ }).click();
+  await expect(page.getByText('Wszystkie pozycje policzone')).toBeVisible();
+
+  // panel rozbieżności z odblokowanymi akcjami (makieta 14)
+  const panel = page.locator('.panel', { hasText: 'Rozbieżności — akcje' });
+  await expect(panel).toBeVisible();
+  const tubaRow = panel.locator('.srow', { hasText: 'Tuba' });
+  const klarnetRow = panel.locator('.srow', { hasText: 'Klarnet' });
+
+  await tubaRow.getByRole('button', { name: '→ Potrzeba' }).click();
+  await expect(page.getByRole('dialog', { name: 'Potrzeba: Tuba' })).toBeVisible();
+  await page.getByRole('button', { name: 'Zgłoś potrzebę ✓' }).click();
+  await expect(page.getByText('Potrzeba zgłoszona ✓')).toBeVisible();
+  await expect.poll(() => st.needs.length).toBe(1);
+  await expect(tubaRow.locator('.badge', { hasText: 'Zgłoszona' })).toBeVisible();
+  await expect(tubaRow.getByRole('button', { name: '→ Potrzeba' })).toHaveCount(0);
+
+  await klarnetRow.getByRole('button', { name: '→ Serwis 🔧' }).click();
+  await expect(page.getByText('Wysłano do serwisu 🔧✓')).toBeVisible();
+  await expect.poll(() => st.items[2].lifecycleStatus).toBe('IN_SERVICE');
+  await expect(klarnetRow.locator('.badge', { hasText: '🔧 wysłano' })).toBeVisible();
+});
+
+test('raport v1.x #5: Uszkodzone → „→ Serwis” (ADMIN) i Wydruk/PDF rozwija Sprawne', async ({ page }) => {
+  const st = makeState();
+  await page.addInitScript(() => {
+    (window as unknown as { __printed: number }).__printed = 0;
+    window.print = () => { (window as unknown as { __printed: number }).__printed++; };
+  });
+  await seed(page, st);
+  await startCounting(page);
+
+  // Flet (AVAILABLE) → USZKODZONE; Tuba i Klarnet OK
+  await page.getByRole('button', { name: /USZKODZONE/ }).click();
+  await expect(page.getByPlaceholder(/pęknięta czara/)).toBeVisible();
+  await page.getByRole('button', { name: /Zapisz i dalej/ }).click();
+  await page.getByRole('button', { name: /OK — jest i sprawny/ }).click();
+  await page.getByRole('button', { name: /OK — jest i sprawny/ }).click();
+  await expect(page.getByText('Wszystkie pozycje policzone')).toBeVisible();
+  await page.getByRole('button', { name: /Zamknij spis/ }).click();
+  await expect(page.getByText('Spis zamknięty')).toBeVisible();
+  await page.getByRole('button', { name: 'Wróć' }).click();
+  await page.getByRole('button', { name: /#7 —/ }).click();
+
+  const brokenRow = page.locator('.panel', { hasText: 'Uszkodzone' }).locator('.srow', { hasText: 'Flet' });
+  await expect(brokenRow.getByRole('button', { name: '→ Serwis 🔧' })).toBeVisible();
+  await brokenRow.getByRole('button', { name: '→ Serwis 🔧' }).click();
+  await expect(page.getByText('Wysłano do serwisu 🔧✓')).toBeVisible();
+  await expect(brokenRow.locator('.badge', { hasText: '🔧 wysłano' })).toBeVisible();
+  await expect.poll(() => st.items[0].lifecycleStatus).toBe('IN_SERVICE');
+
+  // Wydruk: przycisk rozwija sekcję Sprawne i woła drukarkę przeglądarki (stub)
+  await page.getByRole('button', { name: 'Wydruk / PDF 🖨' }).click();
+  await expect(page.getByRole('button', { name: /▾ Sprawne/ })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __printed: number }).__printed)).toBe(1);
 });
