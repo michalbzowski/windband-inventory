@@ -7,6 +7,7 @@ import {
   getStocktake,
   getSummary,
   listNeeds,
+  sendItemToService,
   setNeedStatus,
   type NeedView,
   type StocktakeLineView,
@@ -17,7 +18,7 @@ import { CountQueue } from '../stocktake/queue';
 import type { CounterIdentity } from '../stocktake/identity';
 import { ApiError } from '../api/client';
 import Phone from '../ui/Phone';
-import Sheet from '../ui/Sheet';
+import NeedSheet from '../needs/NeedSheet';
 import {
   canCancel,
   canOrder,
@@ -56,6 +57,7 @@ export default function StocktakeReport({ band, identity, stocktakeId, onExit }:
   const [needSheet, setNeedSheet] = useState<StocktakeLineView | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [needBusy, setNeedBusy] = useState(false);
+  const [served, setServed] = useState<Set<number>>(new Set());
   const isAdmin = band.role === 'ADMIN';
   const flash = (msg: string) => {
     setToast(msg);
@@ -141,6 +143,32 @@ export default function StocktakeReport({ band, identity, stocktakeId, onExit }:
     );
   };
 
+  // v1.x #5: aktywny przycisk akcji przy USZKODZONE — wyślij pozycję do serwisu
+  // (F4; ADMIN — 409 z serwera łapiemy na toast, np. gdy pozycja już w serwisie).
+  const serviceAction = (l: StocktakeLineView) => {
+    if (!isAdmin) return null;
+    if (served.has(l.id)) {
+      return <span className="badge b-warn">🔧 wysłano</span>;
+    }
+    return (
+      <button
+        type="button"
+        className="btn sm ghost"
+        onClick={async () => {
+          try {
+            await sendItemToService(l.itemId, { note: l.note ?? 'uszkodzone na spisie' });
+            setServed((s) => new Set(s).add(l.id));
+            flash('Wysłano do serwisu 🔧✓');
+          } catch (e) {
+            flash(e instanceof ApiError ? e.message : 'Nie udało się wysłać do serwisu.');
+          }
+        }}
+      >
+        → Serwis 🔧
+      </button>
+    );
+  };
+
   const walkNeed = async (n: NeedView, status: 'ORDERED' | 'RECEIVED' | 'CANCELLED') => {
     try {
       await setNeedStatus(n.id, status);
@@ -169,6 +197,13 @@ export default function StocktakeReport({ band, identity, stocktakeId, onExit }:
     } finally {
       setNeedBusy(false);
     }
+  };
+
+  // v1.x #5 „krok wydruku” (D4: bez Jaspera) — rozwija sekcje i woła drukarkę
+  // przeglądarki (Zapisz jako PDF). style.css ma bloki @media print.
+  const printReport = () => {
+    setShowOk(true);
+    window.setTimeout(() => window.print(), 200);
   };
 
   return (
@@ -215,7 +250,7 @@ export default function StocktakeReport({ band, identity, stocktakeId, onExit }:
               </div>
             )}
             <div className="panel"><h4>Brakuje <span className="badge b-danger">{missing.length}</span></h4>{missing.map((l) => row(l, needAction(l)))}{missing.length === 0 && <p className="hint">—</p>}</div>
-            <div className="panel"><h4>Uszkodzone <span className="badge b-warn">{broken.length}</span></h4>{broken.map((l) => row(l))}{broken.length === 0 && <p className="hint">—</p>}</div>
+            <div className="panel"><h4>Uszkodzone <span className="badge b-warn">{broken.length}</span></h4>{broken.map((l) => row(l, serviceAction(l)))}{broken.length === 0 && <p className="hint">—</p>}</div>
             <div className="panel"><h4>Nadwyżki <span className="badge b-primary">{extras.length}</span></h4>{extras.map((l) => row(l))}{extras.length === 0 && <p className="hint">—</p>}</div>
             <div className="panel">
               <h4>
@@ -249,6 +284,10 @@ export default function StocktakeReport({ band, identity, stocktakeId, onExit }:
           ))}
         </div>
 
+        <button type="button" className="btn block print-btn" onClick={printReport}>
+          Wydruk / PDF 🖨
+        </button>
+
         {closed ? (
           <div className="stamp">
             ZAMKNIĘTO<br />
@@ -272,7 +311,7 @@ export default function StocktakeReport({ band, identity, stocktakeId, onExit }:
         <div className="dim" role="dialog" aria-modal="true">
           <div className="modal">
             <b>Zamknąć raport?</b>
-            <span>Po zamknięciu: status CLOSED, brak zapisów i korekt — do wydruku PDF i eksportu CSV.</span>
+            <span>Po zamknięciu: status CLOSED, brak zapisów i korekt — raport gotowy do wydruku/PDF (CSV: roadmapa).</span>
             <div className="row">
               <button type="button" className="btn ghost" onClick={() => setConfirmClose(false)}>Anuluj</button>
               <button type="button" className="btn ok" disabled={busy} onClick={() => void close()}>{busy ? 'Zamykanie…' : 'Zamknij ✓'}</button>
@@ -281,7 +320,7 @@ export default function StocktakeReport({ band, identity, stocktakeId, onExit }:
         </div>
       )}
       {needSheet && (
-        <NeedSheet line={needSheet} busy={needBusy} onClose={() => setNeedSheet(null)} onSubmit={submitNeed} />
+        <NeedSheet itemName={needSheet.name} busy={needBusy} onClose={() => setNeedSheet(null)} onSubmit={submitNeed} />
       )}
       {toast && (
         <div className="toast" role="status">{toast}<button type="button" onClick={() => setToast(null)}>✕</button></div>
@@ -290,29 +329,4 @@ export default function StocktakeReport({ band, identity, stocktakeId, onExit }:
   );
 }
 
-/** Bottom sheet for the unfrozen BRAK action (makieta 14: „→ Potrzeba”). */
-function NeedSheet({ line, busy, onClose, onSubmit }: {
-  line: StocktakeLineView;
-  busy: boolean;
-  onClose: () => void;
-  onSubmit: (quantity: number, note: string | null) => void;
-}) {
-  const [quantity, setQuantity] = useState(1);
-  const [note, setNote] = useState('');
-  return (
-    <Sheet title={`Potrzeba: ${line.name}`} onClose={onClose}>
-      <p className="hint">Zgłoszenie trafia do „Potrzeby zespołu” — dalej zamówienie i dostawa (v1.x #3).</p>
-      <label className="field">Ilość
-        <input type="number" min={1} max={999} value={quantity}
-          onChange={(e) => setQuantity(Math.max(1, Math.min(999, Number(e.target.value) || 1)))} />
-      </label>
-      <label className="field">Notatka (opcjonalna)
-        <textarea value={note} onChange={(e) => setNote(e.target.value)} maxLength={2000}
-          placeholder="np. brak na spisie, szukać przed koncertem" />
-      </label>
-      <button type="button" className="btn primary block" disabled={busy} onClick={() => onSubmit(quantity, note.trim() || null)}>
-        {busy ? 'Zapisywanie…' : 'Zgłoś potrzebę ✓'}
-      </button>
-    </Sheet>
-  );
-}
+/** Bottom sheet przeniesiony do src/needs/NeedSheet.tsx (wspólny z Counting, v1.x #5). */

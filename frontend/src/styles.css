@@ -424,3 +424,13 @@ button { font: inherit; }
 .chip .cnt-n { background: var(--primary-soft); color: var(--primary); border-radius: 999px; padding: 1px 7px; font-size: 11px; font-weight: 800; }
 .chip.sel .cnt-n { background: rgba(255, 255, 255, .3); color: #fff; }
 .btn.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+
+/* v1.x #5 — krok wydruku raportu (D4: bez Jaspera, drukarka przeglądarki → PDF) */
+@media print {
+  body { background: #fff; }
+  .phone { width: auto; max-width: none; margin: 0; border: 0; box-shadow: none; }
+  button, .appbar, .abar, .toast, .dim, .sheet, .role-note, .hint { display: none !important; }
+  .panel { break-inside: avoid; page-break-inside: avoid; box-shadow: none; }
+  .stamp { border: 2px solid #000; color: #000; background: transparent; }
+  .srow { border-bottom: 1px solid #ccc; }
+}

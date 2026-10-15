@@ -16,6 +16,9 @@ import {
 import type { BandView } from '../api/bands';
 import Phone from '../ui/Phone';
 import { CountQueue, countKey, extraKey, type PendingDecision } from '../stocktake/queue';
+import { createNeed, listNeeds, sendItemToService, type NeedView } from '../api/inventory';
+import NeedSheet from '../needs/NeedSheet';
+import { NEED_STATUS_LABEL, openNeedFor } from '../needs/model';
 import { deriveProgress } from '../stocktake/progress';
 import type { CounterIdentity } from '../stocktake/identity';
 
@@ -45,6 +48,11 @@ export default function Counting({ band, identity, stocktakeId, onExit }: Props)
   const [awaitingNote, setAwaitingNote] = useState<PendingDecision | null>(null);
   const [noteText, setNoteText] = useState('');
   const [toast, setToast] = useState<Note | null>(null);
+  // v1.x #5: akcje na karcie w TRAKCIE spisu (B9 odblokowane — moduły #3/#4 żyją)
+  const [needs, setNeeds] = useState<NeedView[]>([]);
+  const [needSheet, setNeedSheet] = useState<{ itemId: number; name: string } | null>(null);
+  const [needBusy, setNeedBusy] = useState(false);
+  const [served, setServed] = useState<Set<number>>(new Set());
   const [online, setOnline] = useState<boolean>(navigator.onLine);
   const [flushProblem, setFlushProblem] = useState<string | null>(null);
   const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
@@ -154,6 +162,11 @@ export default function Counting({ band, identity, stocktakeId, onExit }: Props)
   useEffect(() => {
     if (online && stocktake?.status === 'IN_PROGRESS') void flush();
   }, [online, pending.length, stocktake?.status, flush]);
+
+  useEffect(() => {
+    if (stocktake?.status !== 'IN_PROGRESS') return;
+    listNeeds(band.bandId).then(setNeeds).catch(() => {});
+  }, [band.bandId, stocktake?.status]);
 
   /* ---------- recording (local first) ---------- */
   const record = useCallback((line: StocktakeLineView, foundState: 'OK' | 'MISSING' | 'BROKEN', note = '') => {
@@ -334,11 +347,46 @@ export default function Counting({ band, identity, stocktakeId, onExit }: Props)
   const snapshot = lines.filter((l) => !l.extra);
   const pendingByLine = new Map(pending.filter((p) => p.kind === 'count').map((p) => [p.lineId as number, p]));
   const effectiveId = forcedLineId ?? progress.nextUncountedLineId;
+  const toService = async (line: StocktakeLineView) => {
+    try {
+      await sendItemToService(line.itemId, { note: line.note ?? 'uszkodzone na spisie' });
+      setServed((prev) => new Set(prev).add(line.itemId));
+      showToast({ msg: 'Wysłano do serwisu 🔧✓', tone: 'info' });
+    } catch (e) {
+      showToast({ msg: e instanceof ApiError ? e.message : 'Nie udało się wysłać do serwisu.', tone: 'danger' });
+    }
+  };
+
+  const submitNeed = async (quantity: number, note: string | null) => {
+    if (!needSheet) return;
+    setNeedBusy(true);
+    try {
+      const n = await createNeed(band.bandId, {
+        itemId: needSheet.itemId,
+        quantity,
+        note,
+        createdMemberId: identity.memberId,
+      });
+      setNeeds((prev) => [...prev, n]);
+      setNeedSheet(null);
+      showToast({ msg: 'Potrzeba zgłoszona ✓', tone: 'info' });
+    } catch (e) {
+      showToast({ msg: e instanceof ApiError ? e.message : 'Nie udało się zgłosić potrzeby.', tone: 'danger' });
+    } finally {
+      setNeedBusy(false);
+    }
+  };
+
+  const divergent = snapshot.filter((l) => l.foundState === 'MISSING' || l.foundState === 'BROKEN');
+
   const current = effectiveId != null ? snapshot.find((l) => l.id === effectiveId) ?? null : null;
 
-  const countedIndex = current ? snapshot.findIndex((l) => l.id === current.id) + 1 : snapshot.length + 1;
-  const cardPending = current ? pendingByLine.get(current.id) : undefined;
-  const cardState = cardPending?.foundState ?? current?.foundState ?? null;
+  // v1.x #5: notatka przy OSTATNIEJ pozycji nie może być połknięta przez widok „wszystkie policzone”
+  const cardLine = current ?? (awaitingNote ? snapshot.find((l) => l.id === awaitingNote.lineId) ?? null : null);
+
+  const countedIndex = cardLine ? snapshot.findIndex((l) => l.id === cardLine.id) + 1 : snapshot.length + 1;
+  const cardPending = cardLine ? pendingByLine.get(cardLine.id) : undefined;
+  const cardState = cardPending?.foundState ?? cardLine?.foundState ?? null;
 
   return (
     <Phone>
@@ -355,7 +403,7 @@ export default function Counting({ band, identity, stocktakeId, onExit }: Props)
         )}
         {flushProblem && <div className="banner warni" role="alert">⚠<div>{flushProblem}</div></div>}
 
-        {current ? (
+        {cardLine ? (
           <>
             <div className="stepper" style={{ justifyContent: 'space-between' }}>
               <span>Pozycja <b>{countedIndex}</b> z <b>{snapshot.length}</b></span>
@@ -363,15 +411,15 @@ export default function Counting({ band, identity, stocktakeId, onExit }: Props)
             </div>
 
             <div className={`count-card${cardState && cardState !== 'OK' ? ' flagged' : ''}${cardState ? ` st-${cardState.toLowerCase()}` : ''}`}>
-              <span className="cc-ico" aria-hidden>{current.assignedMemberName ? '🎺' : '📦'}</span>
-              <b>{current.name}</b>
-              <div className="sn">{current.serialNumber ?? 'SN nieuzupełniony'}</div>
-              {current.assignedMemberName && (
-                <div className="who">👤 {current.assignedMemberName} · przydział</div>
+              <span className="cc-ico" aria-hidden>{cardLine.assignedMemberName ? '🎺' : '📦'}</span>
+              <b>{cardLine.name}</b>
+              <div className="sn">{cardLine.serialNumber ?? 'SN nieuzupełniony'}</div>
+              {cardLine.assignedMemberName && (
+                <div className="who">👤 {cardLine.assignedMemberName} · przydział</div>
               )}
               {cardState && (
                 <div style={{ marginTop: 10, fontSize: 13, fontWeight: 800 }}>
-                  Oznaczono: {STATE_LABEL[cardState]} <span className="badge b-gray">{current.extra ? 'nadwyżka' : 'spis'}</span>
+                  Oznaczono: {STATE_LABEL[cardState]} <span className="badge b-gray">{cardLine.extra ? 'nadwyżka' : 'spis'}</span>
                 </div>
               )}
             </div>
@@ -392,27 +440,57 @@ export default function Counting({ band, identity, stocktakeId, onExit }: Props)
               </div>
             ) : (
               <div className="bigbtns">
-                <button type="button" className="bb-ok" onClick={() => record(current, 'OK')}>✓&nbsp; OK — jest i sprawny</button>
-                <button type="button" className="bb-miss" onClick={() => record(current, 'MISSING')}>✕&nbsp; BRAK</button>
-                <button type="button" className="bb-broken" onClick={() => record(current, 'BROKEN')}>⚠&nbsp; USZKODZONE</button>
+                <button type="button" className="bb-ok" onClick={() => record(cardLine, 'OK')}>✓&nbsp; OK — jest i sprawny</button>
+                <button type="button" className="bb-miss" onClick={() => record(cardLine, 'MISSING')}>✕&nbsp; BRAK</button>
+                <button type="button" className="bb-broken" onClick={() => record(cardLine, 'BROKEN')}>⚠&nbsp; USZKODZONE</button>
               </div>
             )}
 
             <div className="chips otherchips">
               <button type="button" className="chip oth" onClick={() => setShowExtras(true)}>＋ Nadwyżka</button>
-              <button type="button" className="chip oth" onClick={() => record(current, 'BROKEN', 'zastany stan: W SERWISIE')}>🔧 W serwisie</button>
-              <button type="button" className="chip oth" onClick={() => record(current, 'BROKEN', 'zastany stan: WYCOFANY')}>📦 Wycofany</button>
+              <button type="button" className="chip oth" onClick={() => record(cardLine, 'BROKEN', 'zastany stan: W SERWISIE')}>🔧 W serwisie</button>
+              <button type="button" className="chip oth" onClick={() => record(cardLine, 'BROKEN', 'zastany stan: WYCOFANY')}>📦 Wycofany</button>
             </div>
 
             {cardState && !awaitingNote && (
               <div className="hint">Policzone ponownie? Ostatnie słowo wygrywa (korekta do zamknięcia spisu).</div>
             )}
+
           </>
         ) : (
           <div className="state" role="status">
             <span className="state-ico" aria-hidden>✅</span>
             <b>Wszystkie pozycje policzone</b>
             <span>{progress.counted} z {progress.total} · rozbieżności: {progress.divergences}. {band.role === 'ADMIN' ? 'Możesz zamknąć spis i sporządzić raport.' : 'Raport zamyka administrator.'}</span>
+          </div>
+        )}
+        {/* v1.x #5 / makieta 14: lista decyzji z odblokowanymi akcjami (B9) */}
+        {stocktake?.status === 'IN_PROGRESS' && divergent.length > 0 && (
+          <div className="panel">
+            <h4>Rozbieżności — akcje <span className="badge b-warn">{divergent.length}</span></h4>
+            {divergent.map((l) => (
+              <div className="srow" key={l.id}>
+                <span>{l.name}{l.serialNumber ? ` · ${l.serialNumber}` : ''}</span>
+                <span className={`badge ${l.foundState === 'MISSING' ? 'b-danger' : 'b-warn'}`}>{STATE_LABEL[l.foundState ?? '']}</span>
+                <span className="row-actions">
+                  {l.foundState === 'MISSING' && (openNeedFor(needs, l.itemId) ? (
+                    <span className="badge b-primary">📦 {NEED_STATUS_LABEL[openNeedFor(needs, l.itemId)!.status]}</span>
+                  ) : (
+                    <button type="button" className="btn sm ghost" disabled={!online} onClick={() => setNeedSheet({ itemId: l.itemId, name: l.name })}>
+                      → Potrzeba
+                    </button>
+                  ))}
+                  {l.foundState === 'BROKEN' && band.role === 'ADMIN' && (served.has(l.itemId) ? (
+                    <span className="badge b-warn">🔧 wysłano</span>
+                  ) : (
+                    <button type="button" className="btn sm ghost" disabled={!online} onClick={() => void toService(l)}>
+                      → Serwis 🔧
+                    </button>
+                  ))}
+                </span>
+              </div>
+            ))}
+            {!online && <p className="hint">Akcje wymagają połączenia — decyzje i tak czekają w kolejce offline i trafią do raportu.</p>}
           </div>
         )}
       </section>
@@ -432,6 +510,9 @@ export default function Counting({ band, identity, stocktakeId, onExit }: Props)
         <button type="button" className="btn sm" style={{ minWidth: 52 }} onClick={() => setShowQueue(true)} title="Kolejka offline">🗲 {pending.length}</button>
       </footer>
 
+      {needSheet && (
+        <NeedSheet itemName={needSheet.name} busy={needBusy} onClose={() => setNeedSheet(null)} onSubmit={submitNeed} />
+      )}
       {toast && (
         <div className="toast" style={{ display: 'flex' }} role="status">
           <span>{toast.msg}</span>
