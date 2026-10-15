@@ -42,7 +42,16 @@ function makeItems(): MockItem[] {
   ];
 }
 
-interface State { items: MockItem[]; created: { name: string; attributes: { attributeDefId: number; value: string }[] }[]; updated: MockItem[]; lastWrite: unknown }
+interface State { items: MockItem[]; created: { name: string; attributes: { attributeDefId: number; value: string }[] }[]; updated: MockItem[]; lastWrite: unknown; decls: DeclarationMock[]; role: 'ADMIN' | 'MEMBER' }
+
+/** 1:1 pola DeclarationView (backend) — lustrzane semantycznie, B14. */
+interface DeclarationMock {
+  id: number; bandId: number; itemId: number; name: string; serialNumber: string | null;
+  type: string; status: string;
+  holderMemberId: number | null; holderName: string | null; locationText: string | null; note: string | null;
+  declaredByMemberId: number; declaredByName: string;
+  createdAt: string; revokedAt: string | null; revokedBy: string | null; revokedNote: string | null;
+}
 
 function summary(i: MockItem) {
   return { id: i.id, name: i.name, type: i.type, lifecycleStatus: i.lifecycleStatus, warehouse: i.warehouse, serialNumber: i.serialNumber, assignedMemberId: i.assignedMemberId, assignedMemberName: i.assignedName };
@@ -74,6 +83,60 @@ async function mockInventory(route: Route, st: State): Promise<void> {
   const p = url.pathname.replace('/api/inventory', '');
   const m = req.method();
   const body = (req.postDataJSON?.() ?? {}) as Record<string, unknown>;
+
+  // B14 deklaracje posiadania — lista/utworzenie/odwołanie z regułami domenowymi.
+  if (p === '/declarations' && m === 'GET') {
+    const q = url.searchParams;
+    let rows = [...st.decls].reverse();
+    if (q.get('type')) rows = rows.filter((d) => d.type === q.get('type'));
+    if (q.get('status')) rows = rows.filter((d) => d.status === q.get('status'));
+    if (q.get('holderMemberId')) rows = rows.filter((d) => d.holderMemberId === Number(q.get('holderMemberId')));
+    return json(route, rows);
+  }
+  if (p === '/declarations' && m === 'POST') {
+    const target = st.items.find((x) => x.id === Number(body.itemId));
+    if (!target) return json(route, { error: 'not_found', message: 'Pozycja nie istnieje' }, 404);
+    if (target.lifecycleStatus === 'ASSIGNED') {
+      return json(route, { error: 'status_conflict', message: 'Pozycja przypisana formalnie jest już u osoby — deklaruj po zwrocie' }, 409);
+    }
+    if (st.decls.some((d) => d.itemId === target.id && d.status === 'ACTIVE')) {
+      return json(route, { error: 'status_conflict', message: 'Pozycja ma już aktywną deklarację posiadania — odwołaj ją najpierw' }, 409);
+    }
+    const type = String(body.type);
+    if (!body.declaredByMemberId) return json(route, { error: 'invalid_request', message: 'declaredByMemberId wymagany' }, 400);
+    const declarant = MEMBERS.find((x) => x.memberId === Number(body.declaredByMemberId));
+    if (!declarant || !declarant.active) return json(route, { error: 'invalid_request', message: 'Członek nie należy do bandu' }, 400);
+    const holder = MEMBERS.find((x) => x.memberId === body.holderMemberId) ?? null;
+    if (type === 'PRIVATE' && !holder) return json(route, { error: 'invalid_request', message: 'Deklaracja prywatna wymaga osoby (holderMemberId)' }, 400);
+    if (type === 'EXTERNAL' && !String(body.locationText ?? '').trim()) {
+      return json(route, { error: 'invalid_request', message: 'Deklaracja zewnętrzna wymaga opisu miejsca (locationText)' }, 400);
+    }
+    const rec: DeclarationMock = {
+      id: st.decls.length + 1, bandId: 1, itemId: target.id, name: target.name, serialNumber: target.serialNumber,
+      type, status: 'ACTIVE',
+      holderMemberId: holder?.memberId ?? null, holderName: holder ? `${holder.firstName} ${holder.lastName}` : null,
+      locationText: type === 'EXTERNAL' ? String(body.locationText).trim() : null,
+      note: (body.note as string | null) ?? null,
+      declaredByMemberId: declarant.memberId, declaredByName: `${declarant.firstName} ${declarant.lastName}`,
+      createdAt: new Date().toISOString().slice(0, 19), revokedAt: null, revokedBy: null, revokedNote: null,
+    };
+    st.decls.push(rec);
+    return json(route, rec, 201);
+  }
+  const dMatch = p.match(/^\/declarations\/(\d+)(\/revoke)?$/);
+  if (dMatch) {
+    const d = st.decls.find((x) => x.id === Number(dMatch[1]));
+    if (!d) return json(route, { error: 'not_found', message: 'Deklaracja nie istnieje' }, 404);
+    if (m === 'GET') return json(route, d);
+    if (m === 'POST' && dMatch[2] === '/revoke') {
+      if (st.role !== 'ADMIN') return json(route, { error: 'forbidden', message: 'Odwołanie deklaracji wymaga administratora' }, 403);
+      if (d.status !== 'ACTIVE') return json(route, { error: 'status_conflict', message: 'Odwołać można tylko aktywną deklarację' }, 409);
+      d.status = 'REVOKED';
+      d.revokedAt = new Date().toISOString().slice(0, 19);
+      d.revokedNote = (body.note as string | null) ?? null;
+      return json(route, d);
+    }
+  }
   const idMatch = p.match(/^\/items\/(\d+)(\/assignments|\/transfers|\/assign|\/unassign|\/service\/complete|\/service|\/services)?$/);
   const id = idMatch ? Number(idMatch[1]) : NaN;
   const item = Number.isNaN(id) ? undefined : st.items.find((x) => x.id === id);
@@ -245,7 +308,7 @@ async function mockInventory(route: Route, st: State): Promise<void> {
 }
 
 async function seed(page: Page, role: 'ADMIN' | 'MEMBER' = 'ADMIN'): Promise<State> {
-  const st: State = { items: makeItems(), created: [], updated: [], lastWrite: null };
+  const st: State = { items: makeItems(), created: [], updated: [], lastWrite: null, decls: [], role };
   await page.addInitScript(() => {
     sessionStorage.setItem('wi.session', JSON.stringify({
       accessToken: 'test-token', idToken: 'x', expiresAt: Date.now() + 3_600_000,
@@ -445,4 +508,60 @@ test('MEMBER: lista bez FAB i bez strefy akcji na szczegółach', async ({ page 
   await expect(page.getByText('MEMBER: podgląd bez zapisów')).toBeVisible();
   await expect(page.getByRole('button', { name: /Zwróć ✋/ })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Przypisz… ↦' })).toHaveCount(0);
+});
+
+test('B14 deklaracje: MEMBER składa prywatną, ADMIN odwołuje, ASSIGNED odpada', async ({ page }) => {
+  const st = await seed(page, 'MEMBER');
+  await openEkwipunek(page);
+
+  // MEMBER ma dostęp do deklarowania (B14) — Flet jest AVAILABLE
+  await page.getByRole('button', { name: 'Pozycja Flet' }).click();
+  await expect(page.getByText('Posiadanie poza magazynem')).toBeVisible();
+  await page.getByRole('button', { name: /Deklaruj posiadanie 🏠/ }).click();
+  await page.getByRole('button', { name: /🧳 zewnętrzne/ }).click();
+  await page.getByLabel(/Kto składa/).selectOption('12');
+  // EXTERNAL bez miejsca nie przechodzi (lustrzana walidacja serwera)
+  await expect(page.getByRole('button', { name: /Zadeklaruj ✓/ })).toBeDisabled();
+  await page.getByLabel(/Opis miejsca/).fill('sala GOK, szafa 3');
+  await page.getByRole('button', { name: /Zadeklaruj ✓/ }).click();
+  await expect(page.getByText('Zadeklarowano ✓')).toBeVisible();
+  await expect(page.getByText('🧳 sala GOK, szafa 3')).toBeVisible();
+  await expect.poll(() => st.decls.length).toBe(1);
+
+  // MEMBER nie odwołuje — przycisk ukryty, badge zamiast niego
+  await expect(page.getByRole('button', { name: /Odwołaj ✕/ })).toHaveCount(0);
+  await expect(page.locator('.badge', { hasText: 'aktywna' })).toBeVisible();
+
+  // aktywna blokuje kolejne zgłoszenie — CTA znika
+  await expect(page.getByRole('button', { name: /Deklaruj posiadanie 🏠/ })).toHaveCount(0);
+
+  // pozycja ASSIGNED nie podlega deklaracji (Marynarka u Anny)
+  await page.getByRole('button', { name: 'Wróć do listy' }).click();
+  await page.getByRole('button', { name: 'Pozycja Marynarka' }).click();
+  await expect(page.getByRole('button', { name: /Deklaruj posiadanie 🏠/ })).toHaveCount(0);
+  await expect(page.getByText('najpierw zwrot, potem deklaracja')).toBeVisible();
+});
+
+test('B14 deklaracja: ADMIN odwołuje i można zadeklarować od nowa', async ({ page }) => {
+  const st = await seed(page, 'ADMIN');
+  await openEkwipunek(page);
+
+  await page.getByRole('button', { name: 'Pozycja Spodnie' }).click();
+  await page.getByRole('button', { name: /Deklaruj posiadanie 🏠/ }).click();
+  await page.getByLabel(/Kto składa/).selectOption('13');
+  await page.getByLabel(/U kogo jest pozycja/).selectOption('12');
+  await page.getByLabel(/Notatka/).fill('od lat w piwnicy u prezesa');
+  await page.getByRole('button', { name: /Zadeklaruj ✓/ }).click();
+  await expect(page.getByText('Zadeklarowano ✓')).toBeVisible();
+  await expect(page.getByText('🏠 Anna Nowak')).toBeVisible();
+  await expect(page.getByText('od lat w piwnicy u prezesa')).toBeVisible();
+
+  // ADMIN odwołuje
+  await page.getByRole('button', { name: /Odwołaj ✕/ }).click();
+  await expect(page.getByText('Deklaracja odwołana ✓')).toBeVisible();
+  await expect.poll(() => st.decls[0]?.status).toBe('REVOKED');
+  await expect(page.locator('.badge', { hasText: 'odwołana' })).toBeVisible();
+
+  // odwołana = historia; pozycja znowu się nadaje do deklaracji
+  await expect(page.getByRole('button', { name: /Deklaruj posiadanie 🏠/ })).toBeVisible();
 });

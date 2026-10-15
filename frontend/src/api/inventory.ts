@@ -336,3 +336,52 @@ export const listAttributeDefs = (
   type?: ItemType,
   signal?: AbortSignal,
 ): Promise<AttributeDefView[]> => invGet(`/attribute-defs${qs({ bandId, type })}`, signal);
+
+// --- Deklaracje posiadania (backlog v1.x item 4, decyzja B14) ---
+
+export type DeclarationType = 'PRIVATE' | 'EXTERNAL';
+export type DeclarationStatus = 'ACTIVE' | 'REVOKED';
+
+/** 1:1 z DeclarationQueryService.DeclarationView — snapshot nazwy/serii zamrożony w wierszu. */
+export interface DeclarationView {
+  id: number;
+  bandId: number;
+  itemId: number;
+  name: string;
+  serialNumber: string | null;
+  type: DeclarationType;
+  status: DeclarationStatus;
+  holderMemberId: number | null;
+  holderName: string | null;
+  locationText: string | null;
+  note: string | null;
+  declaredByMemberId: number | null;
+  declaredByName: string | null;
+  createdAt: string;
+  revokedAt: string | null;
+  revokedBy: string | null;
+  revokedNote: string | null;
+}
+
+export const listDeclarations = (
+  bandId: number,
+  filters?: { type?: DeclarationType; status?: DeclarationStatus; holderMemberId?: number },
+  signal?: AbortSignal,
+): Promise<DeclarationView[]> => invGet(`/declarations${qs({ bandId, ...filters })}`, signal);
+
+/** Składa dowolny członek (B14); serwer re-waliduje roster (B10). */
+export const createDeclaration = (
+  bandId: number,
+  req: {
+    itemId: number;
+    type: DeclarationType;
+    holderMemberId?: number | null;
+    locationText?: string | null;
+    note?: string | null;
+    declaredByMemberId: number;
+  },
+): Promise<DeclarationView> => invSend('POST', `/declarations${qs({ bandId })}`, req);
+
+/** Tylko ADMIN: ACTIVE → REVOKED (finalne). */
+export const revokeDeclaration = (id: number, note?: string | null): Promise<DeclarationView> =>
+  invSend('POST', `/declarations/${id}/revoke`, { note: note ?? null });

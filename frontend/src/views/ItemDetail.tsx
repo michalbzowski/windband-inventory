@@ -4,22 +4,35 @@ import { ApiError } from '../api/client';
 import {
   assignItem,
   completeItemService,
+  createDeclaration,
   deleteItem,
   getItem,
+  listDeclarations,
   listItems,
   listItemAssignments,
   listItemServices,
   listItemTransfers,
+  revokeDeclaration,
   sendItemToService,
   transferItem,
   unassignItem,
   type AssignmentView,
+  type DeclarationType,
+  type DeclarationView,
   type ItemView,
   type ServiceEventView,
   type WarehouseTransferView,
   type WarehouseType,
 } from '../api/inventory';
 import { STATUS_BADGE, STATUS_LABEL, TYPE_ICON, TYPE_LABEL, WAREHOUSE_LABEL } from '../ekwipunek/filters';
+import {
+  DECLARATION_STATUS_LABEL,
+  DECLARATION_TYPE_LABEL,
+  activeDeclarationFor,
+  canRevokeDeclaration,
+  isDeclarableItem,
+  validateDeclarationForm,
+} from '../declarations/model';
 import { fmtAttrValue, fmtDate, fmtDateTime } from '../ekwipunek/format';
 import Phone from '../ui/Phone';
 import Sheet from '../ui/Sheet';
@@ -34,7 +47,7 @@ interface Props {
   onTab?: (t: 'pulpit' | 'ekwipunek' | 'liczenie' | 'moje') => void;
 }
 
-type SheetKind = 'assign' | 'unassign' | 'transfer' | 'service' | 'serviceComplete' | null;
+type SheetKind = 'assign' | 'unassign' | 'transfer' | 'service' | 'serviceComplete' | 'declare' | null;
 
 /**
  * Item detail (makieta screen 04): attributes rendered from the generator,
@@ -47,6 +60,7 @@ export default function ItemDetail({ band, itemId, focusForm = false, onBack, on
   const [assignments, setAssignments] = useState<AssignmentView[]>([]);
   const [transfers, setTransfers] = useState<WarehouseTransferView[]>([]);
   const [services, setServices] = useState<ServiceEventView[]>([]);
+  const [declarations, setDeclarations] = useState<DeclarationView[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [sheet, setSheet] = useState<SheetKind>(null);
   const [editing, setEditing] = useState(focusForm);
@@ -65,7 +79,10 @@ export default function ItemDetail({ band, itemId, focusForm = false, onBack, on
     listItemAssignments(itemId).then(setAssignments).catch(() => setAssignments([]));
     listItemTransfers(itemId).then(setTransfers).catch(() => setTransfers([]));
     listItemServices(itemId).then(setServices).catch(() => setServices([]));
-  }, [itemId]);
+    listDeclarations(band.bandId)
+      .then((rows) => setDeclarations(rows.filter((d) => d.itemId === itemId)))
+      .catch(() => setDeclarations([]));
+  }, [itemId, band.bandId]);
 
   useEffect(reload, [reload]);
 
@@ -114,12 +131,26 @@ export default function ItemDetail({ band, itemId, focusForm = false, onBack, on
   // F4: tylko AVAILABLE jedzie do serwisu; tylko IN_SERVICE można zamknąć (lustrzane 409 serwera).
   const canSendToService = isAdmin && item.lifecycleStatus === 'AVAILABLE';
   const canCompleteService = isAdmin && item.lifecycleStatus === 'IN_SERVICE';
-  const hasHistory = assignments.length > 0 || transfers.length > 0 || services.length > 0;
+  // B14: deklarację składa DOWOLNY członek (nie tylko ADMIN); ASSIGNED odpada,
+  // aktywna blokuje ponowne zgłoszenie — serwer pilnuje tego samym 409.
+  const activeDecl = activeDeclarationFor(declarations, item.id) ?? null;
+  const canDeclare = isDeclarableItem(item.lifecycleStatus) && activeDecl === null;
+  const hasHistory =
+    assignments.length > 0 || transfers.length > 0 || services.length > 0 || declarations.length > 0;
 
   const afterWrite = (msg: string) => {
     setToast(msg);
     window.setTimeout(() => setToast(null), 3500);
     reload();
+  };
+
+  const revokeDecl = async (id: number) => {
+    try {
+      await revokeDeclaration(id, null);
+      afterWrite('Deklaracja odwołana ✓');
+    } catch (e) {
+      afterWrite(e instanceof ApiError ? e.message : 'Nie udało się odwołać deklaracji.');
+    }
   };
 
   const runDelete = async () => {
@@ -176,6 +207,43 @@ export default function ItemDetail({ band, itemId, focusForm = false, onBack, on
             {item.nextServiceDate && <div><dt>Następny serwis</dt><dd>🔧 {fmtDate(item.nextServiceDate)}</dd></div>}
             {openAssignment && <div><dt>Od</dt><dd>{fmtDate(openAssignment.assignedAt)}</dd></div>}
           </div>
+        </div>
+
+        <div className="panel">
+          <h4>Posiadanie poza magazynem</h4>
+          <p className="hint">Deklaracja to fakt terenowy — nie zmienia magazynu ani statusu (B14).</p>
+          {declarations.length === 0 && <p className="hint">Brak deklaracji — pozycja figuruje w rejestrze magazynowym.</p>}
+          {declarations.map((d) => (
+            <div className="srow" key={d.id} style={{ cursor: 'default' }}>
+              <span>
+                <b>{d.type === 'PRIVATE' ? '🏠' : '🧳'} {d.holderName ?? d.locationText}</b>
+                <span className="muted">
+                  {' '}{DECLARATION_TYPE_LABEL[d.type]} · od {fmtDate(d.createdAt)}
+                  {d.declaredByName ? ` · zgłosił(a): ${d.declaredByName}` : ''}
+                </span>
+                {d.note && <span className="muted"> · {d.note}</span>}
+                {d.status === 'REVOKED' && (
+                  <span className="muted">
+                    <br />
+                    odwołana {d.revokedAt ? fmtDate(d.revokedAt) : ''}{d.revokedNote ? ` — ${d.revokedNote}` : ''}
+                  </span>
+                )}
+              </span>
+              {canRevokeDeclaration(band.role, d) ? (
+                <button type="button" className="btn sm danger" onClick={() => void revokeDecl(d.id)}>Odwołaj ✕</button>
+              ) : (
+                <span className={`badge ${d.status === 'ACTIVE' ? 'b-ok' : 'b-gray'}`}>{DECLARATION_STATUS_LABEL[d.status]}</span>
+              )}
+            </div>
+          ))}
+          {canDeclare && (
+            <button type="button" className="btn block" onClick={() => setSheet('declare')}>
+              Deklaruj posiadanie 🏠
+            </button>
+          )}
+          {!canDeclare && activeDecl === null && item.lifecycleStatus === 'ASSIGNED' && (
+            <p className="hint">Pozycja przypisana formalnie — najpierw zwrot, potem deklaracja (B14).</p>
+          )}
         </div>
 
         <div className="panel">
@@ -271,6 +339,9 @@ export default function ItemDetail({ band, itemId, focusForm = false, onBack, on
       )}
       {sheet === 'serviceComplete' && (
         <ServiceCompleteSheet item={item} onClose={() => setSheet(null)} onDone={() => { setSheet(null); afterWrite('Serwis zamknięty ✓'); }} />
+      )}
+      {sheet === 'declare' && (
+        <DeclarationSheet band={band} item={item} onClose={() => setSheet(null)} onDone={() => { setSheet(null); afterWrite('Zadeklarowano ✓'); }} />
       )}
 
       {confirmDelete && (
@@ -520,6 +591,121 @@ function ServiceCompleteSheet({ item, onClose, onDone }: { item: ItemView; onClo
       </label>
       <button type="button" className="btn primary block" disabled={busy} onClick={submit}>
         {busy ? 'Zapisywanie…' : 'Zamknij serwis ✅'}
+      </button>
+    </Sheet>
+  );
+}
+
+/** B14: bottom sheet for a possession declaration — any member may report.
+ * Mirrors DeclarationCommandService validation (declarant + holder from the
+ * live roster, location required for EXTERNAL). */
+function DeclarationSheet({ band, item, onClose, onDone }: {
+  band: BandView;
+  item: ItemView;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const [members, setMembers] = useState<BandMember[]>([]);
+  const [type, setType] = useState<DeclarationType>('PRIVATE');
+  const [declarant, setDeclarant] = useState<BandMember | null>(null);
+  const [holder, setHolder] = useState<BandMember | null>(null);
+  const [location, setLocation] = useState('');
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    listBandMembers(band.bandId).then((m) => setMembers(m.filter((x) => x.active))).catch(() => setMembers([]));
+  }, [band.bandId]);
+
+  const submit = async () => {
+    const formErr = validateDeclarationForm({
+      type,
+      holderMemberId: holder?.memberId ?? null,
+      locationText: location,
+      note,
+      declaredByMemberId: declarant?.memberId ?? null,
+    });
+    if (formErr) {
+      setError(formErr);
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      await createDeclaration(band.bandId, {
+        itemId: item.id,
+        type,
+        holderMemberId: holder?.memberId ?? null,
+        locationText: type === 'EXTERNAL' ? location.trim() : null,
+        note: note.trim() || null,
+        declaredByMemberId: declarant?.memberId ?? 0,
+      });
+      onDone();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Nie udało się złożyć deklaracji.');
+      setBusy(false);
+    }
+  };
+
+  const invalid = validateDeclarationForm({
+    type,
+    holderMemberId: holder?.memberId ?? null,
+    locationText: location,
+    note,
+    declaredByMemberId: declarant?.memberId ?? null,
+  }) !== null;
+
+  return (
+    <Sheet title="Deklaracja posiadania" onClose={onClose}>
+      <p className="hint">
+        {item.name} — fakt terenowy, bez zmiany magazynu ani statusu (B14). Deklarację może złożyć każdy członek.
+      </p>
+      {error && <p className="field-err">{error}</p>}
+      <div className="chips" aria-label="Rodzaj deklaracji">
+        {(['PRIVATE', 'EXTERNAL'] as const).map((t) => (
+          <button
+            type="button"
+            key={t}
+            className={`chip${type === t ? ' on' : ''}`}
+            onClick={() => setType(t)}
+          >
+            {t === 'PRIVATE' ? '🏠 prywatnie' : '🧳 zewnętrzne'}
+          </button>
+        ))}
+      </div>
+      <label className="field">Kto składa deklarację *
+        <select value={declarant?.memberId ?? ''} onChange={(e) => setDeclarant(members.find((m) => m.memberId === Number(e.target.value)) ?? null)}>
+          <option value="">— wybierz —</option>
+          {members.map((m) => <option key={m.memberId} value={m.memberId}>{m.firstName} {m.lastName}</option>)}
+        </select>
+      </label>
+      {type === 'PRIVATE' ? (
+        <label className="field">U kogo jest pozycja *
+          <select value={holder?.memberId ?? ''} onChange={(e) => setHolder(members.find((m) => m.memberId === Number(e.target.value)) ?? null)}>
+            <option value="">— wybierz —</option>
+            {members.map((m) => <option key={m.memberId} value={m.memberId}>{m.firstName} {m.lastName}</option>)}
+          </select>
+        </label>
+      ) : (
+        <>
+          <label className="field">Opis miejsca *
+            <input value={location} onChange={(e) => setLocation(e.target.value)} maxLength={200}
+              placeholder="np. sala GOK, szafa 3" />
+          </label>
+          <label className="field">Opiekun (opcjonalny)
+            <select value={holder?.memberId ?? ''} onChange={(e) => setHolder(members.find((m) => m.memberId === Number(e.target.value)) ?? null)}>
+              <option value="">— brak —</option>
+              {members.map((m) => <option key={m.memberId} value={m.memberId}>{m.firstName} {m.lastName}</option>)}
+            </select>
+          </label>
+        </>
+      )}
+      <label className="field">Notatka (opcjonalna)
+        <textarea value={note} onChange={(e) => setNote(e.target.value)} maxLength={2000} />
+      </label>
+      <button type="button" className="btn primary block" disabled={invalid || busy} onClick={submit}>
+        {busy ? 'Zapisywanie…' : 'Zadeklaruj ✓'}
       </button>
     </Sheet>
   );
