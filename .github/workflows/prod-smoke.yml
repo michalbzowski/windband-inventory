@@ -1,0 +1,33 @@
+# Production smoke: the 2026-10-15 outage (full 502 on /api/inventory/* after a
+# Railway reconfig dropped BACKEND_API_URL/SERVER_PORT) was invisible to our
+# mocked Playwright e2e. This probe runs against the REAL deployment and fails
+# (with a GitHub notification to the repo owner) whenever the edge/nginx/auth
+# chain stops behaving.
+name: prod-smoke
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"   # every 30 minutes
+  workflow_dispatch: {}       # manual run after any infra change
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe SPA + inventory API
+        run: |
+          set -u
+          root=$(curl -s -o /dev/null -m 15 -w '%{http_code}' 'https://inventory.bandmanager.pl/')
+          api=$(curl -s -o /dev/null -m 15 -w '%{http_code}' 'https://inventory.bandmanager.pl/api/inventory/items?bandId=2')
+          direct=$(curl -s -o /dev/null -m 15 -w '%{http_code}' 'https://windband-inventory-backend-production.up.railway.app/api/inventory/items?bandId=2')
+          echo "SPA=$root via-nginx=$api direct-domain=$direct"
+          # SPA must serve; the API must reach Spring's auth wall.
+          # 502/503/000 => proxy/upstream broken (postmortem 2026-10-15); anything else => app down.
+          [ "$root" = "200" ] || { echo "::error::SPA root returned $root"; exit 1; }
+          for code in "$api" "$direct"; do
+            case "$code" in
+              200|401|403) ;;
+              *) echo "::error::inventory API returned $code (expected 401/200) — proxy or backend is DOWN"; exit 1 ;;
+            esac
+          done
+          echo "prod smoke OK"
