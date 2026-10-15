@@ -565,3 +565,29 @@ test('B14 deklaracja: ADMIN odwołuje i można zadeklarować od nowa', async ({ 
   // odwołana = historia; pozycja znowu się nadaje do deklaracji
   await expect(page.getByRole('button', { name: /Deklaruj posiadanie 🏠/ })).toBeVisible();
 });
+
+test('flow v1.x: lista → szczegóły → ✎ edycja wpisu → „Zapisz zmiany” trafia do rejestru', async ({ page }) => {
+  const st = await seed(page);
+  await openEkwipunek(page);
+
+  await page.getByRole('button', { name: 'Pozycja Flet' }).click();
+  await page.getByRole('button', { name: 'Edytuj pozycję' }).click();
+  await expect(page.getByRole('button', { name: 'Zapisz zmiany' })).toBeVisible();
+
+  await page.getByLabel(/Nazwa/).fill('Flet piccolo');
+  await page.getByLabel(/Liczba zaworów/).fill('16');
+  await page.getByRole('button', { name: 'Zapisz zmiany' }).click();
+
+  // powrót do szczegółów z nowymi danymi (reload po onDone)
+  await expect(page.getByRole('heading', { name: /Flet piccolo/ })).toBeVisible();
+
+  // zapis poszedł PUT-em na serwer: snapshot PRZED edycją + nowy stan mocka
+  await expect.poll(() => st.updated.length).toBe(1);
+  expect(st.updated[0].name).toBe('Flet');
+  expect(st.updated[0].attrs[4]).toBe('3');
+  expect(st.items[0].name).toBe('Flet piccolo');
+
+  // i widać to na liście wpisów
+  await page.getByRole('button', { name: 'Wróć do listy' }).click();
+  await expect(page.getByRole('button', { name: 'Pozycja Flet piccolo' })).toBeVisible();
+});
