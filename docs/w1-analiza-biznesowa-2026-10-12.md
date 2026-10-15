@@ -135,11 +135,11 @@ Brak: migracja danych (B3), dwustronna nawigacja (B11), stany członka/kontaktow
 | CI/CD | GitHub Actions → Railway (wzorzec WM; skill `windband-inventory-deployment`) |
 
 ## 6. Cutover z windband-manager (B2, po stabilnym v1)
-1. Snapshot/backup bazy WM (Railway + `pg_dump` lokalny).
-2. Freeze modułu inventory w WM (read-only w UI, wyłączenie zapisów w API).
-3. Usunięcie kodu legacy + encji z WM (PR w repo WM, na konwencji: fix-on-same-branch).
-4. Dodanie linku WM→inventory na dashboard bandu + karcie ekwipunku; komunikat do userów.
-5. Weryfikacja: zero encji inventory w `src/` WM (ArchUnit), zielone `./mvnw verify`.
+1. Snapshot/backup bazy WM (Railway + `pg_dump` lokalny). — **po stronie właściciela**, przed wdrożeniem PR-1.
+2. ~~Freeze modułu inventory w WM (read-only w UI, wyłączenie zapisów w API)~~ ✅ 2026-10-15: WM PR #276 — `InventoryWriteFreezeFilter` (410 Gone na POST/PUT/PATCH/DELETE pod `/api/inventory/**` i `/band/inventory-attributes/**`); wycofanie bez kodu: `INVENTORY_WRITE_FREEZE=false`.
+3. Usunięcie kodu legacy + encji z WM (PR w repo WM) — **uzgodnione 2026-10-15: PR-2 po testach produkcyjnych** (użytkownik chce zostać z podglądem read-only).
+4. ~~Link WM→inventory~~ ✅ częściowo wcześniej (menu `📦 Inwentaryzacja` #274, `app.inventory-url`); PR #276 dokłada banner „tylko do odczytu → Otwórz Inventory" na Zasobach i Atrybutach (używa tego samego mechanizmu `inventoryExternalUrl`).
+5. Weryfikacja po PR-2: zero encji inventory w `src/` WM (ArchUnit), zielone `./mvnw verify`.
 
 ## 7. Otwarte przed startem kodowania (do zamknięcia w PR-ach / setupie)
 1. ~~Dokładny kontrakt REST WM endpointów B10~~ ✅ zaimplementowane w WM: branch `feat/inventory-integration-api` @ `16efdc43` (`GET /api/v1/me/bands`, `GET /api/v1/bands/{bandId}/members`; rola ADMIN/MEMBER; expectedSet per członek).
