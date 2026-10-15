@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import pl.michalbzowski.inventory.application.authz.BandForbiddenException;
 import pl.michalbzowski.inventory.application.command.AttributeDefDuplicateException;
 import pl.michalbzowski.inventory.application.command.AttributeDefNotFoundException;
+import pl.michalbzowski.inventory.application.command.DeclarationNotFoundException;
 import pl.michalbzowski.inventory.application.command.ItemNotFoundException;
 import pl.michalbzowski.inventory.application.command.MemberNotFoundException;
 import pl.michalbzowski.inventory.application.command.NeedNotFoundException;
@@ -29,7 +30,7 @@ import pl.michalbzowski.inventory.domain.inventory.AttributeValueInvalidExceptio
 public class ApiExceptionHandler {
 
     @ExceptionHandler({ItemNotFoundException.class, AttributeDefNotFoundException.class,
-            MemberNotFoundException.class, NeedNotFoundException.class,
+            MemberNotFoundException.class, NeedNotFoundException.class, DeclarationNotFoundException.class,
             StocktakeNotFoundException.class, StocktakeLineNotFoundException.class})
     public ResponseEntity<Map<String, String>> notFound(RuntimeException ex) {
         return body(HttpStatus.NOT_FOUND, "not_found", ex.getMessage());

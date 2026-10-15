@@ -34,6 +34,7 @@ Kontekst decyzyjny odziedziczony (decyzje D1–D4 z 2026-10-09, niezakwestowane)
 | B11 | Nawigacja **jednostronna**: link z WM do inventory (dashboard bandu / karta ekwipunku); bez przycisku powrotu w v1 | Środek user-flow = inventory |
 | B12 | Stack: backend wzorzec WM (Java 21, Spring Boot 3, DDD, PG+Flyway, Railway, GHA), **frontend: React + TypeScript SPA** nad REST | Odchodzenie od Thymeleaf/Pico/HTMX — decyzja B5-R5 |
 | B13 | **Skill-i Hermes: 4 sztuki** dla repo `windband-inventory`, utworzone przed pierwszym PR | workflow, stack-nfr, wm-integration, deployment |
+| B14 | **Deklaracje posiadania (v1.x #4, 2026-10-14)**: dowodowy wiersz `OwnershipDeclaration` — typu `PRIVATE` (pozycja trzymana prywatnie; osoba z rosteru WM) lub `EXTERNAL` (miejsce poza magazynem; opis lokalizacji wymagany). Deklaracja NIE zmienia magazynu ani statusu życia (magazyn = prawda formalna, deklaracja = fakt terenowy; ich połączenie to pełny obraz w1.x #1). Jedna `ACTIVE` deklaracja na pozycję (częściowy unikalny index), ścieżka `ACTIVE → REVOKED` bez reaktywacji; pozycja `ASSIGNED` nie podlega deklaracji (409 — formalny przydział jest mocniejszym dowodem). Utworzenie: ADMIN lub aktywny CZŁONEK (re-walidacja składu przez roster WM, analogicznie do B10 przy zliczeniach); odwołanie: ADMIN; odczyt: członek bandu | Rejestry magazynowe nie łapią stanu faktycznego (instrumenty „od lat w piwnicy u prezesa”) — bez tego spis i pełny obraz kłamią |
 
 ## 2. Osoby i role
 
