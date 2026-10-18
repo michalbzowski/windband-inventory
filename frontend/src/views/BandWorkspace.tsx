@@ -17,10 +17,21 @@ interface Props {
   onLogout: () => void;
 }
 
-/** Four-tab shell from the frozen mockup (§.tabs). PULPIT, LICZENIE and
- * EKWIPEUNEK (registry slice) are live; Moje shows queue/identity/session. */
+/** Cztery zakładki ze zmrożonej makiety (§.tabs). PULPIT, LICZENIE i
+ * EKWIPEUNEK (wycinek rejestru) działają; Moje pokazuje kolejkę/tożsamość/sesję. */
+const TAB_KEYS: readonly TabKey[] = ['pulpit', 'ekwipunek', 'liczenie', 'moje'];
+const tabStoreKey = (bandId: number) => `wi.tab.${bandId}`;
+
 export default function BandWorkspace({ band, onBack, onLogout }: Props) {
-  const [tab, setTab] = useState<TabKey>('pulpit');
+  // Zakładka zapamiętywana per zespół — F5 nie cofa do Pulpitu po restoracji zespołu.
+  const [tab, setTabState] = useState<TabKey>(() => {
+    const stored = sessionStorage.getItem(tabStoreKey(band.bandId)) as TabKey | null;
+    return stored && TAB_KEYS.includes(stored) ? stored : 'pulpit';
+  });
+  const setTab = (t: TabKey) => {
+    sessionStorage.setItem(tabStoreKey(band.bandId), t);
+    setTabState(t);
+  };
   const [startCreate, setStartCreate] = useState(false);
 
   if (tab === 'liczenie') return <LiczenieTab band={band} onBackToPulpit={() => setTab('pulpit')} />;

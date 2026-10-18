@@ -4,6 +4,7 @@ import { listBandMembers, listMyBands, type BandView } from './api/bands';
 import { ApiError } from './api/client';
 import BandSelection from './views/BandSelection';
 import BandWorkspace from './views/BandWorkspace';
+import { clearSelectedBand, restoreSelectedBand, saveSelectedBand } from './session/restore';
 
 type Phase =
   | { kind: 'boot' }
@@ -13,24 +14,30 @@ type Phase =
   | { kind: 'bands-error'; message: string; status?: number }
   | { kind: 'dashboard'; band: BandView };
 
-const SELECTED_BAND_KEY = 'wi.selectedBand';
-
 export default function App() {
   const [phase, setPhase] = useState<Phase>({ kind: 'boot' });
   const memberCounts = useRef(new Map<number, number>());
 
-  /** Fetches the user's bands and routes: 1 band → straight to its dashboard
-   * (deep-link rule, w1-analiza §"Wejście"), ≥2 → the selection screen. */
+  /** Pobiera zespoły i kieruje: 1 zespół → od razu jego pulpit (reguła
+   * deep-link, w1-analiza §„Wejście”); ≥2 → wcześniej wybrany zespół, jeśli
+   * wciąż jest na liście (F5 na jakiejkolwiek zakładce nie może cofać do
+   * pickera), w przeciwnym razie ekran wyboru. */
   const loadBands = useCallback(async () => {
     memberCounts.current = new Map();
     setPhase({ kind: 'bands-loading' });
     try {
       const bands = await listMyBands();
       if (bands.length === 1) {
-        sessionStorage.setItem(SELECTED_BAND_KEY, JSON.stringify(bands[0]));
+        saveSelectedBand(sessionStorage, bands[0]);
         setPhase({ kind: 'dashboard', band: bands[0] });
         return;
       }
+      const restored = restoreSelectedBand(bands, sessionStorage);
+      if (restored) {
+        setPhase({ kind: 'dashboard', band: restored });
+        return;
+      }
+      clearSelectedBand(sessionStorage); // klucz sprzed usunięcia zespołu/odebrania roli
       setPhase({ kind: 'picker', bands });
 
       // Lazy member counts (best effort — the picker must render without them).
@@ -84,17 +91,17 @@ export default function App() {
   }, [loadBands]);
 
   const handleSelect = (band: BandView) => {
-    sessionStorage.setItem(SELECTED_BAND_KEY, JSON.stringify(band));
+    saveSelectedBand(sessionStorage, band);
     setPhase({ kind: 'dashboard', band });
   };
 
   const handleBackToPicker = () => {
-    sessionStorage.removeItem(SELECTED_BAND_KEY);
+    clearSelectedBand(sessionStorage);
     void loadBands();
   };
 
   const handleLogout = async () => {
-    sessionStorage.removeItem(SELECTED_BAND_KEY);
+    clearSelectedBand(sessionStorage);
     await oidc.logout();
   };
 
