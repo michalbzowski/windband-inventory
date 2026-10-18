@@ -34,7 +34,7 @@ export default function BandWorkspace({ band, onBack, onLogout }: Props) {
   };
   const [startCreate, setStartCreate] = useState(false);
 
-  if (tab === 'liczenie') return <LiczenieTab band={band} onBackToPulpit={() => setTab('pulpit')} />;
+  if (tab === 'liczenie') return <LiczenieTab band={band} onBackToPulpit={() => setTab('pulpit')} onTab={setTab} />;
   if (tab === 'ekwipunek') {
     return (
       <EkwipunekTab
