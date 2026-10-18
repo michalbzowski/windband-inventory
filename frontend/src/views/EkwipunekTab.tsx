@@ -24,6 +24,7 @@ import ItemDetail from './ItemDetail';
 import ItemForm from './ItemForm';
 import MemberPicture from './MemberPicture';
 import AttributeDefsAdmin from './AttributeDefsAdmin';
+import NeedsBoard from './NeedsBoard';
 
 interface Props {
   band: BandView;
@@ -39,7 +40,8 @@ type Screen =
   | { kind: 'detail'; itemId: number; focusForm?: boolean }
   | { kind: 'create' }
   | { kind: 'picture'; memberId: number }
-  | { kind: 'defs' };
+  | { kind: 'defs' }
+  | { kind: 'needs' };
 
 /**
  * Ekwipunek tab — screens 03–07 of the frozen mockup: item list with
@@ -80,6 +82,9 @@ export default function EkwipunekTab({ band, onBackToPulpit, onTab, startCreate 
   if (screen.kind === 'defs') {
     return <AttributeDefsAdmin band={band} onBack={() => setScreen({ kind: 'list' })} onTab={onTab} />;
   }
+  if (screen.kind === 'needs') {
+    return <NeedsBoard band={band} onBack={() => setScreen({ kind: 'list' })} onTab={onTab} />;
+  }
   if (screen.kind === 'picture') {
     return (
       <MemberPicture
@@ -96,6 +101,7 @@ export default function EkwipunekTab({ band, onBackToPulpit, onTab, startCreate 
     onCreate={() => setScreen({ kind: 'create' })}
     onOpenPicture={(memberId) => setScreen({ kind: 'picture', memberId })}
     onOpenDefs={() => setScreen({ kind: 'defs' })}
+    onOpenNeeds={() => setScreen({ kind: 'needs' })}
     onBackToPulpit={onBackToPulpit}
     onTab={onTab}
   />;
@@ -109,6 +115,7 @@ function ItemList({
   onCreate,
   onOpenPicture,
   onOpenDefs,
+  onOpenNeeds,
   onBackToPulpit,
   onTab,
 }: {
@@ -117,6 +124,7 @@ function ItemList({
   onCreate: () => void;
   onOpenPicture: (memberId: number) => void;
   onOpenDefs: () => void;
+  onOpenNeeds: () => void;
   onBackToPulpit: () => void;
   onTab?: Props['onTab'];
 }) {
@@ -169,6 +177,7 @@ function ItemList({
         <button type="button" className="back" onClick={onBackToPulpit} aria-label="Wróć">‹</button>
         <h3>Ekwipunek</h3>
         <span className={`badge ${isAdmin ? 'b-primary' : 'b-gray'}`}>{band.role}</span>
+        <button type="button" className="ic" onClick={onOpenNeeds} aria-label="Potrzeby i zamówienia">🧾</button>
         {isAdmin && (
           <button type="button" className="ic" onClick={onOpenDefs} aria-label="Definicje atrybutów">⚙</button>
         )}
