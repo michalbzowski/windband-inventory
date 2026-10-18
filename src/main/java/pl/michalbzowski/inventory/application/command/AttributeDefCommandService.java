@@ -56,6 +56,13 @@ public class AttributeDefCommandService {
         if (cmd.options() != null) {
             def.setOptions(serializeOptions(def, cmd.options()));
         }
+        if (cmd.active() != null && cmd.active() != def.isActive()) {
+            if (cmd.active()) {
+                // reactivation must not re-introduce a duplicate active name for (band, type)
+                checkDuplicate(def.getBandId(), def.getItemType(), def.getName(), def.getId());
+            }
+            def.setActive(cmd.active());
+        }
         return def;
     }
 

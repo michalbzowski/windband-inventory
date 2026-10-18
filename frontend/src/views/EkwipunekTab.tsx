@@ -23,6 +23,7 @@ import { Tabs } from './LiczenieTab';
 import ItemDetail from './ItemDetail';
 import ItemForm from './ItemForm';
 import MemberPicture from './MemberPicture';
+import AttributeDefsAdmin from './AttributeDefsAdmin';
 
 interface Props {
   band: BandView;
@@ -37,13 +38,15 @@ type Screen =
   | { kind: 'list' }
   | { kind: 'detail'; itemId: number; focusForm?: boolean }
   | { kind: 'create' }
-  | { kind: 'picture'; memberId: number };
+  | { kind: 'picture'; memberId: number }
+  | { kind: 'defs' };
 
 /**
  * Ekwipunek tab — screens 03–07 of the frozen mockup: item list with
  * bottom-sheet filters (typ/status/magazyn/osoba/atrybut, P0 §3.1), FAB
- * visible only to ADMIN (B8), full CRUD drill-down. MEMBER gets a read-only
- * list and a read-only detail (no sheets, no FAB).
+ * visible only to ADMIN (B8), full CRUD drill-down, plus the ADMIN-only
+ * „Definicje atrybutów” screen (B6 — entry: ⚙ in the appbar). MEMBER gets a
+ * read-only list and a read-only detail (no sheets, no FAB).
  */
 export default function EkwipunekTab({ band, onBackToPulpit, onTab, startCreate = false, onCreateConsumed }: Props) {
   const [screen, setScreen] = useState<Screen>(() => (startCreate ? { kind: 'create' } : { kind: 'list' }));
@@ -74,6 +77,9 @@ export default function EkwipunekTab({ band, onBackToPulpit, onTab, startCreate 
       />
     );
   }
+  if (screen.kind === 'defs') {
+    return <AttributeDefsAdmin band={band} onBack={() => setScreen({ kind: 'list' })} onTab={onTab} />;
+  }
   if (screen.kind === 'picture') {
     return (
       <MemberPicture
@@ -89,6 +95,7 @@ export default function EkwipunekTab({ band, onBackToPulpit, onTab, startCreate 
     onOpen={(id) => setScreen({ kind: 'detail', itemId: id })}
     onCreate={() => setScreen({ kind: 'create' })}
     onOpenPicture={(memberId) => setScreen({ kind: 'picture', memberId })}
+    onOpenDefs={() => setScreen({ kind: 'defs' })}
     onBackToPulpit={onBackToPulpit}
     onTab={onTab}
   />;
@@ -101,6 +108,7 @@ function ItemList({
   onOpen,
   onCreate,
   onOpenPicture,
+  onOpenDefs,
   onBackToPulpit,
   onTab,
 }: {
@@ -108,6 +116,7 @@ function ItemList({
   onOpen: (id: number) => void;
   onCreate: () => void;
   onOpenPicture: (memberId: number) => void;
+  onOpenDefs: () => void;
   onBackToPulpit: () => void;
   onTab?: Props['onTab'];
 }) {
@@ -160,6 +169,9 @@ function ItemList({
         <button type="button" className="back" onClick={onBackToPulpit} aria-label="Wróć">‹</button>
         <h3>Ekwipunek</h3>
         <span className={`badge ${isAdmin ? 'b-primary' : 'b-gray'}`}>{band.role}</span>
+        {isAdmin && (
+          <button type="button" className="ic" onClick={onOpenDefs} aria-label="Definicje atrybutów">⚙</button>
+        )}
       </header>
 
       <section className="content">
@@ -287,6 +299,7 @@ function ItemList({
       {sheet === 'attribute' && (
         <AttributeSheet
           defs={defs}
+          onOpenDefs={isAdmin ? onOpenDefs : undefined}
           current={filters}
           onPick={(defId, value) => {
             setFilters((f) => ({ ...f, attributeDefId: defId, attributeValue: value }));
@@ -325,8 +338,10 @@ function AttributeSheet({
   current,
   onPick,
   onClose,
+  onOpenDefs,
 }: {
   defs: AttributeDefView[];
+  onOpenDefs?: () => void;
   current: ItemFilterState;
   onPick: (defId: number | null, value: string) => void;
   onClose: () => void;
@@ -337,7 +352,14 @@ function AttributeSheet({
 
   return (
     <Sheet title="Filtr: atrybut" onClose={onClose}>
-      {defs.length === 0 && <p className="hint">Brak definicji atrybutów — dodaj je najpierw jako ADMIN.</p>}
+      {defs.length === 0 && (
+        <>
+          <p className="hint">Brak definicji atrybutów — dodaj je najpierw jako ADMIN.</p>
+          {onOpenDefs && (
+            <button type="button" className="btn sm ghost" onClick={onOpenDefs}>⚙ Otwórz definicje atrybutów</button>
+          )}
+        </>
+      )}
       {defId === null && defs.map((d) => (
         <OptionRow key={d.id} active={false} label={`${d.name} (${d.itemType})`} onClick={() => setDefId(d.id)} />
       ))}

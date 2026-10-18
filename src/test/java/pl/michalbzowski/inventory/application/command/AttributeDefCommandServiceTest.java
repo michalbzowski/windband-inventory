@@ -75,7 +75,7 @@ class AttributeDefCommandServiceTest {
         when(defs.findById(1L)).thenReturn(Optional.of(existing));
 
         ItemAttributeDef updated = service.update(1L, new AttributeDefUpdateCommand(
-                "MATERIAŁ", 5, null, null, null));
+                "MATERIAŁ", 5, null, null, null, null));
 
         assertThat(updated.getDisplayOrder()).isEqualTo(5);
     }
@@ -93,10 +93,44 @@ class AttributeDefCommandServiceTest {
     }
 
     @Test
+    void reactivationIsAllowedWhenNoActiveClash() {
+        ItemAttributeDef existing = ItemAttributeDef.create(7L, "Materiał",
+                AttributeDataType.SELECT, ItemType.INSTRUMENT, 0);
+        existing.setId(1L);
+        existing.setActive(false);
+        when(defs.findById(1L)).thenReturn(Optional.of(existing));
+        when(defs.findByBandIdAndItemTypeAndActiveTrueOrderByDisplayOrderAscNameAsc(7L, ItemType.INSTRUMENT))
+                .thenReturn(List.of());
+
+        service.update(1L, new AttributeDefUpdateCommand(null, null, null, null, null, true));
+
+        assertThat(existing.isActive()).isTrue();
+    }
+
+    @Test
+    void reactivationBlockedWhenActiveDuplicateExists() {
+        ItemAttributeDef existing = ItemAttributeDef.create(7L, "Materiał",
+                AttributeDataType.SELECT, ItemType.INSTRUMENT, 0);
+        existing.setId(1L);
+        existing.setActive(false);
+        when(defs.findById(1L)).thenReturn(Optional.of(existing));
+        ItemAttributeDef twin = ItemAttributeDef.create(7L, "Materiał",
+                AttributeDataType.SELECT, ItemType.INSTRUMENT, 0);
+        twin.setId(2L);
+        when(defs.findByBandIdAndItemTypeAndActiveTrueOrderByDisplayOrderAscNameAsc(7L, ItemType.INSTRUMENT))
+                .thenReturn(List.of(twin));
+
+        assertThatThrownBy(() -> service.update(1L, new AttributeDefUpdateCommand(
+                null, null, null, null, null, true)))
+                .isInstanceOf(AttributeDefDuplicateException.class);
+        assertThat(existing.isActive()).isFalse(); // konflikt → stan nietknięty
+    }
+
+    @Test
     void updateOfMissingDefIsNotFound() {
         when(defs.findById(9L)).thenReturn(Optional.empty());
         assertThatThrownBy(() -> service.update(9L, new AttributeDefUpdateCommand(
-                "X", null, null, null, null)))
+                "X", null, null, null, null, null)))
                 .isInstanceOf(AttributeDefNotFoundException.class);
     }
 }

@@ -59,6 +59,37 @@ class AttributeDefsIT extends AbstractIntegrationTest {
     }
 
     @Test
+    void deactivateThenReactivateViaPutActive() throws Exception {
+        long defId = idOf(postJson("/api/inventory/attribute-defs?bandId=7", """
+                {"name":"Rozmiar kołnierza","itemType":"UNIFORM","dataType":"SELECT",
+                 "displayOrder":3,"options":["S","M","L"]}""", "tok-admin")
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.active").value(true)));
+
+        mvc.perform(delete("/api/inventory/attribute-defs/{id}", defId).with(as("tok-admin")))
+                .andExpect(status().isNoContent());
+
+        // PUT bez `active` — stan nieaktywny nietknięty (kontrakcja dla starych klientów).
+        mvc.perform(put("/api/inventory/attribute-defs/{id}", defId)
+                        .contentType("application/json").content("{\"displayOrder\":5}")
+                        .with(as("tok-admin")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.active").value(false))
+                .andExpect(jsonPath("$.displayOrder").value(5));
+
+        mvc.perform(put("/api/inventory/attribute-defs/{id}", defId)
+                        .contentType("application/json").content("{\"active\":true}")
+                        .with(as("tok-admin")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.active").value(true));
+
+        mvc.perform(get("/api/inventory/attribute-defs?bandId=7&type=UNIFORM").with(as("tok-member")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(defId))
+                .andExpect(jsonPath("$[0].displayOrder").value(5));
+    }
+
+    @Test
     void duplicateNameInSameBandAndTypeIsConflict() throws Exception {
         postJson("/api/inventory/attribute-defs?bandId=7", """
                 {"name":"Materiał","itemType":"INSTRUMENT","dataType":"TEXT"}""", "tok-admin")
