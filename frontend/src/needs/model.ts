@@ -32,3 +32,33 @@ export const openNeedFor = (needs: NeedView[], itemId: number): NeedView | undef
 /** Unresolved count for section headers/badges. */
 export const openNeedCount = (needs: NeedView[]): number =>
   needs.filter((n) => n.status === 'OPEN' || n.status === 'ORDERED').length;
+
+/** Filtry planszy potrzeb: 'ALL' + każdy status. */
+export type NeedFilter = 'ALL' | NeedStatus;
+
+export const NEED_FILTERS: readonly NeedFilter[] = ['ALL', 'OPEN', 'ORDERED', 'RECEIVED', 'CANCELLED'];
+
+export const NEED_FILTER_LABEL: Record<NeedFilter, string> = {
+  ALL: 'Wszystkie',
+  ...NEED_STATUS_LABEL,
+};
+
+/** Nowe na górze — kolejność do sekcji 'Wszystkie' i liczników chipów. */
+export const sortNewest = (needs: NeedView[]): NeedView[] =>
+  [...needs].sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id - a.id);
+
+export function filterNeeds(needs: NeedView[], filter: NeedFilter): NeedView[] {
+  return sortNewest(filter === 'ALL' ? needs : needs.filter((n) => n.status === filter));
+}
+
+/** Licznik per chip: 'ALL' = unresolved (czołowa informacja planszy). */
+export function needsCounts(needs: NeedView[]): Record<NeedFilter, number> {
+  const by = (s: NeedStatus) => needs.filter((n) => n.status === s).length;
+  return {
+    ALL: openNeedCount(needs),
+    OPEN: by('OPEN'),
+    ORDERED: by('ORDERED'),
+    RECEIVED: by('RECEIVED'),
+    CANCELLED: by('CANCELLED'),
+  };
+}

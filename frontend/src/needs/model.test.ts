@@ -4,6 +4,8 @@ import {
   canOrder,
   canReceive,
   NEED_STATUS_LABEL,
+  filterNeeds,
+  needsCounts,
   openNeedCount,
   openNeedFor,
   type NeedView,
@@ -62,5 +64,30 @@ describe('potrzeby — czysta logika flow (lustrzana do domenowej)', () => {
   it('openNeedCount liczy tylko OPEN/ORDERED', () => {
     const rows = [need(1, 7, 'OPEN'), need(2, 8, 'CANCELLED'), need(3, 9, 'ORDERED'), need(4, 10, 'RECEIVED')];
     expect(openNeedCount(rows)).toBe(2);
+  });
+});
+
+describe('plansza potrzeb — filtry i liczniki', () => {
+  const older = { ...need(1, 5, 'OPEN'), createdAt: '2026-10-10T08:00:00' };
+  const newer = { ...need(2, 6, 'ORDERED'), createdAt: '2026-10-15T08:00:00' };
+  const done = need(3, 7, 'RECEIVED');
+  const all = [older, newer, done];
+
+  it('ALL pokazuje wszystko, nowe na górze', () => {
+    expect(filterNeeds(all, 'ALL').map((n) => n.id)).toEqual([2, 3, 1]);
+  });
+
+  it('filtr statusowy wycina tylko dany status', () => {
+    expect(filterNeeds(all, 'OPEN').map((n) => n.id)).toEqual([1]);
+    expect(filterNeeds(all, 'CANCELLED')).toEqual([]);
+  });
+
+  it('licznik ALL = nierozwinięte (OPEN+ORDERED), reszta per status', () => {
+    expect(needsCounts(all)).toEqual({ ALL: 2, OPEN: 1, ORDERED: 1, RECEIVED: 1, CANCELLED: 0 });
+  });
+
+  it('sort jest trwały względem dat — tie-break id', () => {
+    const same = [need(9, 1, 'OPEN'), { ...need(4, 1, 'OPEN'), createdAt: '2026-10-14T10:00:00' }];
+    expect(filterNeeds(same, 'ALL').map((n) => n.id)).toEqual([9, 4]);
   });
 });
