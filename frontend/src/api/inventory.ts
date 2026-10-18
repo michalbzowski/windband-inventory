@@ -194,6 +194,10 @@ export interface AttributeDefView {
   displayInList: boolean;
   options: string[];
   active: boolean;
+  /** v2.0 reguły warunkowe: rodzic (SELECT, ten sam typ) albo null = bez warunku. */
+  dependsOnDefId: number | null;
+  /** Wartości rodzica, po których atrybut jest widoczny. */
+  dependsOnValues: string[];
 }
 
 export interface ItemWritePayload {
@@ -350,6 +354,9 @@ export interface AttributeDefWritePayload {
   displayInList?: boolean;
   options?: string[];
   active?: boolean;
+  /** >0 ustawia rodzica; 0 = usuń zależność; nieobecne = bez zmian. */
+  dependsOnDefId?: number;
+  dependsOnValues?: string[];
 }
 
 export const createAttributeDef = (

@@ -6,6 +6,7 @@ import {
   draftToPayload,
   emptyDefDraft,
   needsOptions,
+  parentCandidates,
   parseOptions,
   validateDefDraft,
 } from './defsForm';
@@ -13,6 +14,7 @@ import {
 const DEF: AttributeDefView = {
   id: 7, bandId: 1, itemType: 'UNIFORM', name: 'Rozmiar', dataType: 'SELECT',
   displayOrder: 3, required: true, displayInList: false, options: ['S', 'M', 'L'], active: true,
+  dependsOnDefId: null, dependsOnValues: [],
 };
 
 describe('parseOptions', () => {
@@ -68,5 +70,42 @@ describe('draftToPayload', () => {
     expect(draft.name).toBe('Rozmiar');
     expect(draft.optionsText).toBe('S\nM\nL');
     expect(validateDefDraft(draft)).toEqual({});
+  });
+
+  it('warunek wymaga co najmniej jednej wartości rodzica', () => {
+    expect(validateDefDraft({ ...emptyDefDraft(), name: 'Wzrost', dependsOnDefId: '3', dependsValues: [] }))
+      .toHaveProperty('dependsValues');
+    expect(validateDefDraft({ ...emptyDefDraft(), name: 'Wzrost', dependsOnDefId: '3', dependsValues: ['Mundur'] }))
+      .toEqual({});
+  });
+
+  it('payload z zależnością wysyła parenta i wartości', () => {
+    const p = draftToPayload(
+      { ...emptyDefDraft(), name: 'Wzrost', dependsOnDefId: '3', dependsValues: ['M', 'L'] },
+      { create: true, itemType: 'UNIFORM' },
+    );
+    expect(p.dependsOnDefId).toBe(3);
+    expect(p.dependsOnValues).toEqual(['M', 'L']);
+  });
+
+  it('usunięcie istniejącej zależności przy edycji = sentinel 0', () => {
+    const original = { ...DEF, dependsOnDefId: 3, dependsOnValues: ['S'] };
+    const p = draftToPayload({ ...draftFromDef(original), dependsOnDefId: '', dependsValues: [] },
+      { create: false, original });
+    expect(p.dependsOnDefId).toBe(0);
+    // bez uprzedniej zależności — pola nie wysyłamy wcale
+    const p2 = draftToPayload(draftFromDef(DEF), { create: false, original: DEF });
+    expect(p2.dependsOnDefId).toBeUndefined();
+  });
+
+  it('kandydaci na rodzica: aktywny SELECT bez własnego warunku, ten sam typ', () => {
+    const parent: AttributeDefView = { ...DEF, id: 3, name: 'Rodzaj' };
+    const conditional: AttributeDefView = { ...DEF, id: 4, name: 'Dziecko', dependsOnDefId: 3 };
+    const cands = parentCandidates(
+      [parent, conditional, { ...DEF, id: 5, dataType: 'TEXT' }, { ...DEF, id: 6, active: false },
+        { ...DEF, id: 7, itemType: 'INSTRUMENT' }],
+      'UNIFORM', DEF.id,
+    );
+    expect(cands.map((c) => c.id)).toEqual([3]);
   });
 });

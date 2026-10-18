@@ -17,6 +17,8 @@ import {
   draftToPayload,
   emptyDefDraft,
   needsOptions,
+  optionsOfParent,
+  parentCandidates,
   validateDefDraft,
   type DefDraft,
 } from '../ekwipunek/defsForm';
@@ -91,7 +93,7 @@ export default function AttributeDefsAdmin({ band, onBack, onTab }: Props) {
       if (sheet?.mode === 'create') {
         upsert(await createAttributeDef(band.bandId, draftToPayload(draft, { create: true, itemType: type })));
       } else if (sheet?.mode === 'edit') {
-        upsert(await updateAttributeDef(sheet.def.id, draftToPayload(draft, { create: false })));
+        upsert(await updateAttributeDef(sheet.def.id, draftToPayload(draft, { create: false, original: sheet.def })));
       }
       setSheet(null);
     } catch (e) {
@@ -157,6 +159,10 @@ export default function AttributeDefsAdmin({ band, onBack, onTab }: Props) {
                         {d.required && ' · wymagany'}
                         {d.displayInList && ' · na liście'}
                         {needsOptions(d.dataType) && ` · ${d.options.length} opcji`}
+                        {d.dependsOnDefId != null && (() => {
+                          const p = (defs ?? []).find((x) => x.id === d.dependsOnDefId);
+                          return ` · zależy od „${p?.name ?? '?'}” = {${d.dependsOnValues.join(', ')}}`;
+                        })()}
                       </span>
                     </span>
                     <span className="sa">
@@ -234,6 +240,52 @@ export default function AttributeDefsAdmin({ band, onBack, onTab }: Props) {
             </label>
           )}
           {errors.optionsText && <p className="field-err">{errors.optionsText}</p>}
+
+          {(() => {
+            const parents = parentCandidates(defs ?? [], type, sheet.mode === 'edit' ? sheet.def.id : undefined);
+            const parentOpts = optionsOfParent(defs ?? [], draft.dependsOnDefId);
+            return (
+              <>
+                <label className="field">
+                  Pokazywany tylko gdy…
+                  <select
+                    value={draft.dependsOnDefId}
+                    onChange={(e) => setDraft((s) => ({ ...s, dependsOnDefId: e.target.value, dependsValues: [] }))}
+                  >
+                    <option value="">— zawsze widoczny —</option>
+                    {parents.map((p) => (
+                      <option key={p.id} value={String(p.id)}>zależy od „{p.name}”</option>
+                    ))}
+                  </select>
+                </label>
+                {draft.dependsOnDefId !== '' && (
+                  <>
+                    <span className="field">Wartości rodzica, które pokazują ten atrybut</span>
+                    <div className="chips" role="group" aria-label="Wartości warunku">
+                      {parentOpts.map((o) => (
+                        <button
+                          key={o}
+                          type="button"
+                          className={`chip${draft.dependsValues.includes(o) ? ' sel' : ''}`}
+                          aria-pressed={draft.dependsValues.includes(o)}
+                          onClick={() =>
+                            setDraft((s) => ({
+                              ...s,
+                              dependsValues: s.dependsValues.includes(o)
+                                ? s.dependsValues.filter((x) => x !== o)
+                                : [...s.dependsValues, o],
+                            }))}
+                        >
+                          {o}
+                        </button>
+                      ))}
+                    </div>
+                    {errors.dependsValues && <p className="field-err">{errors.dependsValues}</p>}
+                  </>
+                )}
+              </>
+            );
+          })()}
 
           <label className="field">
             Kolejność wyświetlania

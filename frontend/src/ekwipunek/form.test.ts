@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { AttributeDefView } from '../api/inventory';
-import { buildPayload, initialValues, joinMulti, splitMulti, toFields, validateFields, validateField } from './form';
+import { buildPayload, initialValues, isDefVisible, joinMulti, splitMulti, toFields, validateFields, validateField, visibleFields } from './form';
 
 const def = (over: Partial<AttributeDefView>): AttributeDefView => ({
   id: 1,
@@ -13,6 +13,8 @@ const def = (over: Partial<AttributeDefView>): AttributeDefView => ({
   displayInList: false,
   options: [],
   active: true,
+  dependsOnDefId: null,
+  dependsOnValues: [],
   ...over,
 });
 
@@ -116,5 +118,33 @@ describe('validateFields', () => {
       { defId: 2, name: 'B', dataType: 'TEXT' as const, required: true, options: [] },
     ];
     expect(validateFields(fields, { 1: 'x', 2: 'ok' })).toEqual({ 1: expect.stringContaining('nie jest liczbą') });
+  });
+});
+
+describe('widoczność warunkowa (v2.0)', () => {
+  const parent = def({ id: 1, name: 'Rodzaj', dataType: 'SELECT', options: ['Mundur', 'Czapka', 'Koszula'] });
+  const child = def({ id: 2, name: 'Wzrost', dependsOnDefId: 1, dependsOnValues: ['Mundur', 'Koszula'] });
+  const plain = def({ id: 3, name: 'Numer' });
+
+  it('bez rodzica = zawsze widoczny; z rodzicem tylko przy wartości z listy', () => {
+    const byId = new Map([parent, child, plain].map((d) => [d.id, d] as const));
+    expect(isDefVisible(plain, byId, {})).toBe(true);
+    expect(isDefVisible(child, byId, {})).toBe(false);
+    expect(isDefVisible(child, byId, { 1: 'Koszula' })).toBe(true);
+    expect(isDefVisible(child, byId, { 1: 'Czapka' })).toBe(false);
+    // porównanie niewrażliwe na wielkość liter i spacje — jak serwer
+    expect(isDefVisible(child, byId, { 1: ' koszula ' })).toBe(true);
+  });
+
+  it('nieaktywny rodzic chowa dziecko', () => {
+    const offParent = { ...parent, active: false };
+    const byId = new Map([offParent, child].map((d) => [d.id, d] as const));
+    expect(isDefVisible(child, byId, { 1: 'Mundur' })).toBe(false);
+  });
+
+  it('visibleFields zwraca tylko widoczne, w kolejności displayOrder', () => {
+    expect(visibleFields([parent, child, plain], {}).map((f) => f.name)).toEqual(['Rodzaj', 'Numer']);
+    expect(visibleFields([parent, child, plain], { 1: 'Mundur' }).map((f) => f.name))
+      .toEqual(['Rodzaj', 'Wzrost', 'Numer']);
   });
 });

@@ -65,6 +65,19 @@ public class ItemAttributeDef {
     @Column(columnDefinition = "TEXT")
     private String options;
 
+    /**
+     * Reguły warunkowe atrybutów (v2.0): atrybut zależny jest widoczny tylko,
+     * gdy wartość atrybutu-rodzica (aktywny SELECT, ten sam band i typ, sam
+     * bezwarunkowy — hierarchia płaska) należy do poniższej listy.
+     * Oba pola null = atrybut bezwarunkowy.
+     */
+    @Column(name = "depends_on_def_id")
+    private Long dependsOnDefId;
+
+    /** ';'dzielone, ten sam format co {@code options}. */
+    @Column(name = "depends_on_values", columnDefinition = "TEXT")
+    private String dependsOnValues;
+
     public static ItemAttributeDef create(Long bandId, String name, AttributeDataType dataType,
             ItemType itemType, Integer displayOrder) {
         Objects.requireNonNull(bandId, "bandId required");
@@ -85,6 +98,14 @@ public class ItemAttributeDef {
 
     public List<String> parsedOptions() {
         return AttributeValueFormat.parseOptions(options);
+    }
+
+    public List<String> parsedDependsValues() {
+        return dependsOnDefId == null ? List.of() : AttributeValueFormat.parseOptions(dependsOnValues);
+    }
+
+    public boolean isConditional() {
+        return dependsOnDefId != null;
     }
 
     /** True when the raw options string is syntactically usable for this type. */

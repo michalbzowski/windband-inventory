@@ -57,6 +57,7 @@ public final class ItemViews {
 
     public record AttributeDefView(long id, long bandId, ItemType itemType, String name,
                                    AttributeDataType dataType, int displayOrder, boolean required,
-                                   boolean displayInList, List<String> options, boolean active) {
+                                   boolean displayInList, List<String> options, boolean active,
+                                   Long dependsOnDefId, List<String> dependsOnValues) {
     }
 }

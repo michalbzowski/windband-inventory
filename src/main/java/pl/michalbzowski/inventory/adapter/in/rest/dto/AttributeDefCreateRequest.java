@@ -16,12 +16,17 @@ public record AttributeDefCreateRequest(
         Integer displayOrder,
         Boolean required,
         Boolean displayInList,
-        List<String> options) {
+        List<String> options,
+        Long dependsOnDefId,
+        List<String> dependsOnValues) {
 
     public AttributeDefCreateCommand toCommand() {
         return new AttributeDefCreateCommand(name, itemType, dataType,
                 displayOrder != null ? displayOrder : 0,
                 Boolean.TRUE.equals(required), Boolean.TRUE.equals(displayInList),
-                options);
+                options,
+                // sentinel 0 = "bez zależności" tak samo jak brak pola (spójnie z PUT)
+                dependsOnDefId != null && dependsOnDefId > 0 ? dependsOnDefId : null,
+                dependsOnValues);
     }
 }

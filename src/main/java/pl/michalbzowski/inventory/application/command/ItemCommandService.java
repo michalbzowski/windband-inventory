@@ -132,14 +132,53 @@ public class ItemCommandService {
                 rows.put(def.getId(), new ItemAttributeValue(item, def, normalized));
             }
         }
-        for (ItemAttributeDef def
-                : defs.findByBandIdAndItemTypeAndActiveTrueOrderByDisplayOrderAscNameAsc(
-                        item.getBandId(), item.getType())) {
+        List<ItemAttributeDef> scope =
+                defs.findByBandIdAndItemTypeAndActiveTrueOrderByDisplayOrderAscNameAsc(
+                        item.getBandId(), item.getType());
+        Map<Long, ItemAttributeDef> byId = scope.stream()
+                .collect(java.util.stream.Collectors.toMap(ItemAttributeDef::getId, d -> d));
+        Map<Long, String> valuesByDef = new java.util.HashMap<>();
+        rows.forEach((id, row) -> valuesByDef.put(id, row.getValueText()));
+
+        // Reguły warunkowe atrybutów (v2.0): wartość atrybutu zależnego, którego
+        // warunek nie jest spełniony, jest cicho odrzucana — przedawniony klient
+        // nie zapisze rozmiaru czapki przy koszuli, a ukryty atrybut nie wymaga wartości.
+        rows.entrySet().removeIf(e -> {
+            ItemAttributeDef d = byId.get(e.getKey());
+            return d != null && d.isConditional() && !isVisible(d, byId, valuesByDef);
+        });
+
+        for (ItemAttributeDef def : scope) {
+            if (def.isConditional() && !isVisible(def, byId, valuesByDef)) {
+                continue;
+            }
             if (def.isRequired() && !rows.containsKey(def.getId())) {
                 throw new AttributeValueInvalidException(
                         "Atrybut \"" + def.getName() + "\" jest wymagany");
             }
         }
         return new ArrayList<>(rows.values());
+    }
+
+    /**
+     * Widoczność = brak warunku albo wartość rodzica w dozwolonym zbiorze.
+     * Rodzic musi być w zakresie (aktywny, ten sam band i typ) — deactivated
+     * parent chowa dzieci; dlatego hierarchia trzyma się jednego poziomu.
+     */
+    private static boolean isVisible(ItemAttributeDef def, Map<Long, ItemAttributeDef> byId,
+            Map<Long, String> valuesByDef) {
+        if (!def.isConditional()) {
+            return true;
+        }
+        ItemAttributeDef parent = byId.get(def.getDependsOnDefId());
+        if (parent == null) {
+            return false;
+        }
+        String value = valuesByDef.get(parent.getId());
+        if (value == null || value.isBlank()) {
+            return false;
+        }
+        String trimmed = value.trim();
+        return def.parsedDependsValues().stream().anyMatch(v -> v.equalsIgnoreCase(trimmed));
     }
 }
