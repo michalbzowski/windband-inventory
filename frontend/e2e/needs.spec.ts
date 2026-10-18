@@ -1,5 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
+test.use({ viewport: { width: 360, height: 740 } });
+
 /**
  * Plansza „Potrzeby i zamówienia” (backlog v1.x #3): filtry statusów,
  * przepływ OPEN → ORDERED → RECEIVED/CANCELLED z notką, ręczne zgłoszenie
