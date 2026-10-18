@@ -15,12 +15,36 @@ export interface FieldSpec {
   options: string[];
 }
 
+/**
+ * v2.0 reguły warunkowe — lustrzane odbicie ItemCommandService.isVisible:
+ * atrybut widoczny, gdy bez rodzica ALBO wartość rodzica (SELECT) należy do
+ * dependsOnValues. Rodzic nieaktywny/spoza zakresu = dziecko ukryte.
+ */
+export function isDefVisible(
+  def: AttributeDefView,
+  byId: Map<number, AttributeDefView>,
+  values: Record<number, string>,
+): boolean {
+  if (def.dependsOnDefId == null) return true;
+  const parent = byId.get(def.dependsOnDefId);
+  if (!parent || !parent.active) return false;
+  const value = (values[parent.id] ?? '').trim();
+  if (!value) return false;
+  return (def.dependsOnValues ?? []).some((o) => o.toLowerCase() === value.toLowerCase());
+}
+
 /** Active defs sorted by displayOrder → form fields. */
 export function toFields(defs: AttributeDefView[]): FieldSpec[] {
   return defs
     .filter((d) => d.active)
     .sort((a, b) => a.displayOrder - b.displayOrder)
     .map((d) => ({ defId: d.id, name: d.name, dataType: d.dataType, required: d.required, options: d.options }));
+}
+
+/** Pola widoczne przy bieżących wartościach — ukryte nie są renderowane ani wysyłane. */
+export function visibleFields(defs: AttributeDefView[], values: Record<number, string>): FieldSpec[] {
+  const byId = new Map(defs.map((d) => [d.id, d] as const));
+  return toFields(defs.filter((d) => isDefVisible(d, byId, values)));
 }
 
 const NUMBER_RE = /^-?\d+(\.\d+)?$/;

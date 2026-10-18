@@ -12,5 +12,7 @@ public record AttributeDefCreateCommand(
         Integer displayOrder,
         boolean required,
         boolean displayInList,
-        List<String> options) {
+        List<String> options,
+        Long dependsOnDefId,
+        List<String> dependsOnValues) {
 }

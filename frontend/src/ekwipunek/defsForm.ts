@@ -21,6 +21,10 @@ export interface DefDraft {
   displayOrder: string;
   required: boolean;
   displayInList: boolean;
+  /** v2.0: '' = bez warunku, inaczej id atrybutu-rodzica (SELECT) */
+  dependsOnDefId: string;
+  /** wybrane wartości rodzica, przy których atrybut jest widoczny */
+  dependsValues: string[];
 }
 
 export const DATA_TYPE_LABEL: Record<AttributeDataType, string> = {
@@ -36,6 +40,30 @@ export const DATA_TYPES: AttributeDataType[] = ['TEXT', 'NUMBER', 'SELECT', 'MUL
 
 export const needsOptions = (dataType: AttributeDataType): boolean =>
   dataType === 'SELECT' || dataType === 'MULTI';
+
+/**
+ * Kandydaci na rodzica warunku (ta sama zasada co sercowy requireParent):
+ * aktywny SELECT tego samego typu pozycji, sam bezwarunkowy, nie własny.
+ */
+export function parentCandidates(
+  defs: AttributeDefView[],
+  itemType: ItemType,
+  selfId?: number,
+): AttributeDefView[] {
+  return defs.filter(
+    (d) =>
+      d.active &&
+      d.itemType === itemType &&
+      d.dataType === 'SELECT' &&
+      d.dependsOnDefId == null &&
+      d.id !== selfId,
+  );
+}
+
+export function optionsOfParent(defs: AttributeDefView[], dependsOnDefId: string): string[] {
+  if (!dependsOnDefId) return [];
+  return defs.find((d) => d.id === Number(dependsOnDefId))?.options ?? [];
+}
 
 /** Linie → lista opcji: trim, odrzucenie pustych, deduplikacja (kolejność zachowana). */
 export function parseOptions(text: string): string[] {
@@ -61,6 +89,9 @@ export function validateDefDraft(draft: DefDraft): Partial<Record<keyof DefDraft
   if (draft.displayOrder.trim() !== '' && !Number.isInteger(Number(draft.displayOrder))) {
     errors.displayOrder = 'Kolejność musi być liczbą całkowitą';
   }
+  if (draft.dependsOnDefId !== '' && draft.dependsValues.length === 0) {
+    errors.dependsValues = 'Wskaż, po których wartościach rodzica atrybut ma się pokazywać';
+  }
   return errors;
 }
 
@@ -71,6 +102,8 @@ export const emptyDefDraft = (): DefDraft => ({
   displayOrder: '',
   required: false,
   displayInList: false,
+  dependsOnDefId: '',
+  dependsValues: [],
 });
 
 export function draftFromDef(def: AttributeDefView): DefDraft {
@@ -81,13 +114,15 @@ export function draftFromDef(def: AttributeDefView): DefDraft {
     displayOrder: String(def.displayOrder),
     required: def.required,
     displayInList: def.displayInList,
+    dependsOnDefId: def.dependsOnDefId == null ? '' : String(def.dependsOnDefId),
+    dependsValues: def.dependsOnValues ?? [],
   };
 }
 
 /** Draft → payload API. Tryb edycji NIE wysyła itemType/dataType (niezmienne). */
 export function draftToPayload(
   draft: DefDraft,
-  mode: { create: true; itemType: ItemType } | { create: false },
+  mode: { create: true; itemType: ItemType } | { create: false; original?: AttributeDefView },
 ): AttributeDefWritePayload {
   const base: AttributeDefWritePayload = {
     name: draft.name.trim(),
@@ -96,6 +131,12 @@ export function draftToPayload(
   };
   if (draft.displayOrder.trim() !== '') base.displayOrder = Number(draft.displayOrder);
   if (needsOptions(draft.dataType)) base.options = parseOptions(draft.optionsText);
+  if (draft.dependsOnDefId !== '') {
+    base.dependsOnDefId = Number(draft.dependsOnDefId);
+    base.dependsOnValues = draft.dependsValues;
+  } else if (!mode.create && mode.original?.dependsOnDefId != null) {
+    base.dependsOnDefId = 0; // sentinel: usuń zależność
+  }
   if (mode.create) {
     base.itemType = mode.itemType;
     base.dataType = draft.dataType;

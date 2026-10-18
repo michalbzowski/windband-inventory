@@ -11,6 +11,7 @@ const BAND = { bandId: 1, name: 'Orkiestra Dęta', role: 'ADMIN' };
 interface DefRow {
   id: number; bandId: number; itemType: string; name: string; dataType: string;
   displayOrder: number; required: boolean; displayInList: boolean; options: string[]; active: boolean;
+  dependsOnDefId: number | null; dependsOnValues: string[];
 }
 
 async function json(route: Route, data: unknown, status = 200): Promise<void> {
@@ -62,6 +63,8 @@ async function mockApi(page: Page, band: { bandId: number; name: string; role: s
         bandId, itemType: body.itemType!, name: (body.name ?? '').trim(), dataType: body.dataType!,
         displayOrder: body.displayOrder ?? 0, required: body.required ?? false,
         displayInList: body.displayInList ?? false, options: body.options ?? [], active: true,
+        dependsOnDefId: body.dependsOnDefId && body.dependsOnDefId > 0 ? body.dependsOnDefId : null,
+        dependsOnValues: body.dependsOnDefId && body.dependsOnDefId > 0 ? body.dependsOnValues ?? [] : [],
       };
       defs.push(def);
       return json(route, def, 201);
@@ -76,6 +79,12 @@ async function mockApi(page: Page, band: { bandId: number; name: string; role: s
       if (body.displayInList != null) def.displayInList = body.displayInList;
       if (body.options != null) def.options = body.options;
       if (body.active != null) def.active = body.active;
+      if (body.dependsOnDefId != null) {
+        if (body.dependsOnDefId <= 0) { def.dependsOnDefId = null; def.dependsOnValues = []; }
+        else { def.dependsOnDefId = body.dependsOnDefId; def.dependsOnValues = body.dependsOnValues ?? []; }
+      } else if (body.dependsOnValues != null) {
+        def.dependsOnValues = body.dependsOnValues;
+      }
       return json(route, def);
     }
     if (method === 'DELETE' && byId !== null) {
@@ -90,7 +99,8 @@ async function mockApi(page: Page, band: { bandId: number; name: string; role: s
 
 const def = (over: Partial<DefRow>): DefRow => ({
   id: 1, bandId: 1, itemType: 'INSTRUMENT', name: 'Numer fabryczny', dataType: 'TEXT',
-  displayOrder: 0, required: false, displayInList: false, options: [], active: true, ...over,
+  displayOrder: 0, required: false, displayInList: false, options: [], active: true,
+  dependsOnDefId: null, dependsOnValues: [], ...over,
 });
 
 test('ADMIN: pełny cykl definicji — tworzenie, edycja, wyłączanie, duplikat', async ({ page }) => {

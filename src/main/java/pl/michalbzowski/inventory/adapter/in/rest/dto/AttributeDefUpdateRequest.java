@@ -13,9 +13,12 @@ public record AttributeDefUpdateRequest(
         Boolean required,
         Boolean displayInList,
         List<String> options,
-        Boolean active) {
+        Boolean active,
+        Long dependsOnDefId,
+        List<String> dependsOnValues) {
 
     public AttributeDefUpdateCommand toCommand() {
-        return new AttributeDefUpdateCommand(name, displayOrder, required, displayInList, options, active);
+        return new AttributeDefUpdateCommand(name, displayOrder, required, displayInList, options, active,
+                dependsOnDefId, dependsOnValues);
     }
 }

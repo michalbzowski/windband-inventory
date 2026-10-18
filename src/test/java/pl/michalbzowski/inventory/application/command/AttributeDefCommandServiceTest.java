@@ -28,7 +28,7 @@ class AttributeDefCommandServiceTest {
 
     private static AttributeDefCreateCommand select(String name, List<String> options) {
         return new AttributeDefCreateCommand(name, ItemType.INSTRUMENT, AttributeDataType.SELECT,
-                0, false, false, options);
+                0, false, false, options, null, null);
     }
 
     @Test
@@ -75,7 +75,7 @@ class AttributeDefCommandServiceTest {
         when(defs.findById(1L)).thenReturn(Optional.of(existing));
 
         ItemAttributeDef updated = service.update(1L, new AttributeDefUpdateCommand(
-                "MATERIAŁ", 5, null, null, null, null));
+                "MATERIAŁ", 5, null, null, null, null, null, null));
 
         assertThat(updated.getDisplayOrder()).isEqualTo(5);
     }
@@ -102,7 +102,7 @@ class AttributeDefCommandServiceTest {
         when(defs.findByBandIdAndItemTypeAndActiveTrueOrderByDisplayOrderAscNameAsc(7L, ItemType.INSTRUMENT))
                 .thenReturn(List.of());
 
-        service.update(1L, new AttributeDefUpdateCommand(null, null, null, null, null, true));
+        service.update(1L, new AttributeDefUpdateCommand(null, null, null, null, null, true, null, null));
 
         assertThat(existing.isActive()).isTrue();
     }
@@ -121,7 +121,7 @@ class AttributeDefCommandServiceTest {
                 .thenReturn(List.of(twin));
 
         assertThatThrownBy(() -> service.update(1L, new AttributeDefUpdateCommand(
-                null, null, null, null, null, true)))
+                null, null, null, null, null, true, null, null)))
                 .isInstanceOf(AttributeDefDuplicateException.class);
         assertThat(existing.isActive()).isFalse(); // konflikt → stan nietknięty
     }
@@ -130,7 +130,7 @@ class AttributeDefCommandServiceTest {
     void updateOfMissingDefIsNotFound() {
         when(defs.findById(9L)).thenReturn(Optional.empty());
         assertThatThrownBy(() -> service.update(9L, new AttributeDefUpdateCommand(
-                "X", null, null, null, null, null)))
+                "X", null, null, null, null, null, null, null)))
                 .isInstanceOf(AttributeDefNotFoundException.class);
     }
 }

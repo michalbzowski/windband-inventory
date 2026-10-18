@@ -17,7 +17,7 @@ import {
   initialValues,
   joinMulti,
   splitMulti,
-  toFields,
+  visibleFields,
   validateFields,
   type FieldSpec,
 } from '../ekwipunek/form';
@@ -52,7 +52,7 @@ export default function ItemForm({ band, editId, onDone, onCancel, onTab }: Prop
   const [item, setItem] = useState<ItemView | null>(null);
   const fieldRefs = useRef<Record<string, HTMLElement | null>>({});
 
-  const fields: FieldSpec[] = useMemo(() => toFields(defs), [defs]);
+  const fields: FieldSpec[] = useMemo(() => visibleFields(defs, values), [defs, values]);
 
   // Edit: load item once → prefill everything, defs fetched for its type.
   useEffect(() => {

@@ -53,6 +53,6 @@ public class AttributeDefQueryService {
     private static AttributeDefView view(ItemAttributeDef def) {
         return new AttributeDefView(def.getId(), def.getBandId(), def.getItemType(), def.getName(),
                 def.getDataType(), def.getDisplayOrder(), def.isRequired(), def.isDisplayInList(),
-                def.parsedOptions(), def.isActive());
+                def.parsedOptions(), def.isActive(), def.getDependsOnDefId(), def.parsedDependsValues());
     }
 }

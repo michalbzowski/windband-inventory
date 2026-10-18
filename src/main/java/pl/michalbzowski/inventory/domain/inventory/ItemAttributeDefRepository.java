@@ -19,4 +19,7 @@ public interface ItemAttributeDefRepository extends JpaRepository<ItemAttributeD
 
     boolean existsByBandIdAndItemTypeAndNameIgnoreCaseAndActiveTrue(
             Long bandId, ItemType itemType, String name);
+
+    /** Aktywne/gaśnięte dzieci warunkujące daną definicję-parenta (v2.0 rules). */
+    List<ItemAttributeDef> findByDependsOnDefId(Long dependsOnDefId);
 }

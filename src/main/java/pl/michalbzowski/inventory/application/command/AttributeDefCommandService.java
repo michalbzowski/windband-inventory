@@ -34,6 +34,9 @@ public class AttributeDefCommandService {
         def.setRequired(cmd.required());
         def.setDisplayInList(cmd.displayInList());
         def.setOptions(serializeOptions(def, cmd.options()));
+        if (cmd.dependsOnDefId() != null) {
+            setDependency(def, cmd.dependsOnDefId(), cmd.dependsOnValues());
+        }
         return defs.save(def);
     }
 
@@ -54,7 +57,27 @@ public class AttributeDefCommandService {
             def.setDisplayInList(cmd.displayInList());
         }
         if (cmd.options() != null) {
-            def.setOptions(serializeOptions(def, cmd.options()));
+            String serialized = serializeOptions(def, cmd.options());
+            guardParentOptionsShrink(def, serialized);
+            def.setOptions(serialized);
+        }
+        if (cmd.dependsOnDefId() != null) {
+            if (cmd.dependsOnDefId() <= 0) {
+                def.setDependsOnDefId(null);
+                def.setDependsOnValues(null);
+            } else {
+                setDependency(def, cmd.dependsOnDefId(), cmd.dependsOnValues());
+            }
+        } else if (cmd.dependsOnValues() != null) {
+            if (!def.isConditional()) {
+                throw new AttributeValueInvalidException(
+                        "Nie można ustawić warunków bez wskazania atrybutu-parenta");
+            }
+            def.setDependsOnValues(serializeDependsValues(
+                    defs.findById(def.getDependsOnDefId())
+                            .orElseThrow(() -> new AttributeValueInvalidException(
+                                    "Atrybut-parent nie istnieje albo jest nieaktywny")),
+                    cmd.dependsOnValues()));
         }
         if (cmd.active() != null && cmd.active() != def.isActive()) {
             if (cmd.active()) {
@@ -100,6 +123,75 @@ public class AttributeDefCommandService {
             throw new AttributeValueInvalidException("Opcje atrybutu mają niepoprawną formę");
         }
         return joined;
+    }
+
+    /**
+     * Reguły warunkowe atrybutów (v2.0). Hierarchia jest płaska — jeden poziom:
+     * parent to aktywny SELECT z tego samego bandu i tego samego typu pozycji,
+     * sam bezwarunkowy i nie może to być definiowany atrybut.
+     */
+    private void setDependency(ItemAttributeDef def, long parentId, List<String> rawValues) {
+        ItemAttributeDef parent = requireParent(parentId, def);
+        def.setDependsOnDefId(parentId);
+        def.setDependsOnValues(serializeDependsValues(parent, rawValues));
+    }
+
+    private ItemAttributeDef requireParent(long parentId, ItemAttributeDef def) {
+        if (def.getId() != null && def.getId() == parentId) {
+            throw new AttributeValueInvalidException("Atrybut nie może zależeć od samego siebie");
+        }
+        ItemAttributeDef parent = defs.findById(parentId)
+                .filter(p -> p.isActive() && p.getBandId().equals(def.getBandId())
+                        && p.getItemType() == def.getItemType())
+                .orElseThrow(() -> new AttributeValueInvalidException(
+                        "Atrybut-parent nie istnieje, jest nieaktywny albo dotyczy innego typu pozycji"));
+        if (parent.getDataType() != AttributeDataType.SELECT) {
+            throw new AttributeValueInvalidException(
+                    "Atrybut-parent musi być listą z jednym wyborem (SELECT)");
+        }
+        if (parent.isConditional()) {
+            throw new AttributeValueInvalidException(
+                    "Zależność może mieć tylko jeden poziom — parent sam jest atrybutem zależnym");
+        }
+        return parent;
+    }
+
+    private String serializeDependsValues(ItemAttributeDef parent, List<String> rawValues) {
+        List<String> filtered = rawValues == null ? List.of() : rawValues.stream()
+                .filter(v -> v != null && !v.isBlank())
+                .map(String::trim)
+                .distinct()
+                .collect(Collectors.toList());
+        if (filtered.isEmpty()) {
+            throw new AttributeValueInvalidException(
+                    "Atrybut zależny wymaga co najmniej jednej wartości parenta, po której ma się pokazywać");
+        }
+        for (String v : filtered) {
+            if (parent.parsedOptions().stream().noneMatch(o -> o.equalsIgnoreCase(v))) {
+                throw new AttributeValueInvalidException(
+                        "Wartość „" + v + "” nie jest opcją atrybutu-parenta");
+            }
+        }
+        return String.join(";", filtered);
+    }
+
+    /** Nie wolno usunąć opcji SELECT, której używa reguła aktywnego atrybutu zależnego. */
+    private void guardParentOptionsShrink(ItemAttributeDef def, String newOptionsRaw) {
+        if (def.getId() == null || def.getDataType() != AttributeDataType.SELECT) {
+            return;
+        }
+        List<String> allowed = AttributeValueFormat.parseOptions(newOptionsRaw);
+        for (ItemAttributeDef child : defs.findByDependsOnDefId(def.getId())) {
+            if (!child.isActive()) {
+                continue;
+            }
+            for (String used : child.parsedDependsValues()) {
+                if (allowed.stream().noneMatch(o -> o.equalsIgnoreCase(used))) {
+                    throw new AttributeValueInvalidException("Nie można usunąć opcji „" + used
+                            + "” — używa jej zależny atrybut „" + child.getName() + "”");
+                }
+            }
+        }
     }
 
     private static void requireName(String name) {
