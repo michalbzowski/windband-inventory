@@ -140,7 +140,7 @@ export default function App() {
 
 function shell(appbar: ReactNode, body: ReactNode) {
   return (
-    <div className="phone">
+    <div className="app">
       <header className="appbar">{appbar}</header>
       {body}
     </div>

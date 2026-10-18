@@ -3,7 +3,7 @@ import { ApiError } from '../api/client';
 import { getMemberPicture, type MemberPictureView } from '../api/inventory';
 import { STATUS_BADGE, STATUS_LABEL, TYPE_ICON, WAREHOUSE_LABEL } from '../ekwipunek/filters';
 import { fmtDateTime } from '../ekwipunek/format';
-import Phone from '../ui/Phone';
+import AppFrame from '../ui/AppFrame';
 
 interface Props {
   bandId: number;
@@ -35,7 +35,7 @@ export default function MemberPicture({ bandId, memberId, onBack, onOpenItem }: 
   }, [bandId, memberId]);
 
   return (
-    <Phone>
+    <AppFrame>
       <header className="appbar">
         <button type="button" className="back" onClick={onBack} aria-label="Wróć do listy">‹</button>
         <h3>👤 {pic?.memberName ?? 'Obraz członka'}</h3>
@@ -117,6 +117,6 @@ export default function MemberPicture({ bandId, memberId, onBack, onOpenItem }: 
           </>
         )}
       </section>
-    </Phone>
+    </AppFrame>
   );
 }

@@ -7,7 +7,7 @@ interface Props {
 }
 
 /** Bottom sheet (makieta: "filtry/akcje jako bottom sheety, tap-target > 44 px").
- * Rendered inside <Phone> so the .dim layer covers the device frame only. */
+ * Na tablecie/desktopie styles.css zmienia go w wyśrodkowany dialog. */
 export default function Sheet({ title, onClose, children }: Props) {
   return (
     <div className="dim" onClick={onClose}>

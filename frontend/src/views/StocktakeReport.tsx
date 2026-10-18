@@ -17,7 +17,7 @@ import {
 import { CountQueue } from '../stocktake/queue';
 import type { CounterIdentity } from '../stocktake/identity';
 import { ApiError } from '../api/client';
-import Phone from '../ui/Phone';
+import AppFrame from '../ui/AppFrame';
 import NeedSheet from '../needs/NeedSheet';
 import {
   canCancel,
@@ -100,10 +100,10 @@ export default function StocktakeReport({ band, identity, stocktakeId, onExit }:
 
   if (!stocktake || !summary || lines === null) {
     return (
-      <Phone>
+      <AppFrame>
         <header className="appbar"><h3>Raport spisu #{stocktakeId}</h3></header>
         <section className="content" aria-busy="true"><p className="hint">{error ?? 'Ładowanie…'}</p></section>
-      </Phone>
+      </AppFrame>
     );
   }
 
@@ -207,7 +207,7 @@ export default function StocktakeReport({ band, identity, stocktakeId, onExit }:
   };
 
   return (
-    <Phone>
+    <AppFrame>
       <header className="appbar">
         <button type="button" className="back" onClick={onExit} aria-label="Wróć">‹</button>
         <h3>Raport spisu #{stocktakeId}</h3>
@@ -325,7 +325,7 @@ export default function StocktakeReport({ band, identity, stocktakeId, onExit }:
       {toast && (
         <div className="toast" role="status">{toast}<button type="button" onClick={() => setToast(null)}>✕</button></div>
       )}
-    </Phone>
+    </AppFrame>
   );
 }
 

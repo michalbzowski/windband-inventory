@@ -21,7 +21,7 @@ import {
   validateFields,
   type FieldSpec,
 } from '../ekwipunek/form';
-import Phone from '../ui/Phone';
+import AppFrame from '../ui/AppFrame';
 import { Tabs } from './LiczenieTab';
 
 interface Props {
@@ -120,7 +120,7 @@ export default function ItemForm({ band, editId, onDone, onCancel, onTab }: Prop
   );
 
   return (
-    <Phone>
+    <AppFrame>
       <header className="appbar">
         <button type="button" className="back" onClick={step === 2 && !isEdit ? () => setStep(1) : onCancel} aria-label="Wróć">‹</button>
         <h3>{isEdit ? `Edycja · ${TYPE_LABEL[type ?? 'OTHER']}` : 'Nowa pozycja'}</h3>
@@ -213,7 +213,7 @@ export default function ItemForm({ band, editId, onDone, onCancel, onTab }: Prop
       )}
 
       <Tabs active="ekwipunek" onPulpit={onCancel} onEkwipunek={onCancel} onLiczenie={() => onTab?.('liczenie')} onMoje={() => onTab?.('moje')} />
-    </Phone>
+    </AppFrame>
   );
 }
 

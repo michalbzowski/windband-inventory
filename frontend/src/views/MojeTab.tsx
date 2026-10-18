@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { BandView } from '../api/bands';
 import { CountQueue } from '../stocktake/queue';
 import { loadIdentity } from '../stocktake/identity';
-import Phone from '../ui/Phone';
+import AppFrame from '../ui/AppFrame';
 import { Tabs } from './LiczenieTab';
 
 interface Props {
@@ -21,7 +21,7 @@ export default function MojeTab({ band, onTab, onBack, onLogout }: Props) {
   const identity = loadIdentity(band.bandId);
 
   return (
-    <Phone>
+    <AppFrame>
       <header className="appbar">
         <h3>Moje</h3>
         <span className={`badge ${band.role === 'ADMIN' ? 'b-primary' : 'b-gray'}`}>{band.role}</span>
@@ -73,6 +73,6 @@ export default function MojeTab({ band, onTab, onBack, onLogout }: Props) {
         </div>
       </section>
       <Tabs active="moje" onPulpit={() => onTab('pulpit')} onEkwipunek={() => onTab('ekwipunek')} onLiczenie={() => onTab('liczenie')} onMoje={() => undefined} />
-    </Phone>
+    </AppFrame>
   );
 }

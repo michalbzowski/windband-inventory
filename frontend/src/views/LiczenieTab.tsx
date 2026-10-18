@@ -3,7 +3,7 @@ import { listBandMembers, type BandMember, type BandView } from '../api/bands';
 import { getSummary, listStocktakes, type StocktakeSummaryView, type StocktakeView } from '../api/inventory';
 import { loadIdentity, saveIdentity, type CounterIdentity } from '../stocktake/identity';
 import { CountQueue } from '../stocktake/queue';
-import Phone from '../ui/Phone';
+import AppFrame from '../ui/AppFrame';
 import Counting from './Counting';
 import StocktakeReport from './StocktakeReport';
 import StocktakeStart from './StocktakeStart';
@@ -65,7 +65,7 @@ export default function LiczenieTab({ band, onBackToPulpit }: Props) {
   /* ---------- identity gate (B10): who is counting? ---------- */
   if (identity === null) {
     return (
-      <Phone>
+      <AppFrame>
         <header className="appbar">
           <button type="button" className="back" onClick={onBackToPulpit} aria-label="Pulpit">←</button>
           <h3>Kim jesteś na czas spisu?</h3>
@@ -93,7 +93,7 @@ export default function LiczenieTab({ band, onBackToPulpit }: Props) {
           ))}
         </section>
         <Tabs active="liczenie" onLiczenie={() => undefined} />
-      </Phone>
+      </AppFrame>
     );
   }
 
@@ -130,7 +130,7 @@ export default function LiczenieTab({ band, onBackToPulpit }: Props) {
 
   /* ---------- hub (screen 13) ---------- */
   return (
-    <Phone>
+    <AppFrame>
       <header className="appbar">
         <h3>Liczenie</h3>
         <span className={`badge ${active ? 'b-primary' : 'b-gray'}`}>spis #{active?.id ?? '—'}</span>
@@ -192,7 +192,7 @@ export default function LiczenieTab({ band, onBackToPulpit }: Props) {
       </section>
 
       <Tabs active="liczenie" onLiczenie={() => undefined} />
-    </Phone>
+    </AppFrame>
   );
 
   function onlineBanner() {

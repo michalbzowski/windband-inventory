@@ -34,7 +34,7 @@ import {
   validateDeclarationForm,
 } from '../declarations/model';
 import { fmtAttrValue, fmtDate, fmtDateTime } from '../ekwipunek/format';
-import Phone from '../ui/Phone';
+import AppFrame from '../ui/AppFrame';
 import Sheet from '../ui/Sheet';
 import { Tabs } from './LiczenieTab';
 import ItemForm from './ItemForm';
@@ -103,7 +103,7 @@ export default function ItemDetail({ band, itemId, focusForm = false, onBack, on
 
   if (error && !item) {
     return (
-      <Phone>
+      <AppFrame>
         <header className="appbar">
           <button type="button" className="back" onClick={onBack} aria-label="Wróć">‹</button>
           <h3>Pozycja</h3>
@@ -112,14 +112,14 @@ export default function ItemDetail({ band, itemId, focusForm = false, onBack, on
           <div className="state"><span className="state-ico">⚠</span><b>Nie udało się wczytać</b><span>{error}</span></div>
         </section>
         <Tabs active="ekwipunek" onPulpit={onBack} onEkwipunek={onBack} onLiczenie={() => onTab?.('liczenie')} onMoje={() => onTab?.('moje')} />
-      </Phone>
+      </AppFrame>
     );
   }
   if (!item) {
     return (
-      <Phone>
+      <AppFrame>
         <section className="content"><p className="hint">Wczytywanie…</p></section>
-      </Phone>
+      </AppFrame>
     );
   }
 
@@ -165,7 +165,7 @@ export default function ItemDetail({ band, itemId, focusForm = false, onBack, on
   };
 
   return (
-    <Phone>
+    <AppFrame>
       <header className="appbar">
         <button type="button" className="back" onClick={onBack} aria-label="Wróć do listy">‹</button>
         <h3>{TYPE_ICON[item.type]} {item.name}</h3>
@@ -362,7 +362,7 @@ export default function ItemDetail({ band, itemId, focusForm = false, onBack, on
       )}
 
       <Tabs active="ekwipunek" onPulpit={onBack} onEkwipunek={onBack} onLiczenie={() => onTab?.('liczenie')} onMoje={() => onTab?.('moje')} />
-    </Phone>
+    </AppFrame>
   );
 }
 

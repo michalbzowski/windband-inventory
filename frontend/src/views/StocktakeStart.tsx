@@ -9,7 +9,7 @@ import {
   type WarehouseType,
 } from '../api/inventory';
 import { ApiError } from '../api/client';
-import Phone from '../ui/Phone';
+import AppFrame from '../ui/AppFrame';
 
 interface Props {
   band: BandView;
@@ -67,7 +67,7 @@ export default function StocktakeStart({ band, onBack, onStarted }: Props) {
     set(current === value ? null : value);
 
   return (
-    <Phone>
+    <AppFrame>
       <header className="appbar">
         <button type="button" className="back" onClick={onBack} aria-label="Wróć">‹</button>
         <h3>Nowy spis — snapshot</h3>
@@ -119,7 +119,7 @@ export default function StocktakeStart({ band, onBack, onStarted }: Props) {
         </button>
         <div className="role-note">Uruchomienie spisu: tylko ADMIN (B8).</div>
       </section>
-    </Phone>
+    </AppFrame>
   );
 }
 

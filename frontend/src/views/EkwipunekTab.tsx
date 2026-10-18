@@ -17,7 +17,7 @@ import {
   toQuery,
   type ItemFilterState,
 } from '../ekwipunek/filters';
-import Phone from '../ui/Phone';
+import AppFrame from '../ui/AppFrame';
 import Sheet from '../ui/Sheet';
 import { Tabs } from './LiczenieTab';
 import ItemDetail from './ItemDetail';
@@ -155,7 +155,7 @@ function ItemList({
   const rows = items ?? [];
 
   return (
-    <Phone>
+    <AppFrame>
       <header className="appbar">
         <button type="button" className="back" onClick={onBackToPulpit} aria-label="Wróć">‹</button>
         <h3>Ekwipunek</h3>
@@ -297,7 +297,7 @@ function ItemList({
       )}
 
       <Tabs active="ekwipunek" onPulpit={() => (onTab ? onTab('pulpit') : onBackToPulpit())} onEkwipunek={() => undefined} onLiczenie={() => onTab?.('liczenie')} onMoje={() => onTab?.('moje')} />
-    </Phone>
+    </AppFrame>
   );
 }
 

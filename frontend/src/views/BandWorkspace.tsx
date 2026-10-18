@@ -3,7 +3,7 @@ import { listStocktakes, type StocktakeView } from '../api/inventory';
 import type { BandView } from '../api/bands';
 import { loadIdentity } from '../stocktake/identity';
 import { CountQueue } from '../stocktake/queue';
-import Phone from '../ui/Phone';
+import AppFrame from '../ui/AppFrame';
 import { Tabs } from './LiczenieTab';
 import LiczenieTab from './LiczenieTab';
 import EkwipunekTab from './EkwipunekTab';
@@ -49,7 +49,7 @@ function HomeTabs({ band, tab, setTab, onCreate }: { band: BandView; tab: TabKey
   const queue = new CountQueue();
 
   return (
-    <Phone>
+    <AppFrame>
       <header className="appbar">
         <button type="button" className="back" onClick={() => setTab(tab)} aria-label="—"> </button>
         <h3>{band.name}</h3>
@@ -107,6 +107,6 @@ function HomeTabs({ band, tab, setTab, onCreate }: { band: BandView; tab: TabKey
         onLiczenie={() => setTab('liczenie')}
         onMoje={() => setTab('moje')}
       />
-    </Phone>
+    </AppFrame>
   );
 }

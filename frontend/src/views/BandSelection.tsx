@@ -93,7 +93,6 @@ export default function BandSelection({ bands, memberCounts, onSelect }: Props) 
           <span className="ti" aria-hidden>👤</span> Moje
         </span>
       </nav>
-      <div className="homebar" aria-hidden>&lt;i/&gt;</div>
     </>
   );
 }

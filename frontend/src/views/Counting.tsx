@@ -14,7 +14,7 @@ import {
   type StocktakeView,
 } from '../api/inventory';
 import type { BandView } from '../api/bands';
-import Phone from '../ui/Phone';
+import AppFrame from '../ui/AppFrame';
 import { CountQueue, countKey, extraKey, type PendingDecision } from '../stocktake/queue';
 import { createNeed, listNeeds, sendItemToService, type NeedView } from '../api/inventory';
 import NeedSheet from '../needs/NeedSheet';
@@ -296,22 +296,22 @@ export default function Counting({ band, identity, stocktakeId, onExit }: Props)
   /* ---------- current card ---------- */
   if (!stocktake || lines === null) {
     return (
-      <Phone>
+      <AppFrame>
         <header className="appbar"><h3>Spis #{stocktakeId}</h3></header>
         <section className="content" aria-busy="true"><p className="hint">{flushProblem ?? 'Ładowanie…'}</p></section>
-      </Phone>
+      </AppFrame>
     );
   }
 
   if (stocktake.status === 'CLOSED') {
     return (
-      <Phone>
+      <AppFrame>
         <header className="appbar"><h3>Spis #{stocktakeId}</h3><span className="badge b-gray">Zamknięty</span></header>
         <section className="content tinted">
           <div className="banner warni" role="alert">🔒<div>Spis zamknięty — dalsze liczenie zablokowane<small>{queue.count(stocktakeId) > 0 ? `${queue.count(stocktakeId)} decyzji NIE wyszło na serwer — sprawdź w „Moje”.` : 'Raport jest zamrożony.'}</small></div></div>
           <button type="button" className="btn primary block" onClick={onExit}>Wróć</button>
         </section>
-      </Phone>
+      </AppFrame>
     );
   }
 
@@ -319,7 +319,7 @@ export default function Counting({ band, identity, stocktakeId, onExit }: Props)
 
   if (paused) {
     return (
-      <Phone>
+      <AppFrame>
         <header className="appbar"><h3>Spis #{stocktakeId} · liczenie</h3><span className="badge b-warn">Wstrzymany</span></header>
         <section className="content tinted" style={{ alignItems: 'center', textAlign: 'center', gap: 14, justifyContent: 'center' }}>
           <div style={{ width: 88, height: 88, borderRadius: 999, background: 'var(--warn-soft)', border: '1.5px solid var(--warn-line)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 38, color: 'var(--warn)' }}>⏸</div>
@@ -340,7 +340,7 @@ export default function Counting({ band, identity, stocktakeId, onExit }: Props)
           {band.role !== 'ADMIN' && <div className="role-note">Wznowienie spisu: tylko ADMIN (B8)</div>}
           <button type="button" className="btn ghost" onClick={onExit}>Wróć</button>
         </section>
-      </Phone>
+      </AppFrame>
     );
   }
 
@@ -389,7 +389,7 @@ export default function Counting({ band, identity, stocktakeId, onExit }: Props)
   const cardState = cardPending?.foundState ?? cardLine?.foundState ?? null;
 
   return (
-    <Phone>
+    <AppFrame>
       <header className="appbar">
         <button type="button" className="back" onClick={onExit} aria-label="Zakończ liczenie">‹</button>
         <h3>Spis #{stocktakeId} · liczenie</h3>
@@ -563,7 +563,7 @@ export default function Counting({ band, identity, stocktakeId, onExit }: Props)
           Zamknij spis ✓{pending.length > 0 ? ` (kolejka: ${pending.length})` : ''}
         </button>
       )}
-    </Phone>
+    </AppFrame>
   );
 }
 

@@ -1,7 +1,8 @@
 /* ============================================================
- * Windband Inventory — mobile-first shell.
- * Design tokens are 1:1 with the frozen design system:
- * windband-inventory/docs/mockups/w1-makieta-ui-mobile.html (:root)
+ * Windband Inventory — responsive shell (mobile-first).
+ * Bazy projektowe 1:1 ze zmrożonym design systemem:
+ * windband-inventory/docs/mockups/w1-makieta-ui-mobile.html (:root).
+ * Warstwy responsywne: TABLET ≥768px, DESKTOP ≥1200px (na końcu pliku).
  * ============================================================ */
 
 :root {
@@ -46,12 +47,13 @@ html, body {
 
 button { font: inherit; }
 
-/* --------- phone column (fills the viewport on real mobiles) --------- */
+/* --------- app frame: na telefonie kolumna 390 px, na tablecie/desktopie
+   media queries poniżej zmieniają ją w szerokie okno --------- */
 
-.phone {
+.app {
   width: min(390px, 100%);
   margin: 0 auto;
-  min-height: calc(100dvh - 48px);
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   background: var(--surface);
@@ -65,7 +67,7 @@ button { font: inherit; }
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 10px;
+  padding: calc(6px + env(safe-area-inset-top)) 10px 6px;
   border-bottom: 1px solid var(--line);
   background: var(--surface);
 }
@@ -304,15 +306,8 @@ button { font: inherit; }
 
 /* ============================================================
  * F5 STOCKTAKE MODULE — ported 1:1 from docs/mockups/w1-makieta-ui-mobile.html
+ * (makieta statusbar/homebar usunięta — zob. AppFrame.tsx)
  * ============================================================ */
-
-.sbar { height: 34px; flex: none; display: flex; justify-content: space-between; align-items: center; padding: 0 20px; font-size: 11.5px; font-weight: 700; color: var(--ink); background: var(--surface); }
-.sbar .r { display: flex; align-items: center; gap: 6px; }
-.sig { letter-spacing: 1px; font-size: 9px; }
-.bat { width: 18px; height: 9px; border: 1px solid var(--ink); border-radius: 2px; position: relative; display: inline-block; }
-.bat::after { content: ""; position: absolute; inset: 1px; right: 5px; background: var(--ink); border-radius: 1px; }
-.homebar { flex: none; height: 18px; display: flex; align-items: center; justify-content: center; }
-.homebar i { width: 110px; height: 4px; border-radius: 99px; background: var(--ink); opacity: .85; }
 
 .ic { width: 40px; height: 40px; border: 0; background: none; border-radius: 10px; font-size: 16px; color: var(--muted); cursor: pointer; display: flex; align-items: center; justify-content: center; }
 .ic:hover { background: var(--gray-soft); }
@@ -425,11 +420,105 @@ button { font: inherit; }
 .chip.sel .cnt-n { background: rgba(255, 255, 255, .3); color: #fff; }
 .btn.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
 
+/* ============================================================
+ * TABLET (≥768 px) — ta sama logika co na telefonie, ale w szerszej
+ * kolumnie: siatki 4-kolumnowe, duże przyciski akcji w jednym rzędzie,
+ * bottom sheety zamienione na wyśrodkowane dialogi.
+ * ============================================================ */
+
+@media (min-width: 768px) {
+  .app { width: min(720px, 100%); border-inline: 1px solid var(--line); }
+  .appbar { min-height: 58px; padding-left: 20px; padding-right: 20px; }
+  .content { padding: 18px 20px 22px; }
+
+  .bandlist { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .grid-tiles { grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .stat-grid { grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .kv > div { grid-template-columns: minmax(140px, 200px) 1fr; }
+  .tile { min-height: 84px; font-size: 13.5px; }
+
+  .count-card { padding: 22px 26px; }
+  .count-card b { font-size: 19px; }
+  .bigbtns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .bigbtns button { font-size: 14.5px; }
+
+  .actionbar { padding: 12px 20px; }
+
+  /* nakładki: okno zamiast wysuwanej szuflady, kotwiczone do viewportu */
+  .dim { position: fixed; align-items: center; justify-content: center; padding: 24px; }
+  .sheet { width: min(560px, 100%); border-radius: 20px; box-shadow: 0 18px 60px rgba(0, 0, 0, .28); }
+  .sheet .grab { display: none; }
+  .modal { max-width: 440px; }
+  .toast { position: fixed; left: 50%; right: auto; transform: translateX(-50%); width: min(520px, calc(100% - 48px)); }
+  /* FAB i dialogi trzymają się okna, nie krawędzi przeglądarki */
+  .fab { position: fixed; right: max(24px, calc((100vw - 720px) / 2 + 24px)); }
+}
+
+/* ============================================================
+ * DESKTOP (≥1200 px) — pełne okno aplikacji: pasek zakładek wędruje
+ * pod appbar jako rząd pigułek (flex order), typografia i odstępy
+ * dostają więcej powietrza.
+ * ============================================================ */
+
+@media (min-width: 1200px) {
+  .app { width: min(1240px, 100%); box-shadow: 0 0 48px rgba(17, 24, 39, .07); }
+  .appbar { min-height: 68px; padding: calc(14px + env(safe-area-inset-top)) 28px 14px; }
+  .appbar h3 { font-size: 19px; }
+
+  .tabs {
+    order: 1;
+    flex-direction: row;
+    justify-content: flex-start;
+    min-height: auto;
+    gap: 6px;
+    padding: 12px 28px 14px;
+    border-top: 0;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 14px;
+  }
+  .tabs .t { flex: none; flex-direction: row; align-items: center; gap: 10px; min-height: 44px; padding: 8px 18px; border-radius: 999px; font-size: 13.5px; color: var(--ink); }
+  .tabs .t.on { background: var(--primary-soft); color: var(--primary); }
+  .tabs .t .ti { font-size: 16px; }
+  .tabs .t br { display: none; } /* separator ikon/tekstów z wersji pionowej */
+  .content { order: 2; padding: 26px 28px 34px; gap: 16px; }
+  .abar { order: 3; padding: 14px 28px; }
+
+  .panel { padding: 18px 22px; }
+  .kv > div { grid-template-columns: minmax(160px, 240px) 1fr; font-size: 13.5px; padding: 11px 0; }
+  .srow { padding: 12px 4px; }
+  .srow b { font-size: 14px; }
+  .lede-01 { font-size: 13.5px; }
+  .hint, .lede-01, .state span:not(.state-ico) { max-width: 88ch; }
+
+  .count-card { padding: 28px 32px; }
+  .bigbtns button { min-height: 62px; font-size: 15.5px; }
+  .sheet { width: min(640px, 100%); }
+  .modal { max-width: 480px; }
+  .fab { right: max(28px, calc((100vw - 1240px) / 2 + 28px)); bottom: 40px; }
+}
+
+/* ---------- wskaźnik dla urządzeń z myszą: stan hover ---------- */
+
+@media (hover: hover) and (pointer: fine) {
+  .btn:hover:not([disabled]) { border-color: var(--primary-line); }
+  .btn:not(.primary):not(.ok):not(.danger):hover:not([disabled]) { background: var(--gray-soft); }
+  .btn.primary:hover:not([disabled]) { filter: brightness(1.08); }
+  .btn.ok:hover:not([disabled]) { filter: brightness(1.08); }
+  .btn.danger:hover:not([disabled]) { filter: brightness(1.12); }
+  .tile:hover { border-color: var(--primary-line); box-shadow: 0 3px 12px rgba(17, 24, 39, .10); transform: translateY(-1px); }
+  .bandcard:hover { box-shadow: var(--shadow); }
+  button.srow:hover { background: var(--gray-soft); }
+  .chip:hover { border-color: var(--primary-line); }
+  .tabs .t:not(.disabled):not(.on):hover { background: var(--gray-soft); }
+  .bigbtns button:hover:not(:disabled) { filter: brightness(1.05); box-shadow: 0 4px 14px rgba(17, 24, 39, .12); }
+  .fab:hover { filter: brightness(1.1); }
+}
+
 /* v1.x #5 — krok wydruku raportu (D4: bez Jaspera, drukarka przeglądarki → PDF) */
 @media print {
   body { background: #fff; }
-  .phone { width: auto; max-width: none; margin: 0; border: 0; box-shadow: none; }
-  button, .appbar, .abar, .toast, .dim, .sheet, .role-note, .hint { display: none !important; }
+  .app { width: auto; max-width: none; margin: 0; border: 0; box-shadow: none; }
+  button, .appbar, .tabs, .abar, .toast, .dim, .sheet, .role-note, .hint { display: none !important; }
   .panel { break-inside: avoid; page-break-inside: avoid; box-shadow: none; }
   .stamp { border: 2px solid #000; color: #000; background: transparent; }
   .srow { border-bottom: 1px solid #ccc; }
