@@ -212,7 +212,7 @@ export default function ItemForm({ band, editId, onDone, onCancel, onTab }: Prop
         </div>
       )}
 
-      <Tabs active="ekwipunek" onPulpit={onCancel} onEkwipunek={onCancel} onLiczenie={() => onTab?.('liczenie')} onMoje={() => onTab?.('moje')} />
+      <Tabs active="ekwipunek" onPulpit={() => (onTab ? onTab('pulpit') : onCancel())} onEkwipunek={onCancel} onLiczenie={() => onTab?.('liczenie')} onMoje={() => onTab?.('moje')} />
     </AppFrame>
   );
 }

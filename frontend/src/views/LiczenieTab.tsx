@@ -19,6 +19,7 @@ type Screen =
 interface Props {
   band: BandView;
   onBackToPulpit: () => void;
+  onTab?: (t: 'pulpit' | 'ekwipunek' | 'liczenie' | 'moje') => void;
 }
 
 /**
@@ -27,7 +28,7 @@ interface Props {
  * guard on the backend), and routes to counting, the frozen report or the
  * admin-only start screen.
  */
-export default function LiczenieTab({ band, onBackToPulpit }: Props) {
+export default function LiczenieTab({ band, onBackToPulpit, onTab }: Props) {
   const [identity, setIdentity] = useState<CounterIdentity | null>(() => loadIdentity(band.bandId));
   const [screen, setScreen] = useState<Screen>({ view: 'hub' });
   const [stocktakes, setStocktakes] = useState<StocktakeView[] | null>(null);
@@ -92,7 +93,13 @@ export default function LiczenieTab({ band, onBackToPulpit }: Props) {
             </button>
           ))}
         </section>
-        <Tabs active="liczenie" onLiczenie={() => undefined} />
+        <Tabs
+          active="liczenie"
+          onPulpit={() => (onTab ? onTab('pulpit') : onBackToPulpit())}
+          onEkwipunek={() => onTab?.('ekwipunek')}
+          onLiczenie={() => undefined}
+          onMoje={() => onTab?.('moje')}
+        />
       </AppFrame>
     );
   }
@@ -191,7 +198,13 @@ export default function LiczenieTab({ band, onBackToPulpit }: Props) {
         <p className="hint">liczysz jako: {identity.name} · Zmień — Moje</p>
       </section>
 
-      <Tabs active="liczenie" onLiczenie={() => undefined} />
+      <Tabs
+        active="liczenie"
+        onPulpit={() => (onTab ? onTab('pulpit') : onBackToPulpit())}
+        onEkwipunek={() => onTab?.('ekwipunek')}
+        onLiczenie={() => undefined}
+        onMoje={() => onTab?.('moje')}
+      />
     </AppFrame>
   );
 

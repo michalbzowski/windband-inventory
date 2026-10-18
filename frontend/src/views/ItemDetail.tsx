@@ -111,7 +111,7 @@ export default function ItemDetail({ band, itemId, focusForm = false, onBack, on
         <section className="content">
           <div className="state"><span className="state-ico">⚠</span><b>Nie udało się wczytać</b><span>{error}</span></div>
         </section>
-        <Tabs active="ekwipunek" onPulpit={onBack} onEkwipunek={onBack} onLiczenie={() => onTab?.('liczenie')} onMoje={() => onTab?.('moje')} />
+        <Tabs active="ekwipunek" onPulpit={() => (onTab ? onTab('pulpit') : onBack())} onEkwipunek={onBack} onLiczenie={() => onTab?.('liczenie')} onMoje={() => onTab?.('moje')} />
       </AppFrame>
     );
   }
@@ -361,7 +361,7 @@ export default function ItemDetail({ band, itemId, focusForm = false, onBack, on
         <div className="toast" role="status">{toast}<button type="button" onClick={() => setToast(null)}>✕</button></div>
       )}
 
-      <Tabs active="ekwipunek" onPulpit={onBack} onEkwipunek={onBack} onLiczenie={() => onTab?.('liczenie')} onMoje={() => onTab?.('moje')} />
+      <Tabs active="ekwipunek" onPulpit={() => (onTab ? onTab('pulpit') : onBack())} onEkwipunek={onBack} onLiczenie={() => onTab?.('liczenie')} onMoje={() => onTab?.('moje')} />
     </AppFrame>
   );
 }
