@@ -118,6 +118,14 @@ Brak: migracja danych (B3), dwustronna nawigacja (B11), stany członka/kontaktow
 (BM — pełny kontrakt), raporty Jasper, skanowanie QR/kodu, reguły warunkowe atrybutów v2.
 
 ## 4. Backlog v1.x (kolejność priorytetowa po v1)
+
+> **Status 2026-10-19: cały backlog v1.x zrealizowany** — 1: F3 `MemberPicture`
+> (PR #16–17), 2: F4 serwis (sheety w szczegółach pozycji + filtr „Do serwisu”),
+> 3: planża „Potrzeby i zamówienia” (PR #29; backend #20), 4: deklaracje (PR #18–19),
+> 5: akcje spisu + krok wydruku raportu (PR #20). Z §3.3 wyszło już: reguły
+> warunkowe atrybutów (PR #28). Pozostaje: Jaspery, skanowanie QR, dwustronna
+> nawigacja (B11), stany członka z API BM, liczniki Pulpitu („w budowie”).
+
 1. F3 full picture per member: oczekiwane (z API WM) vs faktyczne vs gap + history widokowa
 2. F4 workflow serwisu: `sendToService → IN_SERVICE → completeService`, `nextServiceDate`,
    lista „do serwisu”
