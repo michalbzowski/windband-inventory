@@ -334,8 +334,35 @@ export const getMemberPicture = (
 export const listAttributeDefs = (
   bandId: number,
   type?: ItemType,
+  includeInactive = false,
   signal?: AbortSignal,
-): Promise<AttributeDefView[]> => invGet(`/attribute-defs${qs({ bandId, type })}`, signal);
+): Promise<AttributeDefView[]> =>
+  invGet(`/attribute-defs${qs({ bandId, type, all: includeInactive ? 'true' : undefined })}`, signal);
+
+/** Write body for defs: POST requires itemType+dataType, PUT must not send them
+ * (immutable in v1); DELETE is deactivation, `active:true` via PUT reactivates. */
+export interface AttributeDefWritePayload {
+  name?: string;
+  itemType?: ItemType;
+  dataType?: AttributeDataType;
+  displayOrder?: number;
+  required?: boolean;
+  displayInList?: boolean;
+  options?: string[];
+  active?: boolean;
+}
+
+export const createAttributeDef = (
+  bandId: number,
+  payload: AttributeDefWritePayload,
+): Promise<AttributeDefView> => invSend('POST', `/attribute-defs${qs({ bandId })}`, payload);
+
+export const updateAttributeDef = (
+  id: number,
+  payload: AttributeDefWritePayload,
+): Promise<AttributeDefView> => invSend('PUT', `/attribute-defs/${id}`, payload);
+
+export const deactivateAttributeDef = (id: number): Promise<void> => invSend('DELETE', `/attribute-defs/${id}`);
 
 // --- Deklaracje posiadania (backlog v1.x item 4, decyzja B14) ---
 
