@@ -230,7 +230,10 @@ button { font: inherit; }
 
 .panel h4 { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
 
-.kv { display: flex; }
+/* Vertically stacked label/value pairs (definition list): dt on the left, dd on the right.
+   `display:flex` from v1 was laying each row next to the other → the classic "GłównyOsoba"
+   sticking-together glitch and the half-width separator under the panel were visible. */
+.kv { }
 .kv > div {
   display: grid;
   grid-template-columns: auto 1fr;
