@@ -108,7 +108,7 @@ test('ADMIN: pełny cykl definicji — tworzenie, edycja, wyłączanie, duplikat
   await mockApi(page, BAND, defs);
   await page.goto('/');
 
-  await page.getByRole('navigation', { name: 'Nawigacja główna' }).getByRole('button', { name: '♧ Ekwipunek' }).click();
+  await page.getByRole('navigation', { name: 'Nawigacja główna' }).getByRole('button', { name: '🎒 Ekwipunek' }).click();
   await page.getByRole('button', { name: 'Definicje atrybutów' }).click();
   await expect(page.getByRole('heading', { name: 'Definicje atrybutów' })).toBeVisible();
   await expect(page.getByText('Numer fabryczny')).toBeVisible(); // INSTRUMENT — widok domyślny
@@ -170,14 +170,14 @@ test('ADMIN: pełny cykl definicji — tworzenie, edycja, wyłączanie, duplikat
 test('MEMBER: brak wejścia w definicje', async ({ page }) => {
   await mockApi(page, { bandId: 1, name: 'Orkiestra Dęta', role: 'MEMBER' }, [def({})]);
   await page.goto('/');
-  await page.getByRole('navigation', { name: 'Nawigacja główna' }).getByRole('button', { name: '♧ Ekwipunek' }).click();
+  await page.getByRole('navigation', { name: 'Nawigacja główna' }).getByRole('button', { name: '🎒 Ekwipunek' }).click();
   await expect(page.getByRole('button', { name: 'Definicje atrybutów' })).toHaveCount(0);
 });
 
 test('pusty stan: wejście z poziomu sheetu „Filtr: atrybut”', async ({ page }) => {
   await mockApi(page, BAND, []);
   await page.goto('/');
-  await page.getByRole('navigation', { name: 'Nawigacja główna' }).getByRole('button', { name: '♧ Ekwipunek' }).click();
+  await page.getByRole('navigation', { name: 'Nawigacja główna' }).getByRole('button', { name: '🎒 Ekwipunek' }).click();
   await page.getByRole('button', { name: 'Atrybut ▾' }).click();
   await expect(page.getByText('Brak definicji atrybutów')).toBeVisible();
   await page.getByRole('button', { name: '⚙ Otwórz definicje atrybutów' }).click();
