@@ -12,7 +12,7 @@ export type CounterKey = 'items' | 'assigned' | 'needs' | 'serviceDue';
 export const COUNTER_META: Record<CounterKey, { label: string; aria: string }> = {
   items: { label: 'Pozycje', aria: 'Pokaż wszystkie pozycje' },
   assigned: { label: 'Aktywne przydziały', aria: 'Pokaż pozycje z aktywnym przydziałem' },
-  needs: { label: 'Otwarte potrzeby', aria: 'Otwórz planżę potrzeb i zamówień' },
+  needs: { label: 'Otwarte potrzeby', aria: 'Otwórz planszę zamówień i serwisu' },
   serviceDue: { label: 'Do serwisu', aria: 'Pokaż pozycje z terminem serwisu' },
 };
 

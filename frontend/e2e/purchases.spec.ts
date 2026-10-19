@@ -86,8 +86,8 @@ async function mockApi(
 
   await page.goto('/');
   await page.getByRole('navigation', { name: 'Nawigacja główna' }).getByRole('button', { name: '🎒 Ekwipunek' }).click();
-  await page.getByRole('button', { name: 'Potrzeby i zamówienia' }).click();
-  await expect(page.getByRole('heading', { name: 'Potrzeby i zamówienia' })).toBeVisible();
+  await page.getByRole('button', { name: 'Zamówienia i serwis' }).click();
+  await expect(page.getByRole('heading', { name: 'Zamówienia i serwis' })).toBeVisible();
 }
 
 const seed = (): PurchaseRow[] => [

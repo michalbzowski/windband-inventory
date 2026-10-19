@@ -3,7 +3,7 @@ import { expect, test, type Page } from '@playwright/test';
 test.use({ viewport: { width: 360, height: 740 } });
 
 /**
- * Plansza „Potrzeby i zamówienia” (backlog v1.x #3): filtry statusów,
+ * Plansza „Zamówienia i serwis” (backlog v1.x #3): filtry statusów,
  * przepływ OPEN → ORDERED → RECEIVED/CANCELLED z notką, ręczne zgłoszenie
  * z pickiem pozycji i zgłaszającego, bramka ról (zapis tylko ADMIN).
  */
@@ -69,8 +69,8 @@ async function mockApi(page: Page, needs: NeedRow[], captured: { statusBodies: A
 
   await page.goto('/');
   await page.getByRole('navigation', { name: 'Nawigacja główna' }).getByRole('button', { name: '🎒 Ekwipunek' }).click();
-  await page.getByRole('button', { name: 'Potrzeby i zamówienia' }).click();
-  await expect(page.getByRole('heading', { name: 'Potrzeby i zamówienia' })).toBeVisible();
+  await page.getByRole('button', { name: 'Zamówienia i serwis' }).click();
+  await expect(page.getByRole('heading', { name: 'Zamówienia i serwis' })).toBeVisible();
 }
 
 const seed = (): NeedRow[] => [
@@ -150,7 +150,7 @@ test('MEMBER widzi planzę, ale bez akcji i FAB-a', async ({ page }) => {
   await page.route('**/api/v1/me/bands', (r) => r.fulfill({ json: [{ bandId: 7, name: 'Orkiestra', role: 'MEMBER' }] }));
   await page.reload();
   await page.getByRole('navigation', { name: 'Nawigacja główna' }).getByRole('button', { name: '🎒 Ekwipunek' }).click();
-  await page.getByRole('button', { name: 'Potrzeby i zamówienia' }).click();
+  await page.getByRole('button', { name: 'Zamówienia i serwis' }).click();
   await expect(page.getByText('Trąbka Jupiter 1100')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Zgłoś potrzebę' })).toHaveCount(0);
   await expect(page.locator('li').getByRole('button', { name: /^(Zamów|Dostarcz|Anuluj)/ })).toHaveCount(0);

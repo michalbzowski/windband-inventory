@@ -40,7 +40,7 @@ const fmtDate = (iso: string): string =>
   new Date(iso).toLocaleString('pl-PL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 
 /**
- * Segment „Zamówienia” deski Potrzeby i zamówienia (roadmapa 2026-10-19):
+ * Segment „Zamówienia” deski Zamówienia i serwis (roadmapa 2026-10-19):
  * zakup NOWEGO przedmiotu dla konkretnej osoby, sześciostanowy flow.
  * Dostawa materializuje pozycję w magazynie, odbiór ją przypisuje — UI
  * pokazuje ten związek linkiem do karty pozycji. Odczyt: każdy członek;
