@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
-import { listStocktakes, type StocktakeView } from '../api/inventory';
+import { listItems, listNeeds, listStocktakes, type StocktakeView } from '../api/inventory';
 import type { BandView } from '../api/bands';
 import { loadIdentity } from '../stocktake/identity';
 import { CountQueue } from '../stocktake/queue';
+import { openNeedCount } from '../needs/model';
+import { COUNTER_META, COUNTER_NAV, counterText, type CounterKey, type CounterValue, type EkwNav } from '../dashboard/counters';
 import AppFrame from '../ui/AppFrame';
 import { Tabs } from './LiczenieTab';
 import LiczenieTab from './LiczenieTab';
@@ -32,7 +34,13 @@ export default function BandWorkspace({ band, onBack, onLogout }: Props) {
     sessionStorage.setItem(tabStoreKey(band.bandId), t);
     setTabState(t);
   };
-  const [startCreate, setStartCreate] = useState(false);
+  const [ekwNav, setEkwNav] = useState<EkwNav>({ kind: 'none' });
+  const goEkw = (nav: EkwNav) => {
+    setEkwNav(nav);
+    setTab('ekwipunek');
+  };
+  // Deep-link zużyty przy zamontowaniu Ekwipuneku — powrót na tę samą zakładkę nie wkleja go drugi raz.
+  const consumeEkwNav = () => setEkwNav({ kind: 'none' });
 
   if (tab === 'liczenie') return <LiczenieTab band={band} onBackToPulpit={() => setTab('pulpit')} onTab={setTab} />;
   if (tab === 'ekwipunek') {
@@ -41,19 +49,31 @@ export default function BandWorkspace({ band, onBack, onLogout }: Props) {
         band={band}
         onBackToPulpit={() => setTab('pulpit')}
         onTab={setTab}
-        startCreate={startCreate}
-        onCreateConsumed={() => setStartCreate(false)}
+        startCreate={ekwNav.kind === 'create'}
+        onCreateConsumed={consumeEkwNav}
+        startNeeds={ekwNav.kind === 'needs'}
+        onNeedsConsumed={consumeEkwNav}
+        initialFilters={ekwNav.kind === 'filter' ? ekwNav.filters : undefined}
+        onFiltersConsumed={consumeEkwNav}
       />
     );
   }
   if (tab === 'moje') return <MojeTab band={band} onTab={setTab} onBack={onBack} onLogout={onLogout} />;
-  return <HomeTabs band={band} tab={tab} setTab={setTab} onCreate={() => { setStartCreate(true); setTab('ekwipunek'); }} />;
+  return <HomeTabs band={band} tab={tab} setTab={setTab} goEkw={goEkw} />;
 }
 
-function HomeTabs({ band, tab, setTab, onCreate }: { band: BandView; tab: TabKey; setTab: (t: TabKey) => void; onCreate: () => void }) {
+function HomeTabs({ band, tab, setTab, goEkw }: { band: BandView; tab: TabKey; setTab: (t: TabKey) => void; goEkw: (nav: EkwNav) => void }) {
   const [stocktakes, setStocktakes] = useState<StocktakeView[] | null>(null);
+  const [counters, setCounters] = useState<Record<CounterKey, CounterValue>>({
+    items: undefined, assigned: undefined, needs: undefined, serviceDue: undefined,
+  });
   useEffect(() => {
     listStocktakes(band.bandId).then(setStocktakes).catch(() => setStocktakes([]));
+    const bump = (k: CounterKey) => (v: number | null) => setCounters((c) => ({ ...c, [k]: v }));
+    listItems(band.bandId).then((l) => bump('items')(l.length)).catch(() => bump('items')(null));
+    listItems(band.bandId, { status: 'ASSIGNED' }).then((l) => bump('assigned')(l.length)).catch(() => bump('assigned')(null));
+    listItems(band.bandId, { serviceDue: true }).then((l) => bump('serviceDue')(l.length)).catch(() => bump('serviceDue')(null));
+    listNeeds(band.bandId).then((l) => bump('needs')(openNeedCount(l))).catch(() => bump('needs')(null));
   }, [band.bandId]);
   const active = stocktakes?.find((s) => s.status !== 'CLOSED') ?? null;
   const identity = loadIdentity(band.bandId);
@@ -94,7 +114,7 @@ function HomeTabs({ band, tab, setTab, onCreate }: { band: BandView; tab: TabKey
             <h4>szybkie akcje</h4>
             <div className="grid-tiles">
               <button type="button" className="tile" onClick={() => setTab('liczenie')}><span>▶</span>Rozpocznij spis{band.role !== 'ADMIN' ? ' (ADMIN)' : ''}</button>
-              <button type="button" className={`tile${band.role === 'ADMIN' ? '' : ' disabled'}`} title={band.role === 'ADMIN' ? undefined : 'Rejestr pozycji prowadzi ADMIN (B8)'} onClick={band.role === 'ADMIN' ? onCreate : undefined}><span>＋</span>Nowa pozycja</button>
+              <button type="button" className={`tile${band.role === 'ADMIN' ? '' : ' disabled'}`} title={band.role === 'ADMIN' ? undefined : 'Rejestr pozycji prowadzi ADMIN (B8)'} onClick={band.role === 'ADMIN' ? () => goEkw({ kind: 'create' }) : undefined}><span>＋</span>Nowa pozycja</button>
               <button type="button" className="tile" onClick={() => setTab('moje')}><span>🗲</span>Kolejka offline{queue.all().length ? ` (${queue.all().length})` : ' · pusta'}</button>
               <button type="button" className="tile" onClick={() => setTab('ekwipunek')}><span>♧</span>Ekwipunek</button>
             </div>
@@ -102,9 +122,22 @@ function HomeTabs({ band, tab, setTab, onCreate }: { band: BandView; tab: TabKey
             <h4>liczniki</h4>
             <div className="panel">
               <div className="kv">
-                <div><dt>Pozycje</dt><dd className="warn">w budowie</dd></div>
-                <div><dt>Aktywne przydziały</dt><dd className="warn">w budowie</dd></div>
-                <div><dt>Ostatni zamknięty</dt><dd>{stocktakes?.find((s) => s.status === 'CLOSED') ? `#${stocktakes.find((s) => s.status === 'CLOSED')!.id} ✓` : '—'}</dd></div>
+                {(Object.keys(COUNTER_META) as CounterKey[]).map((k) => (
+                  <div key={k}>
+                    <dt>{COUNTER_META[k].label}</dt>
+                    <dd>
+                      <button
+                        type="button"
+                        className="btn sm ghost"
+                        aria-label={COUNTER_META[k].aria}
+                        onClick={() => goEkw(COUNTER_NAV[k])}
+                      >
+                        {counterText(counters[k])} ›
+                      </button>
+                    </dd>
+                  </div>
+                ))}
+                <div><dt>Ostatni zamknięty</dt><dd>{stocktakes ? (stocktakes.filter((s) => s.status === 'CLOSED').sort((a, b) => b.id - a.id)[0]?.startedAt ?? '—') : '…'}</dd></div>
               </div>
             </div>
           </>

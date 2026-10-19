@@ -33,6 +33,12 @@ interface Props {
   /** deep-link from the Pulpit tile: open the create form immediately */
   startCreate?: boolean;
   onCreateConsumed?: () => void;
+  /** deep-link from the Pulpit counters: open the needs board immediately */
+  startNeeds?: boolean;
+  onNeedsConsumed?: () => void;
+  /** deep-link from the Pulpit counters: start the list with these filters pre-applied */
+  initialFilters?: Partial<ItemFilterState>;
+  onFiltersConsumed?: () => void;
 }
 
 type Screen =
@@ -50,11 +56,19 @@ type Screen =
  * „Definicje atrybutów” screen (B6 — entry: ⚙ in the appbar). MEMBER gets a
  * read-only list and a read-only detail (no sheets, no FAB).
  */
-export default function EkwipunekTab({ band, onBackToPulpit, onTab, startCreate = false, onCreateConsumed }: Props) {
-  const [screen, setScreen] = useState<Screen>(() => (startCreate ? { kind: 'create' } : { kind: 'list' }));
+export default function EkwipunekTab({
+  band, onBackToPulpit, onTab,
+  startCreate = false, onCreateConsumed,
+  startNeeds = false, onNeedsConsumed,
+  initialFilters, onFiltersConsumed,
+}: Props) {
+  const [screen, setScreen] = useState<Screen>(() =>
+    startNeeds ? { kind: 'needs' } : startCreate ? { kind: 'create' } : { kind: 'list' });
 
   useEffect(() => {
     if (startCreate) onCreateConsumed?.();
+    if (startNeeds) onNeedsConsumed?.();
+    if (initialFilters) onFiltersConsumed?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -102,6 +116,7 @@ export default function EkwipunekTab({ band, onBackToPulpit, onTab, startCreate 
     onOpenPicture={(memberId) => setScreen({ kind: 'picture', memberId })}
     onOpenDefs={() => setScreen({ kind: 'defs' })}
     onOpenNeeds={() => setScreen({ kind: 'needs' })}
+    initialFilters={initialFilters}
     onBackToPulpit={onBackToPulpit}
     onTab={onTab}
   />;
@@ -116,6 +131,7 @@ function ItemList({
   onOpenPicture,
   onOpenDefs,
   onOpenNeeds,
+  initialFilters,
   onBackToPulpit,
   onTab,
 }: {
@@ -125,11 +141,12 @@ function ItemList({
   onOpenPicture: (memberId: number) => void;
   onOpenDefs: () => void;
   onOpenNeeds: () => void;
+  initialFilters?: Partial<ItemFilterState>;
   onBackToPulpit: () => void;
   onTab?: Props['onTab'];
 }) {
   const isAdmin = band.role === 'ADMIN';
-  const [filters, setFilters] = useState<ItemFilterState>(emptyFilters);
+  const [filters, setFilters] = useState<ItemFilterState>(() => ({ ...emptyFilters(), ...initialFilters }));
   const [sheet, setSheet] = useState<null | 'type' | 'status' | 'warehouse' | 'person' | 'attribute'>(null);
   const [items, setItems] = useState<ItemSummaryView[] | null>(null);
   const [error, setError] = useState<string | null>(null);
