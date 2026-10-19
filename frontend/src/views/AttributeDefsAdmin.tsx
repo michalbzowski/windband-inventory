@@ -152,8 +152,8 @@ export default function AttributeDefsAdmin({ band, onBack, onTab }: Props) {
                 <li key={d.id}>
                   <div className="srow">
                     <span className="sr">
-                      {d.name}
-                      {!d.active && <> <span className="badge b-gray">wyłączony</span></>}
+                      <b>{d.name}</b>
+                      {!d.active && <> <span className="badge b-gray">wyłączony</span></>}{' '}
                       <span className="sm">
                         {DATA_TYPE_LABEL[d.dataType]} · kolejność {d.displayOrder}
                         {d.required && ' · wymagany'}
