@@ -528,3 +528,6 @@ button { font: inherit; }
    informacyjny kafel nie jest przyciskiem, jego wartość to tekst, nie ikonka 34px. */
 .tile.info { cursor: default; }
 .tile .cval { width: auto; height: auto; background: transparent; padding: 0; font-size: 14px; font-weight: 700; color: var(--ink); min-height: 24px; }
+.tile .cval.ok-txt { color: var(--ok); }
+.cact { margin-top: 8px; }
+.mt8 { margin-top: 8px; }
