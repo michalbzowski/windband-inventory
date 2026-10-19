@@ -28,7 +28,7 @@ const nav = (page: Page) => page.getByRole('navigation', { name: 'Nawigacja gł�
 
 test('„Konto”: tożsamość i sesja są zamknięte w kaflach; akcje siedzą we właściwych grupach', async ({ page }) => {
   await boot(page);
-  await nav(page).getByRole('button', { name: '☺ Konto' }).click();
+  await nav(page).getByRole('button', { name: '👤 Konto' }).click();
   await expect(page.getByRole('heading', { name: 'Konto' })).toBeVisible();
 
   const tozsamosc = page.locator('.panel', { hasText: 'Tożsamość liczącego' });

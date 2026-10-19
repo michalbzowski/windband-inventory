@@ -102,7 +102,7 @@ test('ADMIN definiuje warunek: rodzic SELECT + chipsy wartości', async ({ page 
   const defs: DefRow[] = [parent()];
   await mockApi(page, defs, { createBodies: [] });
 
-  await page.getByRole('navigation', { name: 'Nawigacja główna' }).getByRole('button', { name: '♧ Ekwipunek' }).click();
+  await page.getByRole('navigation', { name: 'Nawigacja główna' }).getByRole('button', { name: '🎒 Ekwipunek' }).click();
   await page.getByRole('button', { name: 'Definicje atrybutów' }).click();
   await expect(page.getByRole('heading', { name: 'Definicje atrybutów' })).toBeVisible();
   await page.getByRole('button', { name: '👕 Umundrowanie' }).click();
@@ -127,7 +127,7 @@ test('ADMIN definiuje warunek: rodzic SELECT + chipsy wartości', async ({ page 
 test('bez wartości warunku zapis blokuje się komunikatem', async ({ page }) => {
   const defs: DefRow[] = [parent()];
   await mockApi(page, defs, { createBodies: [] });
-  await page.getByRole('navigation', { name: 'Nawigacja główna' }).getByRole('button', { name: '♧ Ekwipunek' }).click();
+  await page.getByRole('navigation', { name: 'Nawigacja główna' }).getByRole('button', { name: '🎒 Ekwipunek' }).click();
   await page.getByRole('button', { name: 'Definicje atrybutów' }).click();
   await page.getByRole('button', { name: '👕 Umundrowanie' }).click();
   await page.getByRole('button', { name: 'Nowa definicja atrybutu' }).click();

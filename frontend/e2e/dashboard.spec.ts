@@ -72,8 +72,8 @@ test('licznik potrzeb prowadzi prosto na planżę, bez drugiego wklejenia po pow
   // wracamy do listy i wychodzimy na pulpit — powrót na zakładkę nie może otworzyć planży ponownie
   await page.getByRole('button', { name: 'Wróć', exact: true }).click();
   await expect(page.getByRole('searchbox', { name: 'Szukaj pozycji' })).toBeVisible();
-  await page.getByRole('navigation', { name: 'Nawigacja główna' }).getByRole('button', { name: '▦ Pulpit' }).click();
-  await page.getByRole('navigation', { name: 'Nawigacja główna' }).getByRole('button', { name: '♧ Ekwipunek' }).click();
+  await page.getByRole('navigation', { name: 'Nawigacja główna' }).getByRole('button', { name: '📋 Pulpit' }).click();
+  await page.getByRole('navigation', { name: 'Nawigacja główna' }).getByRole('button', { name: '🎒 Ekwipunek' }).click();
   await expect(page.getByRole('searchbox', { name: 'Szukaj pozycji' })).toBeVisible();
 });
 

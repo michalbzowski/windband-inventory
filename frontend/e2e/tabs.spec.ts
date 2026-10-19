@@ -52,26 +52,26 @@ test('cykl przez wszystkie zakładki — z Liczenia też da się wyjść', async
   await expect(page.getByRole('heading', { name: 'Orkiestra' })).toBeVisible();
 
   // Pulpit → Liczenie (gate tożsamości:Tabs musza działać też tutaj)
-  await nav(page).getByRole('button', { name: '✓ Liczenie' }).click();
+  await nav(page).getByRole('button', { name: '🧮 Liczenie' }).click();
   await expect(page.getByRole('heading', { name: 'Kim jesteś na czas spisu?' })).toBeVisible();
-  await nav(page).getByRole('button', { name: '▦ Pulpit' }).click();
+  await nav(page).getByRole('button', { name: '📋 Pulpit' }).click();
   await expect(page.getByRole('heading', { name: 'Orkiestra' })).toBeVisible();
 
   // → Liczenie hub
-  await nav(page).getByRole('button', { name: '✓ Liczenie' }).click();
+  await nav(page).getByRole('button', { name: '🧮 Liczenie' }).click();
   await page.getByRole('button', { name: /Anna Nowak/ }).click();
   await expect(page.getByRole('heading', { name: 'Liczenie' })).toBeVisible();
 
   // Liczenie → Ekwipunek → Moje → Liczenie → Ekwipunek → Pulpit
-  await nav(page).getByRole('button', { name: '♧ Ekwipunek' }).click();
+  await nav(page).getByRole('button', { name: '🎒 Ekwipunek' }).click();
   await expect(page.getByRole('heading', { name: 'Ekwipunek' })).toBeVisible();
-  await nav(page).getByRole('button', { name: '☺ Konto' }).click();
+  await nav(page).getByRole('button', { name: '👤 Konto' }).click();
   await expect(page.getByRole('heading', { name: 'Konto' })).toBeVisible();
-  await nav(page).getByRole('button', { name: '✓ Liczenie' }).click();
+  await nav(page).getByRole('button', { name: '🧮 Liczenie' }).click();
   await expect(page.getByRole('heading', { name: 'Liczenie' })).toBeVisible();
-  await nav(page).getByRole('button', { name: '♧ Ekwipunek' }).click();
+  await nav(page).getByRole('button', { name: '🎒 Ekwipunek' }).click();
   await expect(page.getByRole('heading', { name: 'Ekwipunek' })).toBeVisible();
-  await nav(page).getByRole('button', { name: '▦ Pulpit' }).click();
+  await nav(page).getByRole('button', { name: '📋 Pulpit' }).click();
   await expect(page.getByRole('heading', { name: 'Orkiestra' })).toBeVisible();
 });
 
@@ -79,16 +79,16 @@ test('ItemDetail: Pulpit w nawigacji prowadzi do pulpitu, nie do listy pozycji',
   await mockBase(page);
   await page.goto('/');
 
-  await nav(page).getByRole('button', { name: '♧ Ekwipunek' }).click();
+  await nav(page).getByRole('button', { name: '🎒 Ekwipunek' }).click();
   await expect(page.getByRole('heading', { name: 'Ekwipunek' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Pozycja Flet koncertowy' }).click();
   await expect(page.getByRole('heading', { name: /Flet koncertowy/ })).toBeVisible();
 
-  await nav(page).getByRole('button', { name: '▦ Pulpit' }).click();
+  await nav(page).getByRole('button', { name: '📋 Pulpit' }).click();
   await expect(page.getByRole('heading', { name: 'Orkiestra' })).toBeVisible();
 
   // powrót na Ekwipunek i dalej do Liczenia z pozycji drill-down
-  await nav(page).getByRole('button', { name: '♧ Ekwipunek' }).click();
+  await nav(page).getByRole('button', { name: '🎒 Ekwipunek' }).click();
   await expect(page.getByRole('heading', { name: 'Ekwipunek' })).toBeVisible();
 });

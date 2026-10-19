@@ -121,7 +121,7 @@ function HomeTabs({ band, tab, setTab, goEkw }: { band: BandView; tab: TabKey; s
               <button type="button" className="tile" onClick={() => setTab('liczenie')}><span>▶</span>Rozpocznij spis{band.role !== 'ADMIN' ? ' (ADMIN)' : ''}</button>
               <button type="button" className={`tile${band.role === 'ADMIN' ? '' : ' disabled'}`} title={band.role === 'ADMIN' ? undefined : 'Rejestr pozycji prowadzi ADMIN (B8)'} onClick={band.role === 'ADMIN' ? () => goEkw({ kind: 'create' }) : undefined}><span>＋</span>Nowa pozycja</button>
               <button type="button" className="tile" onClick={() => setTab('moje')}><span>🗲</span>Kolejka offline{queue.all().length ? ` (${queue.all().length})` : ' · pusta'}</button>
-              <button type="button" className="tile" onClick={() => setTab('ekwipunek')}><span>♧</span>Ekwipunek</button>
+              <button type="button" className="tile" onClick={() => setTab('ekwipunek')}><span>🎒</span>Ekwipunek</button>
             </div>
 
             <h4>liczniki</h4>

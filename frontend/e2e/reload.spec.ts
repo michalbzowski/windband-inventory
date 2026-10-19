@@ -63,7 +63,7 @@ test('F5 na zakładce Ekwipunek w zespole 2 → ten sam zespół i ta sama zakł
   await page.getByRole('option', { name: /Chór Kameralny/ }).click();
   await expect(page.getByRole('heading', { name: 'Chór Kameralny' })).toBeVisible();
 
-  await page.getByRole('navigation', { name: 'Nawigacja główna' }).getByRole('button', { name: '♧ Ekwipunek' }).click();
+  await page.getByRole('navigation', { name: 'Nawigacja główna' }).getByRole('button', { name: '🎒 Ekwipunek' }).click();
   await expect(page.getByRole('heading', { name: 'Ekwipunek' })).toBeVisible();
   await expect(page.getByText('Kontrabas')).toBeVisible(); // pozycje należą do zespołu 2
 

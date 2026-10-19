@@ -68,7 +68,7 @@ async function mockApi(page: Page, needs: NeedRow[], captured: { statusBodies: A
   });
 
   await page.goto('/');
-  await page.getByRole('navigation', { name: 'Nawigacja główna' }).getByRole('button', { name: '♧ Ekwipunek' }).click();
+  await page.getByRole('navigation', { name: 'Nawigacja główna' }).getByRole('button', { name: '🎒 Ekwipunek' }).click();
   await page.getByRole('button', { name: 'Potrzeby i zamówienia' }).click();
   await expect(page.getByRole('heading', { name: 'Potrzeby i zamówienia' })).toBeVisible();
 }
@@ -149,7 +149,7 @@ test('MEMBER widzi planzę, ale bez akcji i FAB-a', async ({ page }) => {
   await mockApi(page, seed(), { statusBodies: [], createBodies: [] });
   await page.route('**/api/v1/me/bands', (r) => r.fulfill({ json: [{ bandId: 7, name: 'Orkiestra', role: 'MEMBER' }] }));
   await page.reload();
-  await page.getByRole('navigation', { name: 'Nawigacja główna' }).getByRole('button', { name: '♧ Ekwipunek' }).click();
+  await page.getByRole('navigation', { name: 'Nawigacja główna' }).getByRole('button', { name: '🎒 Ekwipunek' }).click();
   await page.getByRole('button', { name: 'Potrzeby i zamówienia' }).click();
   await expect(page.getByText('Trąbka Jupiter 1100')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Zgłoś potrzebę' })).toHaveCount(0);

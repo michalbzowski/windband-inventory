@@ -95,7 +95,7 @@ test('tablet 834: szersza kolumna, sheet jako wyśrodkowany dialog', async ({ pa
   expect(app!.width).toBeGreaterThanOrEqual(700);
   expect(app!.width).toBeLessThanOrEqual(760);
 
-  await page.getByRole('navigation', { name: 'Nawigacja główna' }).getByRole('button', { name: '♧ Ekwipunek' }).click();
+  await page.getByRole('navigation', { name: 'Nawigacja główna' }).getByRole('button', { name: '🎒 Ekwipunek' }).click();
   await page.getByRole('button', { name: /Typ ▾/ }).click();
   const sheet = page.getByRole('dialog', { name: 'Typ pozycji' });
   await expect(sheet).toBeVisible();
