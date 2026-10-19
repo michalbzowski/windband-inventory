@@ -78,6 +78,15 @@ public class PurchaseRequest {
     @JoinColumn(name = "item_id")
     private InventoryItem item;
 
+    /**
+     * Snapshotted attribute values (JSON array of {attributeDefId, name, value})
+     * captured when the order was placed — evidence for what we are buying. On
+     * DELIVERED the pairs are re-validated against live defs and attached to the
+     * freshly created item; null = legacy order without attributes.
+     */
+    @Column(name = "attribute_snapshot", columnDefinition = "TEXT")
+    private String attributeSnapshot;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
@@ -89,7 +98,7 @@ public class PurchaseRequest {
 
     public static PurchaseRequest request(Long bandId, String name, ItemType itemType,
             long requestedForMemberId, String requestedForName, String note,
-            Long createdMemberId, String createdMemberName) {
+            Long createdMemberId, String createdMemberName, String attributeSnapshot) {
         Objects.requireNonNull(bandId, "bandId required");
         Objects.requireNonNull(name, "name required");
         Objects.requireNonNull(itemType, "itemType required");
@@ -103,6 +112,7 @@ public class PurchaseRequest {
         purchase.note = blankToNull(note);
         purchase.createdMemberId = createdMemberId;
         purchase.createdMemberName = createdMemberName;
+        purchase.attributeSnapshot = blankToNull(attributeSnapshot);
         purchase.status = PurchaseStatus.REQUESTED;
         purchase.createdAt = LocalDateTime.now();
         return purchase;

@@ -11,6 +11,13 @@ export type PurchaseStatus =
   | 'RECEIVED'
   | 'CANCELLED';
 
+/** Snapshotted attribute value on a purchase (what we agreed to buy; names are frozen evidence). */
+export interface PurchaseAttributeView {
+  attributeDefId: number;
+  name: string;
+  value: string;
+}
+
 export interface PurchaseView {
   id: number;
   bandId: number;
@@ -23,6 +30,8 @@ export interface PurchaseView {
   resolutionNote: string | null;
   createdMemberId: number | null;
   createdMemberName: string | null;
+  /** Always an array (empty for legacy orders without attributes). */
+  attributes: PurchaseAttributeView[];
   itemId: number | null;
   itemSerialNumber: string | null;
   createdAt: string;
@@ -45,6 +54,8 @@ export const createPurchase = (bandId: number, req: {
   requestedForMemberId: number;
   note?: string | null;
   createdMemberId: number;
+  /** Same shape as the new-item form: [{attributeDefId, value}] (blanks omitted). */
+  attributes?: { attributeDefId: number; value: string }[];
 }): Promise<PurchaseView> => invSend('POST', `/purchases?bandId=${bandId}`, req);
 
 export const setPurchaseStatus = (

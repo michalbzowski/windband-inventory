@@ -3,10 +3,12 @@ package pl.michalbzowski.inventory.application.command;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
+import java.util.List;
 import pl.michalbzowski.inventory.domain.inventory.InventoryItem;
 import pl.michalbzowski.inventory.domain.inventory.InventoryItemRepository;
 import pl.michalbzowski.inventory.domain.inventory.ItemAssignment;
 import pl.michalbzowski.inventory.domain.inventory.ItemAssignmentRepository;
+import pl.michalbzowski.inventory.domain.inventory.ItemAttributeValue;
 import pl.michalbzowski.inventory.domain.inventory.PurchaseRequest;
 import pl.michalbzowski.inventory.domain.inventory.PurchaseRequestRepository;
 import pl.michalbzowski.inventory.domain.inventory.PurchaseStatus;
@@ -21,6 +23,10 @@ import pl.michalbzowski.inventory.application.port.BandMember;
  * live here: DELIVERED creates the warehouse item (MAIN, AVAILABLE,
  * unassigned), RECEIVED assigns it to the member and opens the assignment
  * history row — the same invariants the manual assign path enforces.
+ *
+ * <p>Attribute values are accepted at creation with the SAME validation as the
+ * new-item form (shared {@link AttributeScopeValidator}), snapshotted onto the
+ * evidence row, and re-validated + attached when DELIVERED materialises the item.
  */
 @Service
 @RequiredArgsConstructor
@@ -30,17 +36,26 @@ public class PurchaseCommandService {
     private final InventoryItemRepository items;
     private final ItemAssignmentRepository assignments;
     private final BandDirectory bandDirectory;
+    private final AttributeScopeValidator scopeValidator;
 
     @Transactional
     public PurchaseRequest create(String bearerToken, long bandId, String name,
             pl.michalbzowski.inventory.domain.inventory.ItemType itemType, long requestedForMemberId,
-            String note, long createdMemberId) {
+            String note, long createdMemberId, List<AttributeValueCommand> attributes) {
         BandMember forWhom = requireActiveMember(bearerToken, bandId, requestedForMemberId,
                 "Zamówienie musi wskazywać aktywnego członka (dla kogo kupujemy)");
         BandMember creator = requireActiveMember(bearerToken, bandId, createdMemberId,
                 "Podaj createdMemberId — zamówienie zgłasza konkretny członek");
+        // Same rules as the new-item form: required/conditional/format; hidden
+        // branches are dropped silently. The accepted pairs become the snapshot.
+        List<AttributeEntry> snapshot = scopeValidator
+                .resolve(bandId, itemType, attributes)
+                .stream()
+                .map(r -> new AttributeEntry(r.defId(), r.def().getName(), r.value()))
+                .toList();
         return purchases.save(PurchaseRequest.request(bandId, name, itemType,
-                forWhom.memberId(), forWhom.fullName(), note, creator.memberId(), creator.fullName()));
+                forWhom.memberId(), forWhom.fullName(), note, creator.memberId(), creator.fullName(),
+                AttributeSnapshotCodec.toJson(snapshot)));
     }
 
     /**
@@ -62,6 +77,7 @@ public class PurchaseCommandService {
                 InventoryItem item = InventoryItem.create(purchase.getBandId(), purchase.getName(),
                         purchase.getItemType(), WarehouseType.MAIN, null, null,
                         "Utworzone z zamówienia #" + purchase.getId());
+                attachSnapshotAttributes(purchase, item);
                 items.save(item);
                 purchase.deliver(item, note);
             }
@@ -84,6 +100,24 @@ public class PurchaseCommandService {
                     "REQUESTED ustawia się sam przy tworzeniu — nie ma cofnięcia do tego stanu");
         }
         return purchase;
+    }
+
+    /**
+     * Links the captured attribute snapshot to the freshly created item. Re-validation
+     * against the LIVE defs keeps the same semantics as editing an item: hidden
+     * conditional branches are dropped silently, a missing required value rejects the
+     * delivery (the purchase stays IN_PROGRESS until the defs are fixed).
+     */
+    private void attachSnapshotAttributes(PurchaseRequest purchase, InventoryItem item) {
+        List<AttributeEntry> snapshot = AttributeSnapshotCodec.parse(purchase.getAttributeSnapshot());
+        if (snapshot.isEmpty()) {
+            return;
+        }
+        item.replaceAttributes(scopeValidator
+                .resolve(item.getBandId(), item.getType(), AttributeSnapshotCodec.toCommands(snapshot))
+                .stream()
+                .map(r -> new ItemAttributeValue(item, r.def(), r.value()))
+                .toList());
     }
 
     private BandMember requireActiveMember(String bearerToken, long bandId, Long memberId, String missingMessage) {

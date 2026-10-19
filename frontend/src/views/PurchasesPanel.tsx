@@ -9,9 +9,12 @@ import {
   type PurchaseStatus,
   type PurchaseView,
 } from '../api/purchases';
-import type { ItemType } from '../api/inventory';
+import type { ItemType, AttributeDefView } from '../api/inventory';
+import { listAttributeDefs } from '../api/inventory';
 import Sheet from '../ui/Sheet';
 import { TYPE_LABEL } from '../ekwipunek/filters';
+import { visibleFields, validateFields } from '../ekwipunek/form';
+import AttributeField from '../ekwipunek/AttributeField';
 import {
   NOTE_REQUIRED_ACTIONS,
   PURCHASE_BADGE_CLASS,
@@ -128,6 +131,7 @@ export default function PurchasesPanel({ band, onOpenItem }: Props) {
                   <span className={`badge ${PURCHASE_BADGE_CLASS[p.status]}`}>{PURCHASE_STATUS_LABEL[p.status]}</span>
                   <span className="sm">
                     dla {p.requestedForName} · zgłosił(a) {p.createdMemberName ?? '—'} · {fmtDate(p.createdAt)}
+                    {p.attributes.length > 0 && <> · {p.attributes.map((a) => `${a.name} ${a.value}`).join(' · ')}</>}
                     {p.note && <> · „{p.note}”</>}
                     {p.resolutionNote && <> · {p.resolutionNote}</>}
                     {p.itemId !== null && (
@@ -252,7 +256,13 @@ function WalkSheet({ purchase, target, busy, onClose, onSubmit }: {
   );
 }
 
-/** Ręczne zamówienie nowego przedmiotu przez ADMIN-a dla aktywnego członka. */
+/**
+ * Ręczne zamówienie nowego przedmiotu przez ADMIN-a dla aktywnego członka.
+ * Atrybuty = ten sam model danych co formularz „Nowa pozycja” (v2.x): pola
+ * generowane z definicji zespołu+typu, warunki rozkładają się na żywo
+ * (np. UMundurowanie → Typ: Mundur|Koszula; szerokość ramion tylko u munduru),
+ * ta sama walidacja i te same komunikaty — backend potwierdza tymi regułami.
+ */
 function CreatePurchaseSheet({ band, onClose, onCreated }: {
   band: BandView;
   onClose: () => void;
@@ -265,7 +275,9 @@ function CreatePurchaseSheet({ band, onClose, onCreated }: {
   const [forWhom, setForWhom] = useState('');
   const [byWhom, setByWhom] = useState('');
   const [note, setNote] = useState('');
-  const [errors, setErrors] = useState<{ name?: string; forWhom?: string; byWhom?: string; api?: string }>({});
+  const [defs, setDefs] = useState<AttributeDefView[]>([]);
+  const [values, setValues] = useState<Record<number, string>>({});
+  const [errors, setErrors] = useState<{ name?: string; forWhom?: string; byWhom?: string; attr?: Record<number, string>; api?: string }>({});
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -274,21 +286,42 @@ function CreatePurchaseSheet({ band, onClose, onCreated }: {
     return () => ac.abort();
   }, [band.bandId]);
 
+  // Definicje atrybutów zależą od typu — zmiana typu resetuje pola (jak w „Nowej pozycji”).
+  useEffect(() => {
+    const ac = new AbortController();
+    listAttributeDefs(band.bandId, itemType, false, ac.signal)
+      .then(setDefs)
+      .catch(() => setDefs([]));
+    return () => ac.abort();
+  }, [band.bandId, itemType]);
+
+  useEffect(() => {
+    setValues({});
+  }, [itemType]);
+
+  const fields = visibleFields(defs, values);
+
   const submit = async () => {
     const next: typeof errors = {};
     if (!name.trim()) next.name = 'Podaj nazwę przedmiotu';
     if (!forWhom) next.forWhom = 'Wskaż, dla kogo kupujemy';
     if (!byWhom) next.byWhom = 'Wskaż, kto zgłasza';
+    const attrErrs = validateFields(fields, values);
+    if (Object.keys(attrErrs).length > 0) next.attr = attrErrs;
     setErrors(next);
     if (Object.keys(next).length > 0) return;
     setBusy(true);
     try {
+      const attributes = fields
+        .map((f) => ({ attributeDefId: f.defId, value: (values[f.defId] ?? '').trim() }))
+        .filter((a) => a.value !== '');
       onCreated(await createPurchase(band.bandId, {
         name: name.trim(),
         itemType,
         requestedForMemberId: Number(forWhom),
         note: note.trim() || null,
         createdMemberId: Number(byWhom),
+        attributes,
       }));
     } catch (e) {
       setErrors({ api: e instanceof ApiError ? e.message : 'Zamówienie nie powiodło się.' });
@@ -314,6 +347,21 @@ function CreatePurchaseSheet({ band, onClose, onCreated }: {
           ))}
         </select>
       </label>
+
+      {fields.length > 0 && (
+        <fieldset className="attrset" style={{ border: 'none', padding: 0, margin: '0 0 4px' }}>
+          <legend className="hint" style={{ padding: 0 }}>Atrybuty przedmiotu (taka sama forma jak przy dodawaniu pozycji)</legend>
+          {fields.map((f) => (
+            <AttributeField
+              key={f.defId}
+              field={f}
+              value={values[f.defId] ?? ''}
+              error={errors.attr?.[f.defId]}
+              onChange={(v) => setValues((cur) => ({ ...cur, [f.defId]: v }))}
+            />
+          ))}
+        </fieldset>
+      )}
 
       <label className="field">Dla kogo (aktywny członek)
         <select value={forWhom} onChange={(e) => setForWhom(e.target.value)}>

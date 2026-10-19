@@ -61,7 +61,7 @@ public class PurchaseController {
             @Valid @RequestBody PurchaseCreateRequest request) {
         guard.requireAdmin(bandId, BearerTokens.require());
         var purchase = commands.create(BearerTokens.require(), bandId, request.name(), request.itemType(),
-                request.requestedForMemberId(), request.note(), request.createdMemberId());
+                request.requestedForMemberId(), request.note(), request.createdMemberId(), request.attributes());
         return queries.detail(purchase.getId());
     }
 

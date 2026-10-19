@@ -43,17 +43,25 @@ public class PurchaseQueryService {
     /** Snapshot fields (names) come from the purchase row, not the member/item APIs (evidence). */
     public record PurchaseView(long id, long bandId, String name, String itemType, PurchaseStatus status,
             long requestedForMemberId, String requestedForName, String note, String resolutionNote,
-            Long createdMemberId, String createdMemberName,
+            Long createdMemberId, String createdMemberName, List<PurchaseAttributeView> attributes,
             Long itemId, String itemSerialNumber,
             LocalDateTime createdAt, LocalDateTime deliveredAt, LocalDateTime receivedAt) {
 
+        /** One snapshotted attribute value of the order (what we agreed to buy). */
+        public record PurchaseAttributeView(long attributeDefId, String name, String value) {}
+
         public static PurchaseView of(PurchaseRequest purchase) {
             var item = purchase.getItem();
+            List<PurchaseAttributeView> attributes = pl.michalbzowski.inventory.application.command
+                    .AttributeSnapshotCodec.parse(purchase.getAttributeSnapshot())
+                    .stream()
+                    .map(e -> new PurchaseAttributeView(e.attributeDefId(), e.name(), e.value()))
+                    .toList();
             return new PurchaseView(purchase.getId(), purchase.getBandId(), purchase.getName(),
                     purchase.getItemType().name(), purchase.getStatus(),
                     purchase.getRequestedForMemberId(), purchase.getRequestedForName(),
                     purchase.getNote(), purchase.getResolutionNote(),
-                    purchase.getCreatedMemberId(), purchase.getCreatedMemberName(),
+                    purchase.getCreatedMemberId(), purchase.getCreatedMemberName(), attributes,
                     item == null ? null : item.getId(), item == null ? null : item.getSerialNumber(),
                     purchase.getCreatedAt(), purchase.getDeliveredAt(), purchase.getReceivedAt());
         }
