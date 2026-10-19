@@ -117,6 +117,9 @@ public abstract class AbstractIntegrationTest {
     protected pl.michalbzowski.inventory.domain.inventory.InventoryNeedRepository needs;
 
     @Autowired
+    protected pl.michalbzowski.inventory.domain.inventory.PurchaseRequestRepository purchases;
+
+    @Autowired
     protected pl.michalbzowski.inventory.domain.inventory.OwnershipDeclarationRepository declarations;
 
     @BeforeEach
@@ -134,6 +137,7 @@ public abstract class AbstractIntegrationTest {
                 .build());
         // History rows reference items — children before parents.
         declarations.deleteAll();
+        purchases.deleteAll();
         needs.deleteAll();
         stocktakeLines.deleteAll();
         stocktakes.deleteAll();

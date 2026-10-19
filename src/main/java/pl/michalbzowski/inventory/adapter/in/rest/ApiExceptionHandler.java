@@ -14,6 +14,7 @@ import pl.michalbzowski.inventory.application.command.DeclarationNotFoundExcepti
 import pl.michalbzowski.inventory.application.command.ItemNotFoundException;
 import pl.michalbzowski.inventory.application.command.MemberNotFoundException;
 import pl.michalbzowski.inventory.application.command.NeedNotFoundException;
+import pl.michalbzowski.inventory.application.command.PurchaseNotFoundException;
 import pl.michalbzowski.inventory.application.command.StocktakeLineNotFoundException;
 import pl.michalbzowski.inventory.application.command.StocktakeNotFoundException;
 import pl.michalbzowski.inventory.application.port.WmUnavailableException;
@@ -31,6 +32,7 @@ public class ApiExceptionHandler {
 
     @ExceptionHandler({ItemNotFoundException.class, AttributeDefNotFoundException.class,
             MemberNotFoundException.class, NeedNotFoundException.class, DeclarationNotFoundException.class,
+            PurchaseNotFoundException.class,
             StocktakeNotFoundException.class, StocktakeLineNotFoundException.class})
     public ResponseEntity<Map<String, String>> notFound(RuntimeException ex) {
         return body(HttpStatus.NOT_FOUND, "not_found", ex.getMessage());

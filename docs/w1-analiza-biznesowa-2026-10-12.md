@@ -123,7 +123,11 @@ Brak: migracja danych (B3), dwustronna nawigacja (B11), stany członka/kontaktow
 > (PR #16–17), 2: F4 serwis (sheety w szczegółach pozycji + filtr „Do serwisu”),
 > 3: planża „Potrzeby i zamówienia” (PR #29; backend #20), 4: deklaracje (PR #18–19),
 > 5: akcje spisu + krok wydruku raportu (PR #20). Z §3.3 wyszło już: reguły
-> warunkowe atrybutów (PR #28), liczniki Pulpitu z deep-linkami (PR #32).
+> warunkowe atrybutów (PR #28), liczniki Pulpitu z deep-linkami (PR #32),
+> **zamówienia nowych przedmiotów** z pełnym flow sześciostanowym i efektami
+> magazynowymi — dostawa tworzy pozycję, odbiór przypisuje ją osobie (PR #33);
+> potrzeba na istniejącej pozycji jest teraz oznaczona w UI jako zgłoszenie
+> serwisowe.
 > Pozostaje w kolejności: skanowanie QR, dwustronna nawigacja (B11), stany
 > członka z API BM — a **na sam koniec kolejki: raporty Jasper** (decyzja
 > właściciela 2026-10-19).
