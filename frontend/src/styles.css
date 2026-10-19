@@ -479,7 +479,6 @@ button { font: inherit; }
   .tabs .t { flex: none; flex-direction: row; align-items: center; gap: 10px; min-height: 44px; padding: 8px 18px; border-radius: 999px; font-size: 13.5px; color: var(--ink); }
   .tabs .t.on { background: var(--primary-soft); color: var(--primary); }
   .tabs .t .ti { font-size: 16px; }
-  .tabs .t br { display: none; } /* separator ikon/tekstów z wersji pionowej */
   .content { order: 2; padding: 26px 28px 34px; gap: 16px; }
   .abar { order: 3; padding: 14px 28px; }
 
