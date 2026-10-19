@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import QRCode from 'qrcode';
 import { listBandMembers, type BandMember, type BandView } from '../api/bands';
 import { ApiError } from '../api/client';
 import {
@@ -25,6 +26,7 @@ import {
   type WarehouseType,
 } from '../api/inventory';
 import { STATUS_BADGE, STATUS_LABEL, TYPE_ICON, TYPE_LABEL, WAREHOUSE_LABEL } from '../ekwipunek/filters';
+import { itemCode } from '../scan/model';
 import {
   DECLARATION_STATUS_LABEL,
   DECLARATION_TYPE_LABEL,
@@ -47,7 +49,7 @@ interface Props {
   onTab?: (t: 'pulpit' | 'ekwipunek' | 'liczenie' | 'moje') => void;
 }
 
-type SheetKind = 'assign' | 'unassign' | 'transfer' | 'service' | 'serviceComplete' | 'declare' | null;
+type SheetKind = 'assign' | 'unassign' | 'transfer' | 'service' | 'serviceComplete' | 'declare' | 'label' | null;
 
 /**
  * Item detail (makieta screen 04): attributes rendered from the generator,
@@ -170,7 +172,10 @@ export default function ItemDetail({ band, itemId, focusForm = false, onBack, on
         <button type="button" className="back" onClick={onBack} aria-label="Wróć do listy">‹</button>
         <h3>{TYPE_ICON[item.type]} {item.name}</h3>
         {isAdmin ? (
-          <button type="button" className="ic" onClick={() => setEditing(true)} aria-label="Edytuj pozycję">✎</button>
+          <>
+            <button type="button" className="ic" onClick={() => setEditing(true)} aria-label="Edytuj pozycję">✎</button>
+            <button type="button" className="ic" onClick={() => setSheet('label')} aria-label="Etykieta pozycji — wydrukuj kod QR">🏷</button>
+          </>
         ) : (
           <span />
         )}
@@ -340,6 +345,9 @@ export default function ItemDetail({ band, itemId, focusForm = false, onBack, on
       {sheet === 'serviceComplete' && (
         <ServiceCompleteSheet item={item} onClose={() => setSheet(null)} onDone={() => { setSheet(null); afterWrite('Serwis zamknięty ✓'); }} />
       )}
+      {sheet === 'label' && (
+        <LabelSheet band={band} item={item} onClose={() => setSheet(null)} />
+      )}
       {sheet === 'declare' && (
         <DeclarationSheet band={band} item={item} onClose={() => setSheet(null)} onDone={() => { setSheet(null); afterWrite('Zadeklarowano ✓'); }} />
       )}
@@ -367,6 +375,65 @@ export default function ItemDetail({ band, itemId, focusForm = false, onBack, on
 }
 
 /* ------------------------------------------------------------------ sheets */
+
+/**
+ * Etykieta pozycji (v1.x #6): kod `WI-{band}-{id}` jako QR + tekst — naklejka
+ * na instrumentie. Druk = izolowany arkusz (.print-label w styles.css), format
+ * pasuje do standardowych etykiet ~50×25 mm z marginesem. ADMIN-only (strefa
+ * akcyjna; MEMBER widzi dane bez strefy działań).
+ */
+function LabelSheet({ band, item, onClose }: {
+  band: BandView;
+  item: ItemView;
+  onClose: () => void;
+}) {
+  const code = itemCode(band.bandId, item.id);
+  const [qr, setQr] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    QRCode.toDataURL(code, { width: 560, margin: 1 })
+      .then((u) => { if (alive) setQr(u); })
+      .catch(() => { if (alive) setFailed(true); });
+    return () => { alive = false; };
+  }, [code]);
+
+  const printLabel = () => {
+    document.body.classList.add('print-label');
+    const cleanup = () => {
+      document.body.classList.remove('print-label');
+      window.removeEventListener('afterprint', cleanup);
+    };
+    window.addEventListener('afterprint', cleanup);
+    window.setTimeout(() => window.print(), 120);
+    // zabezpieczenie: some engines don't fire afterprint — class must not linger,
+    // a to by blokowało ekran (wszystko poza etyketą ukryte w @media print)
+    window.setTimeout(cleanup, 60_000);
+  };
+
+  return (
+    <Sheet title="Etykieta pozycji" onClose={onClose}>
+      <div className="label-card">
+        <div className="label-head">
+          <b>{TYPE_ICON[item.type]} {item.name}</b>
+          <span>{TYPE_LABEL[item.type]}{item.serialNumber ? ` · s/n ${item.serialNumber}` : ''}</span>
+          <span className="muted">Zespół: {band.name}</span>
+        </div>
+        {qr && <img className="label-qr" src={qr} alt={`Kod QR etykiety ${code}`} width={172} height={172} />}
+        {failed && <p className="hint err">Nie udało się wygenerować QR — użyj wartości kodu poniżej.</p>}
+        <code className="label-code">{code}</code>
+        <p className="hint label-note">
+          Naklej na instrument. Odczyt w apce: Ekwipunek → 📷 (aparat albo wpis ręczny).
+        </p>
+        <div className="row">
+          <button type="button" className="btn ghost sm" onClick={onClose}>Zamknij</button>
+          <button type="button" className="btn primary sm" onClick={printLabel}>🖨 Drukuj etykietę</button>
+        </div>
+      </div>
+    </Sheet>
+  );
+}
 
 /** Screen 05: full-screen member picker from the WM roster + held counters. */
 function AssignSheet({ band, item, onClose, onDone }: {
