@@ -225,10 +225,10 @@ export function Tabs({ active, onLiczenie, onPulpit, onEkwipunek, onMoje }: {
 }) {
   return (
     <nav className="tabs" aria-label="Nawigacja główna">
-      <button type="button" className={`t${active === 'pulpit' ? ' on' : ''}`} onClick={onPulpit}>▦<br />Pulpit</button>
-      <button type="button" className={`t${active === 'ekwipunek' ? ' on' : ''}`} onClick={onEkwipunek}>♧<br />Ekwipunek</button>
-      <button type="button" className={`t${active === 'liczenie' ? ' on' : ''}`} onClick={onLiczenie}>✓<br />Liczenie</button>
-      <button type="button" className={`t${active === 'moje' ? ' on' : ''}`} onClick={onMoje}>☺<br />Konto</button>
+      <button type="button" className={`t${active === 'pulpit' ? ' on' : ''}`} onClick={onPulpit}><span className="ti">▦</span> Pulpit</button>
+      <button type="button" className={`t${active === 'ekwipunek' ? ' on' : ''}`} onClick={onEkwipunek}><span className="ti">♧</span> Ekwipunek</button>
+      <button type="button" className={`t${active === 'liczenie' ? ' on' : ''}`} onClick={onLiczenie}><span className="ti">✓</span> Liczenie</button>
+      <button type="button" className={`t${active === 'moje' ? ' on' : ''}`} onClick={onMoje}><span className="ti">☺</span> Konto</button>
     </nav>
   );
 }
