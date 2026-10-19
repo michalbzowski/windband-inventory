@@ -29,14 +29,22 @@ export default function MojeTab({ band, onTab, onBack, onLogout }: Props) {
       <section className="content">
         <div className="panel">
           <h4>Tożsamość liczącego</h4>
-          <div className="kv">
-            <div><dt>Zespół</dt><dd>{band.name} · {band.role}</dd></div>
-            <div><dt>Liczę jako</dt><dd>{identity ? `${identity.name} · #${identity.memberId}` : 'nie wybrano — pojawi się przy dołączeniu do spisu'}</dd></div>
-            {identity && (
-              <button type="button" className="btn sm ghost" onClick={() => { localStorage.removeItem(`wi.identity.${band.bandId}`); force((v) => v + 1); }}>
-                Zmień osobę
-              </button>
-            )}
+          <div className="grid-tiles">
+            <div className="tile info">
+              <span className="cval" title={band.name}>{band.name} · {band.role}</span>
+              Zespół
+            </div>
+            <div className="tile info">
+              <span className="cval" title={identity ? `${identity.name} · #${identity.memberId}` : 'nie wybrano'}>
+                {identity ? `${identity.name} · #${identity.memberId}` : 'Nie wybrano'}
+              </span>
+              Liczę jako
+              {identity && (
+                <button type="button" className="btn sm ghost cact" onClick={() => { localStorage.removeItem(`wi.identity.${band.bandId}`); force((v) => v + 1); }}>
+                  Zmień osobę
+                </button>
+              )}
+            </div>
           </div>
           <p className="hint">WM nie mapuje kont na członków (B10) — wybór trafia do kolejki i do `countedMemberId`; serwer sprawdza roster przy każdym zapisie.</p>
         </div>
@@ -61,15 +69,20 @@ export default function MojeTab({ band, onTab, onBack, onLogout }: Props) {
 
         <div className="panel">
           <h4>Sesja i synchronizacja</h4>
-          <div className="kv">
-            <div><dt>Login</dt><dd>Keycloak SSO · żywa sesja ✓</dd></div>
-            <div><dt>Auto-sync</dt><dd className="ok">◇ włączony</dd></div>
+          <div className="grid-tiles">
+            <div className="tile info">
+              <span className="cval ok-txt">Keycloak SSO · żywa sesja ✓</span>
+              Login
+            </div>
+            <div className="tile info">
+              <span className="cval ok-txt">◇ włączony</span>
+              Auto-sync
+            </div>
           </div>
-        </div>
-
-        <div className="btnrow">
-          <button type="button" className="btn" onClick={onBack}>Zmień zespół</button>
-          <button type="button" className="btn ghost" onClick={onLogout}>Wyloguj</button>
+          <div className="btnrow mt8">
+            <button type="button" className="btn" onClick={onBack}>Zmień zespół</button>
+            <button type="button" className="btn ghost" onClick={onLogout}>Wyloguj</button>
+          </div>
         </div>
       </section>
       <Tabs active="moje" onPulpit={() => onTab('pulpit')} onEkwipunek={() => onTab('ekwipunek')} onLiczenie={() => onTab('liczenie')} onMoje={() => undefined} />
