@@ -65,8 +65,8 @@ test('cykl przez wszystkie zakładki — z Liczenia też da się wyjść', async
   // Liczenie → Ekwipunek → Moje → Liczenie → Ekwipunek → Pulpit
   await nav(page).getByRole('button', { name: '♧ Ekwipunek' }).click();
   await expect(page.getByRole('heading', { name: 'Ekwipunek' })).toBeVisible();
-  await nav(page).getByRole('button', { name: '☺ Moje' }).click();
-  await expect(page.getByRole('heading', { name: 'Moje' })).toBeVisible();
+  await nav(page).getByRole('button', { name: '☺ Konto' }).click();
+  await expect(page.getByRole('heading', { name: 'Konto' })).toBeVisible();
   await nav(page).getByRole('button', { name: '✓ Liczenie' }).click();
   await expect(page.getByRole('heading', { name: 'Liczenie' })).toBeVisible();
   await nav(page).getByRole('button', { name: '♧ Ekwipunek' }).click();

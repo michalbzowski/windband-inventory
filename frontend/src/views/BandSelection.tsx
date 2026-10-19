@@ -90,7 +90,7 @@ export default function BandSelection({ bands, memberCounts, onSelect }: Props) 
           <span className="ti" aria-hidden>🧮</span> Liczenie
         </span>
         <span className="t disabled" title="Dostępne po wyborze zespołu">
-          <span className="ti" aria-hidden>👤</span> Moje
+          <span className="ti" aria-hidden>👤</span> Konto
         </span>
       </nav>
     </>
