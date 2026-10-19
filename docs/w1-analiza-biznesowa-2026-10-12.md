@@ -35,6 +35,7 @@ Kontekst decyzyjny odziedziczony (decyzje D1–D4 z 2026-10-09, niezakwestowane)
 | B12 | Stack: backend wzorzec WM (Java 21, Spring Boot 3, DDD, PG+Flyway, Railway, GHA), **frontend: React + TypeScript SPA** nad REST | Odchodzenie od Thymeleaf/Pico/HTMX — decyzja B5-R5 |
 | B13 | **Skill-i Hermes: 4 sztuki** dla repo `windband-inventory`, utworzone przed pierwszym PR | workflow, stack-nfr, wm-integration, deployment |
 | B14 | **Deklaracje posiadania (v1.x #4, 2026-10-14)**: dowodowy wiersz `OwnershipDeclaration` — typu `PRIVATE` (pozycja trzymana prywatnie; osoba z rosteru WM) lub `EXTERNAL` (miejsce poza magazynem; opis lokalizacji wymagany). Deklaracja NIE zmienia magazynu ani statusu życia (magazyn = prawda formalna, deklaracja = fakt terenowy; ich połączenie to pełny obraz w1.x #1). Jedna `ACTIVE` deklaracja na pozycję (częściowy unikalny index), ścieżka `ACTIVE → REVOKED` bez reaktywacji; pozycja `ASSIGNED` nie podlega deklaracji (409 — formalny przydział jest mocniejszym dowodem). Utworzenie: ADMIN lub aktywny CZŁONEK (re-walidacja składu przez roster WM, analogicznie do B10 przy zliczeniach); odwołanie: ADMIN; odczyt: członek bandu | Rejestry magazynowe nie łapią stanu faktycznego (instrumenty „od lat w piwnicy u prezesa”) — bez tego spis i pełny obraz kłamią |
+| B15 | **Serwis — planża zgłoszeń napraw (2026-10-19)**: widok „Potrzeby i zamówienia" przemianowany na **„Zamówienia i serwis"** z segmentami **Zamówienia \| Serwis**. Sekcja SERWIS = nowy dowodowy wiersz `ServiceJob` (zgłoszenie naprawy istniejącej pozycji). Maszyna stanów: `ZGROSZONE → WYSLANE_DO_SERWISU → NAPRAWIONE → DO_ODBIORU → W_MAGAZYNIE → PRZEKAZANO`; `ANULOWANE` dostępne wyłącznie z `ZGROSZONE`; terminale: `PRZEKAZANO`, `ANULOWANE`. Jedno niewykonywane zgłoszenie na pozycję (częściowy unikalny index); guard przejść w domenie (409). **Efekty na pozycji, jedna transakcja:** WYSLANE = zdjęcie przydziału (`unassign`, jeśli `ASSIGNED`) + `IN_SERVICE` + magazyn `SERVICE`; W_MAGAZYNIE = `AVAILABLE` + magazyn `MAIN`; PRZEKAZANO = re-przypisanie do reporter-a (snap-shot `member_id+name` z momentu zgłoszenia; pozycja zostaje w `MAIN`, stan `ASSIGNED`). Instrument liczy się nadal na stanie bandu (poza spitem F5, który czyta `AVAILABLE/ASSIGNED`). Otwarcie i akcje: **ADMIN** (B8); samosłużba członka w v2. Stare `InventoryNeed` pozostaje w rejestrze jako dowód; UI pod segmentem Zamówienia | Proces fizyczny naprawy musi być śledzony jak Zamówienia (dowód + statusy+efekty magazynowe/przydziałowe); sam F4 to tylko stan flagowy pozycji bez efektów i bez „naprawione/odbieraj" |
 
 ## 2. Osoby i role
 
@@ -128,6 +129,10 @@ Brak: migracja danych (B3), dwustronna nawigacja (B11), stany członka/kontaktow
 > magazynowymi — dostawa tworzy pozycję, odbiór przypisuje ją osobie (PR #33);
 > potrzeba na istniejącej pozycji jest teraz oznaczona w UI jako zgłoszenie
 > serwisowe.
+> **Plan (B15, 2026-10-19):** widok przemianowany na „Zamówienia i serwis";
+> sekcja Serwis = planża zgłoszeń napraw z 7-stanowym flow i efektami
+> przydziałowymi/magazynowymi (decyzje: ADMIN otwarcie, anulowanie tylko do
+> wysłania, powrót do MAIN).
 > Pozostaje w kolejności: skanowanie QR, dwustronna nawigacja (B11), stany
 > członka z API BM — a **na sam koniec kolejki: raporty Jasper** (decyzja
 > właściciela 2026-10-19).

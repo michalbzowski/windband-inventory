@@ -60,15 +60,15 @@ test('liczniki pokazują prawdziwe liczby zamiast „w budowie”', async ({ pag
   // wartość siedzi w <span> kafelka (ikona), etykieta — za nim; para = jeden kafel
   await expect(counter(page, 'Pokaż wszystkie pozycje').locator('span')).toHaveText('7');
   await expect(counter(page, 'Pokaż pozycje z aktywnym przydziałem').locator('span')).toHaveText('3');
-  await expect(counter(page, 'Otwórz planżę potrzeb i zamówień').locator('span')).toHaveText('2');
+  await expect(counter(page, 'Otwórz planszę zamówień i serwisu').locator('span')).toHaveText('2');
   await expect(counter(page, 'Pokaż pozycje z terminem serwisu').locator('span')).toHaveText('1');
   await expect(page.getByText('w budowie')).toHaveCount(0);
 });
 
-test('licznik potrzeb prowadzi prosto na planżę, bez drugiego wklejenia po powrocie', async ({ page }) => {
+test('licznik potrzeb prowadzi prosto na planszę Zamówień i serwisu, bez drugiego wklejenia po powrocie', async ({ page }) => {
   await boot(page, { itemQueries: [] });
-  await counter(page, 'Otwórz planżę potrzeb i zamówień').click();
-  await expect(page.getByRole('heading', { name: 'Potrzeby i zamówienia' })).toBeVisible();
+  await counter(page, 'Otwórz planszę zamówień i serwisu').click();
+  await expect(page.getByRole('heading', { name: 'Zamówienia i serwis' })).toBeVisible();
   // wracamy do listy i wychodzimy na pulpit — powrót na zakładkę nie może otworzyć planży ponownie
   await page.getByRole('button', { name: 'Wróć', exact: true }).click();
   await expect(page.getByRole('searchbox', { name: 'Szukaj pozycji' })).toBeVisible();

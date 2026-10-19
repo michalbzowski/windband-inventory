@@ -45,7 +45,7 @@ const fmtDate = (iso: string): string =>
   new Date(iso).toLocaleString('pl-PL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 
 /**
- * Plansza „Potrzeby i zamówienia” (backlog v1.x #3). Read: każdy członek
+ * Plansza „Zamówienia i serwis” (B15; dawniej „Potrzeby i zamówienia”, backlog v1.x #3). Read: każdy członek
  * zespołu; akcje przeprowadzające flow (Zamów/Dostarcz/Anuluj) i ręczne
  * zgłoszenie — tylko ADMIN (B8), 1:1 z guardem NeedController.
  * Flow lustrzany do domenowego: OPEN → ORDERED → RECEIVED; OPEN/ORDERED →
@@ -101,7 +101,7 @@ export default function NeedsBoard({ band, onBack, onTab, onOpenItem }: Props) {
     <AppFrame>
       <header className="appbar">
         <button type="button" className="back" onClick={onBack} aria-label="Wróć">‹</button>
-        <h3>Potrzeby i zamówienia</h3>
+        <h3>Zamówienia i serwis</h3>
         <span className={`badge ${isAdmin ? 'b-primary' : 'b-gray'}`}>{band.role}</span>
       </header>
 

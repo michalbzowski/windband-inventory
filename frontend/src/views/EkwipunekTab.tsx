@@ -201,7 +201,7 @@ function ItemList({
         <button type="button" className="back" onClick={onBackToPulpit} aria-label="Wróć">‹</button>
         <h3>Ekwipunek</h3>
         <span className={`badge ${isAdmin ? 'b-primary' : 'b-gray'}`}>{band.role}</span>
-        <button type="button" className="ic" onClick={onOpenNeeds} aria-label="Potrzeby i zamówienia">🧾</button>
+        <button type="button" className="ic" onClick={onOpenNeeds} aria-label="Zamówienia i serwis">🧾</button>
         {isAdmin && (
           <button type="button" className="ic" onClick={onOpenDefs} aria-label="Definicje atrybutów">⚙</button>
         )}
