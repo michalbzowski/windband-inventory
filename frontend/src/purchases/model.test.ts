@@ -18,6 +18,7 @@ const p = (over: Partial<PurchaseView> & Pick<PurchaseView, 'id' | 'status'>): P
   resolutionNote: null,
   createdMemberId: 11,
   createdMemberName: 'Jan Kowalski',
+  attributes: [],
   itemId: null,
   itemSerialNumber: null,
   createdAt: '2026-10-19T10:00:00',

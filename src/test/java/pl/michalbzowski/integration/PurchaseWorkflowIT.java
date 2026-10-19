@@ -23,7 +23,7 @@ class PurchaseWorkflowIT extends AbstractIntegrationTest {
     private long createPurchase(String json, String token) throws Exception {
         String body = postJson("/api/inventory/purchases?bandId=7", json, token)
                 .andExpect(status().isCreated())
-                .andReturn().getResponse().getContentAsString();
+                .andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
         return MAPPER.readTree(body).get("id").longValue();
     }
 
@@ -40,7 +40,7 @@ class PurchaseWorkflowIT extends AbstractIntegrationTest {
         String r = mvc.perform(get("/api/inventory/purchases/" + id)
                         .header("Authorization", "Bearer tok-member"))
                 .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString();
+                .andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
         return MAPPER.readTree(r);
     }
 
@@ -48,7 +48,7 @@ class PurchaseWorkflowIT extends AbstractIntegrationTest {
         String r = mvc.perform(get("/api/inventory/items").param("bandId", String.valueOf(bandId))
                         .header("Authorization", "Bearer tok-member"))
                 .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString();
+                .andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
         for (JsonNode node : MAPPER.readTree(r)) {
             if (name.equals(node.get("name").asText())) {
                 return node;
@@ -169,6 +169,111 @@ class PurchaseWorkflowIT extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.error").value("invalid_request"));
     }
 
+    // --- Atrybuty zamówienia: ten sam model danych co formularz „Nowa pozycja" (v2.x) ----
+
+    private long def(String json) throws Exception {
+        String body = postJson("/api/inventory/attribute-defs?bandId=7", json, "tok-admin")
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+        return MAPPER.readTree(body).get("id").asLong();
+    }
+
+    /** Scenariusz z zalecenia: UMundurowanie → typ (Mundur|Koszula), Wzrost wymagany,
+     *  Szerokość ramion tylko dla Munduru, Rozmiar kołnierzyka tylko dla Koszuli. */
+    private long[] uniformAttrs(String s) throws Exception {
+        long typ = def("{\"name\":\"Typ " + s + "\",\"itemType\":\"UNIFORM\",\"dataType\":\"SELECT\","
+                + "\"required\":true,\"options\":[\"Mundur\",\"Koszula\"],\"displayOrder\":1}");
+        long wzrost = def("{\"name\":\"Wzrost " + s + "\",\"itemType\":\"UNIFORM\",\"dataType\":\"NUMBER\","
+                + "\"required\":true,\"displayOrder\":2}");
+        long ramiona = def(String.format(
+                "{\"name\":\"Szerokość ramion %s\",\"itemType\":\"UNIFORM\",\"dataType\":\"NUMBER\","
+                        + "\"dependsOnDefId\":%d,\"dependsOnValues\":[\"Mundur\"],\"displayOrder\":3}", s, typ));
+        long kolnierz = def(String.format(
+                "{\"name\":\"Rozmiar kołnierzyka %s\",\"itemType\":\"UNIFORM\",\"dataType\":\"NUMBER\","
+                        + "\"dependsOnDefId\":%d,\"dependsOnValues\":[\"Koszula\"],\"displayOrder\":4}", s, typ));
+        return new long[] {typ, wzrost, ramiona, kolnierz};
+    }
+
+    private String attrPair(long defId, String value) {
+        return "{\"attributeDefId\":" + defId + ",\"value\":\"" + value + "\"}";
+    }
+
+    private long createPurchaseWith(String bodyJson) throws Exception {
+        String body = postJson("/api/inventory/purchases?bandId=7", bodyJson)
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+        return MAPPER.readTree(body).get("id").asLong();
+    }
+
+    private JsonNode itemAttrs(long itemId) throws Exception {
+        String body = mvc.perform(get("/api/inventory/items/{id}", itemId)
+                        .header("Authorization", "Bearer tok-member"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+        return MAPPER.readTree(body).get("attributes");
+    }
+
+    private java.util.List<String> attrNamesValues(JsonNode attrsArray) {
+        java.util.List<String> seen = new java.util.ArrayList<>();
+        for (JsonNode attr : attrsArray) {
+            seen.add(attr.get("name").asText() + "=" + attr.get("value").asText());
+        }
+        return seen;
+    }
+
+    @Test
+    void orderCapturesConditionalAttributesAndDeliversItemWithThem() throws Exception {
+        String s = Long.toHexString(System.nanoTime());
+        long[] a = uniformAttrs(s);
+        // Gałąź Koszula (kołnierz) jest ukryta dla typu=Mundur → pomijana w ciszy, jak w formularzu.
+        long id = createPurchaseWith("{\"name\":\"Mundur paradny\",\"itemType\":\"UNIFORM\","
+                + "\"requestedForMemberId\":12,\"createdMemberId\":11,\"attributes\":["
+                + attrPair(a[0], "Mundur") + "," + attrPair(a[1], "180") + ","
+                + attrPair(a[2], "45") + "," + attrPair(a[3], "39") + "]}");
+
+        JsonNode attrs = purchase(id).get("attributes");
+        org.junit.jupiter.api.Assertions.assertEquals(3, attrs.size());
+        java.util.List<String> accepted = attrNamesValues(attrs);
+        org.junit.jupiter.api.Assertions.assertTrue(accepted.contains("Typ " + s + "=Mundur"));
+        org.junit.jupiter.api.Assertions.assertTrue(accepted.contains("Wzrost " + s + "=180"));
+        org.junit.jupiter.api.Assertions.assertTrue(accepted.contains("Szerokość ramion " + s + "=45"));
+
+        // SENT → IN_PROGRESS → DELIVERED spiną snapshot z nowopowstałym itemem.
+        postJson("/api/inventory/purchases/" + id + "/status", "{\"status\":\"SENT\"}");
+        postJson("/api/inventory/purchases/" + id + "/status", "{\"status\":\"IN_PROGRESS\"}");
+        String delivered = postJson("/api/inventory/purchases/" + id + "/status", "{\"status\":\"DELIVERED\"}")
+                .andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+        long itemId = MAPPER.readTree(delivered).get("itemId").asLong();
+
+        java.util.List<String> onItem = attrNamesValues(itemAttrs(itemId));
+        org.junit.jupiter.api.Assertions.assertEquals(3, onItem.size());
+        org.junit.jupiter.api.Assertions.assertTrue(onItem.containsAll(accepted));
+    }
+
+    @Test
+    void orderRejectsMissingRequiredAttribute() throws Exception {
+        String s = Long.toHexString(System.nanoTime()) + "m";
+        long[] a = uniformAttrs(s);
+        // typ=Mundur bez wymaganego Wzrostu → 400, dokładnie jak w „Nowej pozycji".
+        postJson("/api/inventory/purchases?bandId=7", "{\"name\":\"Mundur\",\"itemType\":\"UNIFORM\","
+                        + "\"requestedForMemberId\":12,\"createdMemberId\":11,\"attributes\":["
+                        + attrPair(a[0], "Mundur") + "]}")
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void orderRejectsAttributeOfOtherItemType() throws Exception {
+        String s = Long.toHexString(System.nanoTime()) + "i";
+        long[] a = uniformAttrs(s);
+        long gniazdo = def("{\"name\":\"Gniazdo " + s + "\",\"itemType\":\"INSTRUMENT\",\"dataType\":\"NUMBER\","
+                + "\"displayOrder\":9}");
+        postJson("/api/inventory/purchases?bandId=7", "{\"name\":\"Mundur\",\"itemType\":\"UNIFORM\","
+                        + "\"requestedForMemberId\":12,\"createdMemberId\":11,\"attributes\":["
+                        + attrPair(a[0], "Mundur") + "," + attrPair(a[1], "180") + ","
+                        + attrPair(gniazdo, "6.3") + "]}")
+                .andExpect(status().isBadRequest());
+    }
+
     @Test
     void validationStatusFilterAndMemberRead() throws Exception {
         postJson("/api/inventory/purchases?bandId=7", "{\"name\":\"\",\"itemType\":\"EQUIPMENT\","
@@ -184,7 +289,7 @@ class PurchaseWorkflowIT extends AbstractIntegrationTest {
                         .param("status", "SENT")
                         .header("Authorization", "Bearer tok-member"))
                 .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString();
+                .andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
         JsonNode rows = MAPPER.readTree(list);
         org.junit.jupiter.api.Assertions.assertEquals(1, rows.size());
         org.junit.jupiter.api.Assertions.assertEquals(a, rows.get(0).get("id").longValue());

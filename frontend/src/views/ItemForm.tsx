@@ -15,12 +15,11 @@ import { TYPE_ICON, TYPE_LABEL, WAREHOUSE_LABEL } from '../ekwipunek/filters';
 import {
   buildPayload,
   initialValues,
-  joinMulti,
-  splitMulti,
   visibleFields,
   validateFields,
   type FieldSpec,
 } from '../ekwipunek/form';
+import AttributeField from '../ekwipunek/AttributeField';
 import AppFrame from '../ui/AppFrame';
 import { Tabs } from './LiczenieTab';
 
@@ -217,76 +216,4 @@ export default function ItemForm({ band, editId, onDone, onCancel, onTab }: Prop
   );
 }
 
-/** One generated attribute control (screen 07: TEXT/NUMBER/SELECT/MULTI/BOOLEAN/DATE). */
-function AttributeField({
-  field,
-  value,
-  error,
-  onChange,
-  inputRef,
-}: {
-  field: FieldSpec;
-  value: string;
-  error?: string;
-  onChange: (v: string) => void;
-  inputRef: (el: HTMLElement | null) => void;
-}) {
-  const label = `${field.name}${field.required ? ' *' : ''}`;
 
-  if (field.dataType === 'SELECT' || field.dataType === 'BOOLEAN') {
-    const options = field.dataType === 'BOOLEAN'
-      ? [['true', '✓ TAK'], ['false', '✗ NIE']]
-      : field.options.map((o) => [o, o]);
-    return (
-      <div className="field" ref={inputRef}>
-        <label>{label}</label>
-        <div className="chips">
-          {options.map(([v, text]) => (
-            <button type="button" key={v} className={`chip oth${value === v ? ' sel' : ''}`} onClick={() => onChange(value === v ? '' : v)} aria-pressed={value === v}>
-              {text}
-            </button>
-          ))}
-        </div>
-        {error && <span className="field-err">{error}</span>}
-      </div>
-    );
-  }
-
-  if (field.dataType === 'MULTI') {
-    const selected = splitMulti(value);
-    const toggle = (o: string) => {
-      const next = selected.includes(o) ? selected.filter((x) => x !== o) : [...selected, o];
-      onChange(joinMulti(next));
-    };
-    return (
-      <div className="field" ref={inputRef}>
-        <label>{label}</label>
-        <div className="chips">
-          {field.options.map((o) => (
-            <button type="button" key={o} className={`chip oth${selected.includes(o) ? ' sel' : ''}`} onClick={() => toggle(o)} aria-pressed={selected.includes(o)}>
-              {o}
-            </button>
-          ))}
-        </div>
-        {error && <span className="field-err">{error}</span>}
-      </div>
-    );
-  }
-
-  const inputType = field.dataType === 'DATE' ? 'date' : field.dataType === 'NUMBER' ? 'text' : 'text';
-  return (
-    <label className="field">
-      {label}
-      <input
-        ref={inputRef as (el: HTMLInputElement | null) => void}
-        type={inputType}
-        inputMode={field.dataType === 'NUMBER' ? 'decimal' : undefined}
-        placeholder={field.dataType === 'NUMBER' ? 'np. 12 lub 3500.50' : field.dataType === 'DATE' ? '' : undefined}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        aria-invalid={!!error}
-      />
-      {error && <span className="field-err">{error}</span>}
-    </label>
-  );
-}
