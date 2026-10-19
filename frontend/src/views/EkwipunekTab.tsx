@@ -97,7 +97,14 @@ export default function EkwipunekTab({
     return <AttributeDefsAdmin band={band} onBack={() => setScreen({ kind: 'list' })} onTab={onTab} />;
   }
   if (screen.kind === 'needs') {
-    return <NeedsBoard band={band} onBack={() => setScreen({ kind: 'list' })} onTab={onTab} />;
+    return (
+      <NeedsBoard
+        band={band}
+        onBack={() => setScreen({ kind: 'list' })}
+        onTab={onTab}
+        onOpenItem={(itemId) => setScreen({ kind: 'detail', itemId })}
+      />
+    );
   }
   if (screen.kind === 'picture') {
     return (

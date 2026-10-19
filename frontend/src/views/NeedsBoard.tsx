@@ -13,6 +13,7 @@ import {
 } from '../api/inventory';
 import AppFrame from '../ui/AppFrame';
 import Sheet from '../ui/Sheet';
+import PurchasesPanel from './PurchasesPanel';
 import {
   NEED_BADGE_CLASS,
   NEED_FILTER_LABEL,
@@ -31,6 +32,8 @@ interface Props {
   band: BandView;
   onBack: () => void;
   onTab?: (t: 'pulpit' | 'ekwipunek' | 'liczenie' | 'moje') => void;
+  /** Dostarczone zamówienie → karta pozycji w Ekwipunku. */
+  onOpenItem?: (itemId: number) => void;
 }
 
 type SheetState =
@@ -48,8 +51,9 @@ const fmtDate = (iso: string): string =>
  * Flow lustrzany do domenowego: OPEN → ORDERED → RECEIVED; OPEN/ORDERED →
  * CANCELLED. Notka przy Dostarcz/Anuluj trafia do resolutionNote dowodu.
  */
-export default function NeedsBoard({ band, onBack, onTab }: Props) {
+export default function NeedsBoard({ band, onBack, onTab, onOpenItem }: Props) {
   const isAdmin = band.role === 'ADMIN';
+  const [seg, setSeg] = useState<'needs' | 'purchases'>('needs');
   const [needs, setNeeds] = useState<NeedView[] | null>(null);
   const [filter, setFilter] = useState<NeedFilter>('ALL');
   const [error, setError] = useState<string | null>(null);
@@ -102,6 +106,17 @@ export default function NeedsBoard({ band, onBack, onTab }: Props) {
       </header>
 
       <section className="content">
+        <div className="chips" role="tablist" aria-label="Część deski">
+          <button type="button" role="tab" aria-selected={seg === 'needs'} className={`chip${seg === 'needs' ? ' sel' : ''}`}
+            onClick={() => setSeg('needs')}>Potrzeby</button>
+          <button type="button" role="tab" aria-selected={seg === 'purchases'} className={`chip${seg === 'purchases' ? ' sel' : ''}`}
+            onClick={() => setSeg('purchases')}>Zamówienia</button>
+        </div>
+
+        {seg === 'purchases' ? (
+          <PurchasesPanel band={band} onOpenItem={(id) => onOpenItem?.(id)} />
+        ) : (
+          <>
         <div className="chips" role="group" aria-label="Filtry statusów potrzeb">
           {NEED_FILTERS.map((f) => (
             <button
@@ -172,6 +187,8 @@ export default function NeedsBoard({ band, onBack, onTab }: Props) {
           <button type="button" className="fab" onClick={() => setSheet({ mode: 'create' })} aria-label="Zgłoś potrzebę">＋</button>
         )}
         {toast && <div className="toast">{toast}</div>}
+          </>
+        )}
       </section>
 
       {sheet?.mode === 'resolve' && (
@@ -271,6 +288,8 @@ function CreateSheet({ band, onClose, onCreated }: {
 
   return (
     <Sheet title="Nowa potrzeba" onClose={onClose}>
+      <p className="hint">Potrzeba dotyczy już posiadanej pozycji — traktuj ją jak <b>zgłoszenie serwisowe / uzupełnienie</b>.
+        Jeśli przedmiot trzeba dopiero kupić dla konkretnej osoby, użyj segmentu „Zamówienia”.</p>
       <label className="field">Pozycja
         <select value={itemId} onChange={(e) => setItemId(e.target.value)}>
           <option value="">— wybierz —</option>

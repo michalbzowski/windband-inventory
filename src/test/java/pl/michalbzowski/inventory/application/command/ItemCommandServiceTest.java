@@ -53,6 +53,9 @@ class ItemCommandServiceTest {
     @Mock
     private StocktakeLineRepository stocktakeLines;
 
+    @Mock
+    private pl.michalbzowski.inventory.domain.inventory.PurchaseRequestRepository purchases;
+
     @InjectMocks
     private ItemCommandService service;
 
