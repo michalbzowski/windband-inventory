@@ -76,6 +76,11 @@ function HomeTabs({ band, tab, setTab, goEkw }: { band: BandView; tab: TabKey; s
     listNeeds(band.bandId).then((l) => bump('needs')(openNeedCount(l))).catch(() => bump('needs')(null));
   }, [band.bandId]);
   const active = stocktakes?.find((s) => s.status !== 'CLOSED') ?? null;
+  // Najpóźniejszy zamknięty spis (id malejąco = najnowszy); wartość „Ostatni zamknięty”.
+  const lastClosedRow = (stocktakes ?? [])
+    .filter((s) => s.status === 'CLOSED')
+    .sort((a, b) => b.id - a.id)[0];
+  const lastClosedTs = lastClosedRow?.finishedAt ?? lastClosedRow?.startedAt ?? null;
   const identity = loadIdentity(band.bandId);
   const queue = new CountQueue();
 
@@ -120,24 +125,20 @@ function HomeTabs({ band, tab, setTab, goEkw }: { band: BandView; tab: TabKey; s
             </div>
 
             <h4>liczniki</h4>
-            <div className="panel">
-              <div className="kv">
-                {(Object.keys(COUNTER_META) as CounterKey[]).map((k) => (
-                  <div key={k}>
-                    <dt>{COUNTER_META[k].label}</dt>
-                    <dd>
-                      <button
-                        type="button"
-                        className="btn sm ghost"
-                        aria-label={COUNTER_META[k].aria}
-                        onClick={() => goEkw(COUNTER_NAV[k])}
-                      >
-                        {counterText(counters[k])} ›
-                      </button>
-                    </dd>
-                  </div>
-                ))}
-                <div><dt>Ostatni zamknięty</dt><dd>{stocktakes ? (stocktakes.filter((s) => s.status === 'CLOSED').sort((a, b) => b.id - a.id)[0]?.startedAt ?? '—') : '…'}</dd></div>
+            <div className="grid-tiles">
+              {(Object.keys(COUNTER_META) as CounterKey[]).map((k) => (
+                <button key={k} type="button" className="tile" aria-label={COUNTER_META[k].aria} onClick={() => goEkw(COUNTER_NAV[k])}>
+                  <span>{counterText(counters[k])}</span>
+                  {COUNTER_META[k].label}
+                </button>
+              ))}
+              <div className="tile info" title={lastClosedTs ? new Date(lastClosedTs).toLocaleString('pl-PL') : undefined}>
+                <span className="cval">
+                  {stocktakes === null ? '…' : lastClosedTs
+                    ? new Date(lastClosedTs).toLocaleString('pl-PL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+                    : '—'}
+                </span>
+                Ostatni zamknięty
               </div>
             </div>
           </>

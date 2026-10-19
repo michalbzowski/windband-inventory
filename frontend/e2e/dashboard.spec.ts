@@ -57,10 +57,11 @@ const counter = (page: Page, aria: string) => page.getByRole('button', { name: a
 
 test('liczniki pokazują prawdziwe liczby zamiast „w budowie”', async ({ page }) => {
   await boot(page, { itemQueries: [] });
-  await expect(counter(page, 'Pokaż wszystkie pozycje')).toHaveText('7 ›');
-  await expect(counter(page, 'Pokaż pozycje z aktywnym przydziałem')).toHaveText('3 ›');
-  await expect(counter(page, 'Otwórz planżę potrzeb i zamówień')).toHaveText('2 ›');
-  await expect(counter(page, 'Pokaż pozycje z terminem serwisu')).toHaveText('1 ›');
+  // wartość siedzi w <span> kafelka (ikona), etykieta — za nim; para = jeden kafel
+  await expect(counter(page, 'Pokaż wszystkie pozycje').locator('span')).toHaveText('7');
+  await expect(counter(page, 'Pokaż pozycje z aktywnym przydziałem').locator('span')).toHaveText('3');
+  await expect(counter(page, 'Otwórz planżę potrzeb i zamówień').locator('span')).toHaveText('2');
+  await expect(counter(page, 'Pokaż pozycje z terminem serwisu').locator('span')).toHaveText('1');
   await expect(page.getByText('w budowie')).toHaveCount(0);
 });
 
