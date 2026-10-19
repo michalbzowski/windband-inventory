@@ -14,6 +14,7 @@ import {
 import AppFrame from '../ui/AppFrame';
 import Sheet from '../ui/Sheet';
 import PurchasesPanel from './PurchasesPanel';
+import ServicePanel from './ServicePanel';
 import {
   NEED_BADGE_CLASS,
   NEED_FILTER_LABEL,
@@ -45,15 +46,14 @@ const fmtDate = (iso: string): string =>
   new Date(iso).toLocaleString('pl-PL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 
 /**
- * Plansza „Zamówienia i serwis” (B15; dawniej „Potrzeby i zamówienia”, backlog v1.x #3). Read: każdy członek
- * zespołu; akcje przeprowadzające flow (Zamów/Dostarcz/Anuluj) i ręczne
- * zgłoszenie — tylko ADMIN (B8), 1:1 z guardem NeedController.
- * Flow lustrzany do domenowego: OPEN → ORDERED → RECEIVED; OPEN/ORDERED →
- * CANCELLED. Notka przy Dostarcz/Anuluj trafia do resolutionNote dowodu.
+ * Plansza „Zamówienia i serwis” (B15; dawniej „Potrzeby i zamówienia”, backlog v1.x #3). Trzy segmenty:
+ * „Zamówienia” (zakup nowego przedmiotu), „Serwis” (naprawa istniejącego, B15 stage 3)
+ * i „Potrzeby” (zapotrzebowanie ilościowe). Read: każdy członek
+ * zespołu; akcje przeprowadzające flow — tylko ADMIN (B8), 1:1 z guardem.
  */
 export default function NeedsBoard({ band, onBack, onTab, onOpenItem }: Props) {
   const isAdmin = band.role === 'ADMIN';
-  const [seg, setSeg] = useState<'needs' | 'purchases'>('needs');
+  const [seg, setSeg] = useState<'needs' | 'purchases' | 'serwis'>('needs');
   const [needs, setNeeds] = useState<NeedView[] | null>(null);
   const [filter, setFilter] = useState<NeedFilter>('ALL');
   const [error, setError] = useState<string | null>(null);
@@ -107,14 +107,18 @@ export default function NeedsBoard({ band, onBack, onTab, onOpenItem }: Props) {
 
       <section className="content">
         <div className="chips" role="tablist" aria-label="Część deski">
-          <button type="button" role="tab" aria-selected={seg === 'needs'} className={`chip${seg === 'needs' ? ' sel' : ''}`}
-            onClick={() => setSeg('needs')}>Potrzeby</button>
           <button type="button" role="tab" aria-selected={seg === 'purchases'} className={`chip${seg === 'purchases' ? ' sel' : ''}`}
             onClick={() => setSeg('purchases')}>Zamówienia</button>
+          <button type="button" role="tab" aria-selected={seg === 'serwis'} className={`chip${seg === 'serwis' ? ' sel' : ''}`}
+            onClick={() => setSeg('serwis')}>Serwis</button>
+          <button type="button" role="tab" aria-selected={seg === 'needs'} className={`chip${seg === 'needs' ? ' sel' : ''}`}
+            onClick={() => setSeg('needs')}>Potrzeby</button>
         </div>
 
         {seg === 'purchases' ? (
           <PurchasesPanel band={band} onOpenItem={(id) => onOpenItem?.(id)} />
+        ) : seg === 'serwis' ? (
+          <ServicePanel band={band} />
         ) : (
           <>
         <div className="chips" role="group" aria-label="Filtry statusów potrzeb">
