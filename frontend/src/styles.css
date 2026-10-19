@@ -523,3 +523,8 @@ button { font: inherit; }
   .stamp { border: 2px solid #000; color: #000; background: transparent; }
   .srow { border-bottom: 1px solid #ccc; }
 }
+
+/* Liczniki Pulpitu — para „wartość + etykieta” w jednym kafelku (reguła bliższości Gestalta);
+   informacyjny kafel nie jest przyciskiem, jego wartość to tekst, nie ikonka 34px. */
+.tile.info { cursor: default; }
+.tile .cval { width: auto; height: auto; background: transparent; padding: 0; font-size: 14px; font-weight: 700; color: var(--ink); min-height: 24px; }
