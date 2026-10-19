@@ -120,6 +120,9 @@ public abstract class AbstractIntegrationTest {
     protected pl.michalbzowski.inventory.domain.inventory.PurchaseRequestRepository purchases;
 
     @Autowired
+    protected pl.michalbzowski.inventory.domain.inventory.ServiceJobRepository serviceJobs;
+
+    @Autowired
     protected pl.michalbzowski.inventory.domain.inventory.OwnershipDeclarationRepository declarations;
 
     @BeforeEach
@@ -137,6 +140,7 @@ public abstract class AbstractIntegrationTest {
                 .build());
         // History rows reference items — children before parents.
         declarations.deleteAll();
+        serviceJobs.deleteAll();
         purchases.deleteAll();
         needs.deleteAll();
         stocktakeLines.deleteAll();
@@ -162,8 +166,8 @@ public abstract class AbstractIntegrationTest {
 
     protected ResultActions postJson(String url, String json, String token) throws Exception {
         return mvc.perform(post(url)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(json)
+                .contentType(new MediaType("application", "json", java.nio.charset.StandardCharsets.UTF_8))
+                .content(json.getBytes(java.nio.charset.StandardCharsets.UTF_8))
                 .with(as(token)));
     }
 }
