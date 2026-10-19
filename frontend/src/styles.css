@@ -534,3 +534,26 @@ button { font: inherit; }
 .tile .cval.ok-txt { color: var(--ok); }
 .cact { margin-top: 8px; }
 .mt8 { margin-top: 8px; }
+
+/* v1.x #6 — skaner etykiet + wydruk etykiety pozycji */
+.scanner { position: relative; width: 100%; max-width: 320px; margin: 8px auto 14px; border-radius: 12px; overflow: hidden; background: #101418; aspect-ratio: 4 / 3; }
+.scanner video { display: block; width: 100%; height: 100%; object-fit: cover; }
+.scanner .frame { position: absolute; inset: 12%; border: 2px solid rgba(255, 255, 255, .85); border-radius: 8px; pointer-events: none; }
+
+.label-card { display: flex; flex-direction: column; gap: 10px; padding: 4px 2px; align-items: stretch; text-align: center; }
+.label-head b { font-size: 14.5px; }
+.label-head span { font-size: 12px; color: var(--muted); margin-top: 2px; display: block; }
+.label-qr { display: block; margin: 0 auto; background: #fff; padding: 6px; border: 1px solid var(--line); border-radius: 10px; }
+.label-code { align-self: center; font-size: 19px; font-weight: 800; letter-spacing: 1px; background: #F3F4F6; border: 1.5px dashed #C7CBD4; padding: 7px 12px; border-radius: 9px; }
+.hint.err { color: var(--danger); font-weight: 700; }
+
+/* druk ETYKIETY: w arkuszu zostaje tylko karta z QR (reguły mają wyższą specyficzność
+   i !important niż globalny blok printa raportu wyżej, kolejność pliku je wzmacnia). */
+@media print {
+  body.print-label .app > *:not(.dim) { display: none !important; }
+  body.print-label .dim { display: block !important; position: static !important; background: transparent !important; }
+  body.print-label .sheet { width: auto !important; max-height: none !important; box-shadow: none !important; border-radius: 0 !important; padding: 24px !important; }
+  body.print-label .grab, body.print-label .sheet h4, body.print-label .label-note,
+  body.print-label .label-card .row { display: none !important; }
+  body.print-label .label-card { text-align: center; }
+}

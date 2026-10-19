@@ -133,9 +133,14 @@ Brak: migracja danych (B3), dwustronna nawigacja (B11), stany członka/kontaktow
 > sekcja Serwis = planża zgłoszeń napraw z 7-stanowym flow i efektami
 > przydziałowymi/magazynowymi (decyzje: ADMIN otwarcie, anulowanie tylko do
 > wysłania, powrót do MAIN).
-> Pozostaje w kolejności: skanowanie QR, dwustronna nawigacja (B11), stany
-> członka z API BM — a **na sam koniec kolejki: raporty Jasper** (decyzja
-> właściciela 2026-10-19).
+> **Zrealizowane 2026-10-19 (PR #44): skanowanie QR/kodu** — etykieta pozycji
+> (ADMIN: szczegóły → 🏷) niesie krótki kod `WI-{band}-{id}` jako QR + tekst
+> (format ~50×25 mm, izolowany arkusz druku); ekran „Skanuj etykietę"
+> (Ekwipunek → 📷): wpis ręczny kodu/linku = droga główna offline, opcjonalny
+> aparat (jsQR, getUserMedia); kod z innego zespołu twardo odrzucany; parser
+> `src/scan/model.ts` pokryty testami.
+> Pozostaje w kolejności: dwustronna nawigacja (B11), stany członka z API BM — a
+> **na sam koniec kolejki: raporty Jasper** (decyzja właściciela 2026-10-19).
 
 1. F3 full picture per member: oczekiwane (z API WM) vs faktyczne vs gap + history widokowa
 2. F4 workflow serwisu: `sendToService → IN_SERVICE → completeService`, `nextServiceDate`,

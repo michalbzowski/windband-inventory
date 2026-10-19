@@ -25,6 +25,7 @@ import ItemForm from './ItemForm';
 import MemberPicture from './MemberPicture';
 import AttributeDefsAdmin from './AttributeDefsAdmin';
 import NeedsBoard from './NeedsBoard';
+import ScanScreen from './ScanScreen';
 
 interface Props {
   band: BandView;
@@ -47,7 +48,8 @@ type Screen =
   | { kind: 'create' }
   | { kind: 'picture'; memberId: number }
   | { kind: 'defs' }
-  | { kind: 'needs' };
+  | { kind: 'needs' }
+  | { kind: 'scan' };
 
 /**
  * Ekwipunek tab — screens 03–07 of the frozen mockup: item list with
@@ -116,6 +118,16 @@ export default function EkwipunekTab({
       />
     );
   }
+  if (screen.kind === 'scan') {
+    return (
+      <ScanScreen
+        band={band}
+        onBack={() => setScreen({ kind: 'list' })}
+        onOpenItem={(itemId) => setScreen({ kind: 'detail', itemId })}
+        onTab={onTab}
+      />
+    );
+  }
   return <ItemList
     band={band}
     onOpen={(id) => setScreen({ kind: 'detail', itemId: id })}
@@ -123,6 +135,7 @@ export default function EkwipunekTab({
     onOpenPicture={(memberId) => setScreen({ kind: 'picture', memberId })}
     onOpenDefs={() => setScreen({ kind: 'defs' })}
     onOpenNeeds={() => setScreen({ kind: 'needs' })}
+    onOpenScan={() => setScreen({ kind: 'scan' })}
     initialFilters={initialFilters}
     onBackToPulpit={onBackToPulpit}
     onTab={onTab}
@@ -138,6 +151,7 @@ function ItemList({
   onOpenPicture,
   onOpenDefs,
   onOpenNeeds,
+  onOpenScan,
   initialFilters,
   onBackToPulpit,
   onTab,
@@ -148,6 +162,7 @@ function ItemList({
   onOpenPicture: (memberId: number) => void;
   onOpenDefs: () => void;
   onOpenNeeds: () => void;
+  onOpenScan: () => void;
   initialFilters?: Partial<ItemFilterState>;
   onBackToPulpit: () => void;
   onTab?: Props['onTab'];
@@ -202,6 +217,7 @@ function ItemList({
         <h3>Ekwipunek</h3>
         <span className={`badge ${isAdmin ? 'b-primary' : 'b-gray'}`}>{band.role}</span>
         <button type="button" className="ic" onClick={onOpenNeeds} aria-label="Zamówienia i serwis">🧾</button>
+        <button type="button" className="ic" onClick={onOpenScan} aria-label="Skanuj kod etykiety">📷</button>
         {isAdmin && (
           <button type="button" className="ic" onClick={onOpenDefs} aria-label="Definicje atrybutów">⚙</button>
         )}
