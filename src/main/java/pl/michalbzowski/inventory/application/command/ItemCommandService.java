@@ -14,6 +14,7 @@ import pl.michalbzowski.inventory.domain.inventory.InventoryItemRepository;
 import pl.michalbzowski.inventory.domain.inventory.InventoryNeedRepository;
 import pl.michalbzowski.inventory.domain.inventory.OwnershipDeclarationRepository;
 import pl.michalbzowski.inventory.domain.inventory.PurchaseRequestRepository;
+import pl.michalbzowski.inventory.domain.inventory.ServiceJobRepository;
 import pl.michalbzowski.inventory.domain.inventory.ItemAssignmentRepository;
 import pl.michalbzowski.inventory.domain.inventory.ItemAttributeDef;
 import pl.michalbzowski.inventory.domain.inventory.ItemAttributeDefRepository;
@@ -43,6 +44,7 @@ public class ItemCommandService {
     private final OwnershipDeclarationRepository declarations;
     private final WarehouseTransferRepository warehouseTransfers;
     private final StocktakeLineRepository stocktakeLines;
+    private final ServiceJobRepository serviceJobs;
 
     @Transactional
     public InventoryItem create(long bandId, ItemWriteCommand cmd) {
@@ -79,9 +81,10 @@ public class ItemCommandService {
                 || purchases.existsByItemId(id)
                 || declarations.existsByItemId(id)
                 || warehouseTransfers.existsByItemId(id)
+                || serviceJobs.existsByItemId(id)
                 || stocktakeLines.existsByItem_Id(id)) {
             throw new IllegalStateException(
-                    "Pozycja ma historię (przydziały/serwisy/przeniesienia/spisy/potrzeby/zamówienia/deklaracje) —"
+                    "Pozycja ma historię (przydziały/serwisy/przeniesienia/spisy/potrzeby/zamówienia/deklaracje/service) —"
                             + " nie usuwaj dowodów; do usunięcia tylko pozycje bez żadnej historii");
         }
         items.delete(item);
