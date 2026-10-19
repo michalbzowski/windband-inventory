@@ -286,7 +286,7 @@ button { font: inherit; }
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
+  gap: 7px;
   font-size: 10.5px;
   font-weight: 600;
   color: var(--muted);
