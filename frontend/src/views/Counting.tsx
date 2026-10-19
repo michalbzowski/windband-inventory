@@ -308,7 +308,7 @@ export default function Counting({ band, identity, stocktakeId, onExit }: Props)
       <AppFrame>
         <header className="appbar"><h3>Spis #{stocktakeId}</h3><span className="badge b-gray">Zamknięty</span></header>
         <section className="content tinted">
-          <div className="banner warni" role="alert">🔒<div>Spis zamknięty — dalsze liczenie zablokowane<small>{queue.count(stocktakeId) > 0 ? `${queue.count(stocktakeId)} decyzji NIE wyszło na serwer — sprawdź w „Moje”.` : 'Raport jest zamrożony.'}</small></div></div>
+          <div className="banner warni" role="alert">🔒<div>Spis zamknięty — dalsze liczenie zablokowane<small>{queue.count(stocktakeId) > 0 ? `${queue.count(stocktakeId)} decyzji NIE wyszło na serwer — sprawdź w „Konto”.` : 'Raport jest zamrożony.'}</small></div></div>
           <button type="button" className="btn primary block" onClick={onExit}>Wróć</button>
         </section>
       </AppFrame>

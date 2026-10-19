@@ -195,7 +195,7 @@ export default function LiczenieTab({ band, onBackToPulpit, onTab }: Props) {
         ))}
 
         <div className="role-note">Kto może: start / pauza / wznowienie / zamknięcie — ADMIN; liczenie i raport — każdy członek (B8).</div>
-        <p className="hint">liczysz jako: {identity.name} · Zmień — Moje</p>
+        <p className="hint">liczysz jako: {identity.name} · Zmień — Konto</p>
       </section>
 
       <Tabs
@@ -228,7 +228,7 @@ export function Tabs({ active, onLiczenie, onPulpit, onEkwipunek, onMoje }: {
       <button type="button" className={`t${active === 'pulpit' ? ' on' : ''}`} onClick={onPulpit}>▦<br />Pulpit</button>
       <button type="button" className={`t${active === 'ekwipunek' ? ' on' : ''}`} onClick={onEkwipunek}>♧<br />Ekwipunek</button>
       <button type="button" className={`t${active === 'liczenie' ? ' on' : ''}`} onClick={onLiczenie}>✓<br />Liczenie</button>
-      <button type="button" className={`t${active === 'moje' ? ' on' : ''}`} onClick={onMoje}>☺<br />Moje</button>
+      <button type="button" className={`t${active === 'moje' ? ' on' : ''}`} onClick={onMoje}>☺<br />Konto</button>
     </nav>
   );
 }

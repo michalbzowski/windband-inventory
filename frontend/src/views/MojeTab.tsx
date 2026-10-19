@@ -23,7 +23,7 @@ export default function MojeTab({ band, onTab, onBack, onLogout }: Props) {
   return (
     <AppFrame>
       <header className="appbar">
-        <h3>Moje</h3>
+        <h3>Konto</h3>
         <span className={`badge ${band.role === 'ADMIN' ? 'b-primary' : 'b-gray'}`}>{band.role}</span>
       </header>
       <section className="content">

@@ -1,7 +1,7 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
 
 /**
- * Zakładka „Moje” — grupy tożsamości/sesji jako spójne kafle (reguła bliższości):
+ * Zakładka „Konto” (dawniej „Moje”) — grupy tożsamości/sesji jako spójne kafle (reguła bliższości):
  * para „etykieta + wartość” w jednym klocku; przycisk „Zmień osobę” należy do
  * kafelka tożsamości (wcześniej „zjadał” koniec wartości w luźnym .kv); akcje
  * sesji (Zmień zespół / Wyloguj) siedzą W panelu Sesja, nie wisiły pod spodem.
@@ -26,10 +26,10 @@ async function boot(page: Page): Promise<void> {
 
 const nav = (page: Page) => page.getByRole('navigation', { name: 'Nawigacja główna' });
 
-test('„Moje”: tożsamość i sesja są zamknięte w kaflach; akcje siedzą we właściwych grupach', async ({ page }) => {
+test('„Konto”: tożsamość i sesja są zamknięte w kaflach; akcje siedzą we właściwych grupach', async ({ page }) => {
   await boot(page);
-  await nav(page).getByRole('button', { name: '☺ Moje' }).click();
-  await expect(page.getByRole('heading', { name: 'Moje' })).toBeVisible();
+  await nav(page).getByRole('button', { name: '☺ Konto' }).click();
+  await expect(page.getByRole('heading', { name: 'Konto' })).toBeVisible();
 
   const tozsamosc = page.locator('.panel', { hasText: 'Tożsamość liczącego' });
   // para zespół: wartość i etykieta w jednym kafelku
