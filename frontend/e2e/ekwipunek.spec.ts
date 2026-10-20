@@ -564,6 +564,23 @@ test('B14 deklaracja: ADMIN odwołuje i można zadeklarować od nowa', async ({ 
   await expect(page.getByRole('button', { name: /Deklaruj posiadanie 🏠/ })).toBeVisible();
 });
 
+test('desktop (1280): szczegóły pozycji bez szyny nawigacji — menu wraca tylko na listę', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  const st = await seed(page);
+  await openEkwipunek(page);
+
+  await page.getByRole('button', { name: /Pozycja FL-01/ }).click();
+  await expect(page.getByRole('heading', { name: /FL-01/ })).toBeVisible();
+
+  // konwencja trybu pracy: w szczegółach NIE ma paska Pulpit/Ekwipunek/Liczenie/Konto
+  // (regrecja po bugu "menu wpada pod przyciski akcji" 2026-10),
+  await expect(page.locator('nav, .tabs, [role="tablist"]')).toHaveCount(0);
+
+  // powrót "‹": na liście menu WRACA,
+  await page.getByRole('button', { name: 'Wróć do listy' }).click();
+  await expect(page.locator('.tabs, [role="tablist"]').first()).toBeVisible();
+});
+
 test('flow v1.x: lista → szczegóły → ✎ edycja wpisu → „Zapisz zmiany” trafia do rejestru', async ({ page }) => {
   const st = await seed(page);
   await openEkwipunek(page);
