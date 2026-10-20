@@ -132,6 +132,21 @@ describe('buildPayload', () => {
     const p = buildPayload({ name: 'X' }, [], {});
     expect('type' in p).toBe(false);
   });
+
+  it('payload attributes follow defId order, independent of display order (wire ≠ UX reguła master→dzieci)', () => {
+    // pola przekazane w kolejności WYŚWIETLANIA (blok master→dzieci), a nie po defId:
+    const fields = [
+      { defId: 5, name: 'Typ', dataType: 'SELECT' as const, required: true, options: ['Mundur'] },
+      { defId: 7, name: 'Szerokość ramion', dataType: 'NUMBER' as const, required: false, options: [] },
+      { defId: 3, name: 'Wzrost', dataType: 'NUMBER' as const, required: true, options: [] },
+    ];
+    const p = buildPayload({ name: 'X' }, fields, { 5: 'Mundur', 7: '45', 3: '180' });
+    expect(p.attributes).toEqual([
+      { attributeDefId: 3, value: '180' },
+      { attributeDefId: 5, value: 'Mundur' },
+      { attributeDefId: 7, value: '45' },
+    ]);
+  });
 });
 
 describe('initialValues', () => {

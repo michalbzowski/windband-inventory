@@ -13,7 +13,7 @@ import type { ItemType, AttributeDefView } from '../api/inventory';
 import { listAttributeDefs } from '../api/inventory';
 import Sheet from '../ui/Sheet';
 import { TYPE_LABEL } from '../ekwipunek/filters';
-import { visibleFields, validateFields } from '../ekwipunek/form';
+import { orderedAttributes, visibleFields, validateFields } from '../ekwipunek/form';
 import AttributeField from '../ekwipunek/AttributeField';
 import {
   NOTE_REQUIRED_ACTIONS,
@@ -310,9 +310,7 @@ function CreatePurchaseSheet({ band, onClose, onCreated }: {
     if (Object.keys(next).length > 0) return;
     setBusy(true);
     try {
-      const attributes = fields
-        .map((f) => ({ attributeDefId: f.defId, value: (values[f.defId] ?? '').trim() }))
-        .filter((a) => a.value !== '');
+      const attributes = orderedAttributes(fields, values);
       onCreated(await createPurchase(band.bandId, {
         name: null,
         itemType,

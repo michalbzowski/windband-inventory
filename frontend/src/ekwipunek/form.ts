@@ -152,14 +152,23 @@ export interface FormBasics {
 }
 
 /**
+ * Atrybuty w porządku wire: po defId rosnąco, puste pomijane. JEDNO KANONICZNE
+ * miejsce (buildPayload i modal zakupów) — kolejność WYŚWIETLANIA pól (reguła UX
+ * 2026-10-20: master → dzieci) NIE wpływa na payload, porządek API jest stabilny.
+ */
+export function orderedAttributes(fields: FieldSpec[], values: Record<number, string>): { attributeDefId: number; value: string }[] {
+  return fields
+    .map((f) => ({ defId: f.defId, value: (values[f.defId] ?? '').trim() }))
+    .filter((a) => a.value !== '')
+    .sort((a, b) => a.defId - b.defId)
+    .map((a) => ({ attributeDefId: a.defId, value: a.value }));
+}
+
+/**
  * POST/PUT payload: blanks are dropped (server maps blank → null → "value
  * removed"); required errors are prevented upstream by validateFields.
  */
 export function buildPayload(basics: FormBasics, fields: FieldSpec[], values: Record<number, string>): ItemWritePayload {
-  const attributes = fields
-    .map((f) => ({ attributeDefId: f.defId, value: (values[f.defId] ?? '').trim() }))
-    .filter((a) => a.value !== '')
-    .map((a) => ({ attributeDefId: a.attributeDefId, value: a.value }));
   return {
     name: basics.name.trim(),
     ...(basics.type ? { type: basics.type } : {}),
@@ -167,7 +176,7 @@ export function buildPayload(basics: FormBasics, fields: FieldSpec[], values: Re
     serialNumber: basics.serialNumber?.trim() || null,
     description: basics.description?.trim() || null,
     notes: basics.notes?.trim() || null,
-    attributes,
+    attributes: orderedAttributes(fields, values),
   };
 }
 
