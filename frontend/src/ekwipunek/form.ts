@@ -33,12 +33,56 @@ export function isDefVisible(
   return (def.dependsOnValues ?? []).some((o) => o.toLowerCase() === value.toLowerCase());
 }
 
-/** Active defs sorted by displayOrder → form fields. */
+/**
+ * Active defs sorted into form fields.
+ * Order = grupy zależności blokami: MASTER (def bez rodzica) ZAWSZE PO NAD
+ * swoimi CHILDREN — niezależnie od displayOrder (reguła UX od 2026-10-20:
+ * „wszystko, co zależy od mastera, pojawia się pod spodem”). Kolejność
+ * bloków = najmniejsze displayOrder w bloku; w bloku: master → dzieci po
+ * displayOrder; tiebreak id dla pełnego determinizmu. (Poprzednio czyste
+ * displayOrder pozwalało dziecku stać NAD rodzicem, gdy miało mniejszy
+ * displayOrder — dokładnie zgłoszony bug.)
+ */
 export function toFields(defs: AttributeDefView[]): FieldSpec[] {
-  return defs
-    .filter((d) => d.active)
-    .sort((a, b) => a.displayOrder - b.displayOrder)
-    .map((d) => ({ defId: d.id, name: d.name, dataType: d.dataType, required: d.required, options: d.options }));
+  const active = defs.filter((d) => d.active);
+  const byId = new Map(active.map((d) => [d.id, d] as const));
+  /** Root grupy: def sam lub bez aktywnego rodzica (guard przeciwdziałający cyklom). */
+  const rootOf = (d: AttributeDefView): number => {
+    let cur = d;
+    const seen = new Set<number>();
+    while (cur.dependsOnDefId != null && byId.has(cur.dependsOnDefId) && !seen.has(cur.id)) {
+      seen.add(cur.id);
+      cur = byId.get(cur.dependsOnDefId)!;
+    }
+    return cur.id;
+  };
+  const master = (d: AttributeDefView): boolean => d.dependsOnDefId == null || !byId.has(d.dependsOnDefId);
+
+  // Anchor bloku = min displayOrder jego członków → bloki trzymają wcześniejszą
+  // względną pozycję, a dzieci nigdy nie wychodzą przed mastera.
+  const anchor = new Map<number, number>();
+  for (const d of active) {
+    const r = rootOf(d);
+    anchor.set(r, Math.min(anchor.get(r) ?? d.displayOrder, d.displayOrder));
+  }
+
+  return active
+    .map((d) => ({ d, root: rootOf(d), top: master(d) }))
+    .sort(
+      (a, b) =>
+        (anchor.get(a.root) ?? 0) - (anchor.get(b.root) ?? 0) ||
+        a.root - b.root ||
+        Number(b.top) - Number(a.top) ||
+        a.d.displayOrder - b.d.displayOrder ||
+        a.d.id - b.d.id,
+    )
+    .map(({ d }) => ({
+      defId: d.id,
+      name: d.name,
+      dataType: d.dataType,
+      required: d.required,
+      options: d.options,
+    }));
 }
 
 /** Pola widoczne przy bieżących wartościach — ukryte nie są renderowane ani wysyłane. */
@@ -108,14 +152,23 @@ export interface FormBasics {
 }
 
 /**
+ * Atrybuty w porządku wire: po defId rosnąco, puste pomijane. JEDNO KANONICZNE
+ * miejsce (buildPayload i modal zakupów) — kolejność WYŚWIETLANIA pól (reguła UX
+ * 2026-10-20: master → dzieci) NIE wpływa na payload, porządek API jest stabilny.
+ */
+export function orderedAttributes(fields: FieldSpec[], values: Record<number, string>): { attributeDefId: number; value: string }[] {
+  return fields
+    .map((f) => ({ defId: f.defId, value: (values[f.defId] ?? '').trim() }))
+    .filter((a) => a.value !== '')
+    .sort((a, b) => a.defId - b.defId)
+    .map((a) => ({ attributeDefId: a.defId, value: a.value }));
+}
+
+/**
  * POST/PUT payload: blanks are dropped (server maps blank → null → "value
  * removed"); required errors are prevented upstream by validateFields.
  */
 export function buildPayload(basics: FormBasics, fields: FieldSpec[], values: Record<number, string>): ItemWritePayload {
-  const attributes = fields
-    .map((f) => ({ attributeDefId: f.defId, value: (values[f.defId] ?? '').trim() }))
-    .filter((a) => a.value !== '')
-    .map((a) => ({ attributeDefId: a.attributeDefId, value: a.value }));
   return {
     name: basics.name.trim(),
     ...(basics.type ? { type: basics.type } : {}),
@@ -123,7 +176,7 @@ export function buildPayload(basics: FormBasics, fields: FieldSpec[], values: Re
     serialNumber: basics.serialNumber?.trim() || null,
     description: basics.description?.trim() || null,
     notes: basics.notes?.trim() || null,
-    attributes,
+    attributes: orderedAttributes(fields, values),
   };
 }
 
