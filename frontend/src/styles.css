@@ -53,7 +53,7 @@ button { font: inherit; }
 .app {
   width: min(390px, 100%);
   margin: 0 auto;
-  min-height: 100dvh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   background: var(--surface);
@@ -131,7 +131,7 @@ button { font: inherit; }
 
 /* -------- content / cards -------- */
 
-.content { flex: 1; padding: 14px; display: flex; flex-direction: column; gap: 12px; background: var(--surface); }
+.content { flex: 1; min-height: 0; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 12px; background: var(--surface); }
 .content.tinted { background: #F7F9FC; }
 
 .lede-01 { margin: 0; font-size: 13px; color: var(--muted); }
@@ -469,7 +469,9 @@ button { font: inherit; }
  * ============================================================ */
 
 @media (min-width: 1200px) {
-  .app { width: min(1240px, 100%); box-shadow: 0 0 48px rgba(17, 24, 39, .07); }
+  .app { width: min(1240px, 100%); height: auto; min-height: 100dvh; box-shadow: 0 0 48px rgba(17, 24, 39, .07); }
+  /* desktop: wraca scroll dokumentu (nawigacja to pigułki u góry, nie dolna szyna) */
+  .content { overflow-y: visible; }
   .appbar { min-height: 68px; padding: calc(14px + env(safe-area-inset-top)) 28px 14px; }
   .appbar h3 { font-size: 19px; }
 
@@ -524,7 +526,8 @@ button { font: inherit; }
 /* v1.x #5 — krok wydruku raportu (D4: bez Jaspera, drukarka przeglądarki → PDF) */
 @media print {
   body { background: #fff; }
-  .app { width: auto; max-width: none; margin: 0; border: 0; box-shadow: none; }
+  .app { width: auto; max-width: none; margin: 0; border: 0; box-shadow: none; height: auto; overflow: visible; }
+  .content { overflow: visible; }
   button, .appbar, .tabs, .abar, .toast, .dim, .sheet, .role-note, .hint { display: none !important; }
   .panel { break-inside: avoid; page-break-inside: avoid; box-shadow: none; }
   .stamp { border: 2px solid #000; color: #000; background: transparent; }
