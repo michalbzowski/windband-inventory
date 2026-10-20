@@ -38,9 +38,9 @@ test('etykieta na mobile: otwiera się w granicach widoku bez scrollowania', asy
   await page.getByRole('button', { name: 'Pozycja Flet koncertowy' }).click();
   await expect(page.getByRole('heading', { name: /Flet koncertowy/ })).toBeVisible();
 
-  // użytkownik czyta środek strony, potem klika 🏷 (auto-scroll do przycisku)
-  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-  await page.evaluate(() => window.scrollTo(0, Math.max(0, document.body.scrollHeight - 300)));
+  // użytkownik czyta dół strony (content scrolluje wewnętrznie — shell mobile),
+  // potem klika 🏷 (przycisk wraca w widok)
+  await page.locator('.content').evaluate((el) => { el.scrollTop = el.scrollHeight; });
   await page.getByRole('button', { name: 'Etykieta pozycji — wydrukuj kod QR' }).click();
 
   const dialog = page.getByRole('dialog', { name: 'Etykieta pozycji' });
