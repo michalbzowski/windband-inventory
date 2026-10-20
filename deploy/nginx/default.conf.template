@@ -71,7 +71,14 @@ server {
     }
 
     # Client-side routes (e.g. Keycloak /callback, deep links) fall back to the SPA.
+    # no-cache: index.html re-points at freshly hashed assets on every deploy —
+    # without an explicit header browsers fall back to heuristic caching
+    # (Last-Modified-based TTL), so a client that visited a few hours before a
+    # deploy can keep rendering the previous bundle for a long time. With
+    # no-cache every navigation revalidates (cheap ETag/304 round-trip) and a
+    # redeploy is reflected immediately. Hashed /assets/ stay hard-cached above.
     location / {
+        add_header Cache-Control "no-cache";
         try_files $uri $uri/ /index.html;
     }
 }
