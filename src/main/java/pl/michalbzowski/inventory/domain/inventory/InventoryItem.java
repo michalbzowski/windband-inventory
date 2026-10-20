@@ -141,17 +141,22 @@ public class InventoryItem {
      * recreate the item instead. The warehouse is immutable here as well: a
      * DIFFERENT value is rejected because every physical move must exist in the
      * {@link WarehouseTransfer} history (B6) — pass the current value or null.
+     * The serial code is program-assigned (ItemSerialAllocator) and therefore
+     * NOT part of the update surface at all.
      */
-    public void replaceDetails(String name, WarehouseType warehouse, String serialNumber,
-            String description, String notes) {
+    public void replaceDetails(String name, WarehouseType warehouse, String description, String notes) {
         this.name = requireNotBlank(name, "name required");
         if (warehouse != null && warehouse != this.warehouse) {
             throw new IllegalArgumentException(
                     "Magazynu nie zmienia się edycją pozycji — wykonaj transfer (POST /items/{id}/transfers)");
         }
-        this.serialNumber = blankToNull(serialNumber);
         this.description = description;
         this.notes = notes;
+    }
+
+    /** Program-assigned code (PREFIX-nnnn). Blank/null removes it; callers own uniqueness. */
+    public void assignSerial(String serialNumber) {
+        this.serialNumber = blankToNull(serialNumber);
     }
 
     /**

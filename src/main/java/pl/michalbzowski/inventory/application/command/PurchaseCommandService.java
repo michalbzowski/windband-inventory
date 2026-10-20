@@ -37,6 +37,7 @@ public class PurchaseCommandService {
     private final ItemAssignmentRepository assignments;
     private final BandDirectory bandDirectory;
     private final AttributeScopeValidator scopeValidator;
+    private final ItemSerialAllocator serials;
 
     @Transactional
     public PurchaseRequest create(String bearerToken, long bandId, String name,
@@ -78,6 +79,7 @@ public class PurchaseCommandService {
                         purchase.getItemType(), WarehouseType.MAIN, null, null,
                         "Utworzone z zamówienia #" + purchase.getId());
                 attachSnapshotAttributes(purchase, item);
+                serials.ensureSerial(item);
                 items.save(item);
                 purchase.deliver(item, note);
             }

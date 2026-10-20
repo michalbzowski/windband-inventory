@@ -32,6 +32,9 @@ class ItemCommandServiceTest {
     private AttributeScopeValidator scopeValidator;
 
     @Mock
+    private ItemSerialAllocator serials;
+
+    @Mock
     private ItemAssignmentRepository assignments;
 
     @Mock

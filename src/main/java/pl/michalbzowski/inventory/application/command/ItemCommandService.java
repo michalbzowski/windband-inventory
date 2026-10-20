@@ -30,6 +30,7 @@ public class ItemCommandService {
 
     private final InventoryItemRepository items;
     private final AttributeScopeValidator scopeValidator;
+    private final ItemSerialAllocator serials;
     private final ItemAssignmentRepository assignments;
     private final ItemServiceEventRepository serviceEvents;
     private final InventoryNeedRepository needs;
@@ -43,6 +44,7 @@ public class ItemCommandService {
     public InventoryItem create(long bandId, ItemWriteCommand cmd) {
         InventoryItem item = InventoryItem.create(bandId, cmd.name(), cmd.type(), cmd.warehouse(),
                 cmd.serialNumber(), cmd.description(), cmd.notes());
+        serials.ensureSerial(item);
         requireSerialFree(item);
         item.replaceAttributes(resolveValues(item, cmd.attributes()));
         return items.save(item);
@@ -51,8 +53,8 @@ public class ItemCommandService {
     @Transactional
     public InventoryItem update(long id, ItemWriteCommand.Basics cmd) {
         InventoryItem item = items.findById(id).orElseThrow(() -> new ItemNotFoundException(id));
-        item.replaceDetails(cmd.name(), cmd.warehouse(), cmd.serialNumber(),
-                cmd.description(), cmd.notes());
+        // The serial code is program-assigned at creation and no longer an edit surface.
+        item.replaceDetails(cmd.name(), cmd.warehouse(), cmd.description(), cmd.notes());
         requireSerialFree(item);
         item.replaceAttributes(resolveValues(item, cmd.attributes()));
         return item;

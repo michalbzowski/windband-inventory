@@ -42,7 +42,7 @@ export default function ItemForm({ band, editId, onDone, onCancel }: Props) {
   const [type, setType] = useState<ItemType | null>(isEdit ? null : null);
   const [defs, setDefs] = useState<AttributeDefView[]>([]);
   const [values, setValues] = useState<Record<number, string>>({});
-  const [basics, setBasics] = useState({ name: '', serialNumber: '', description: '', notes: '', warehouse: 'MAIN' as WarehouseType });
+  const [basics, setBasics] = useState({ name: '', description: '', notes: '', warehouse: 'MAIN' as WarehouseType });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -59,7 +59,6 @@ export default function ItemForm({ band, editId, onDone, onCancel }: Props) {
       setType(v.type);
       setBasics({
         name: v.name,
-        serialNumber: v.serialNumber ?? '',
         description: v.description ?? '',
         notes: v.notes ?? '',
         warehouse: v.warehouse,
@@ -154,10 +153,13 @@ export default function ItemForm({ band, editId, onDone, onCancel }: Props) {
               {errors.name && <span className="field-err">{errors.name}</span>}
             </label>
 
-            <label className="field">
-              Nr seryjny / kod
-              <input value={basics.serialNumber} maxLength={255} onChange={(e) => setBasics((b) => ({ ...b, serialNumber: e.target.value }))} />
-            </label>
+            {isEdit ? (
+              <p className="hint">
+                Kod pozycji: <b>{item?.serialNumber ?? '—'}</b> — nadany przez program, nie podlega edycji.
+              </p>
+            ) : (
+              <p className="hint">Kodu nie podajesz — po zapisaniu program nada go automatycznie (np. <b>INS-0042</b>).</p>
+            )}
 
             {!isEdit && (
               <label className="field">
