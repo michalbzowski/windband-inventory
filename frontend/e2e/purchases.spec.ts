@@ -202,21 +202,19 @@ test('FAB zamówienia: walidacja i payload', async ({ page }) => {
   await page.getByRole('button', { name: 'Zamów nowy przedmiot' }).click();
   const dialog = page.getByRole('dialog', { name: 'Zamów nowy przedmiot' });
   await dialog.getByRole('button', { name: 'Zamów ✓' }).click();
-  await expect(dialog.getByText('Podaj nazwę przedmiotu')).toBeVisible();
   await expect(dialog.getByText('Wskaż, dla kogo kupujemy')).toBeVisible();
   expect(captured.createBodies.length).toBe(0);
 
-  await dialog.getByLabel(/Nazwa przedmiotu/).fill('Tuba Alexander');
   await dialog.getByLabel(/Typ/).selectOption('UNIFORM');
   await dialog.getByLabel(/Dla kogo/).selectOption('12');
   await dialog.getByLabel(/Zgłasza/).selectOption('11');
   await dialog.getByLabel(/Notatka/).fill('oferta 4 200 zł');
   await dialog.getByRole('button', { name: 'Zamów ✓' }).click();
   expect(captured.createBodies[0]).toEqual({
-    name: 'Tuba Alexander', itemType: 'UNIFORM', requestedForMemberId: 12,
+    name: null, itemType: 'UNIFORM', requestedForMemberId: 12,
     note: 'oferta 4 200 zł', createdMemberId: 11, attributes: [],
   });
-  const nowa = page.locator('li', { hasText: 'Tuba Alexander' }).first();
+  const nowa = page.locator('li', { hasText: 'dla Bolesław Kowal' }).first();
   await expect(nowa.getByText('Zgłoszone')).toBeVisible();
   await expect(nowa.getByText('dla Bolesław Kowal')).toBeVisible();
 });
@@ -237,7 +235,6 @@ test('modal zamówienia: atrybuty warunkowe jak w formularzu „Nowa pozycja”'
 
   await page.getByRole('button', { name: 'Zamów nowy przedmiot' }).click();
   const dialog = page.getByRole('dialog', { name: 'Zamów nowy przedmiot' });
-  await dialog.getByLabel(/Nazwa przedmiotu/).fill('Mundur paradny');
   await dialog.getByLabel(/Typ/).selectOption('UNIFORM');
 
   // Sekcja atrybutów pojawiła się; Typ (SELECT) to chipsy Mundur|Koszula, Wzrost wymagany.
@@ -268,7 +265,7 @@ test('modal zamówienia: atrybuty warunkowe jak w formularzu „Nowa pozycja”'
     { attributeDefId: 702, value: '45' },
     // 703 (kołnierz=39) nie ma — gałąź była ukryta w momencie wysyłki
   ]);
-  const nowa = page.locator('li', { hasText: 'Mundur paradny' }).first();
+  const nowa = page.locator('li', { hasText: 'Typ Mundur · Wzrost 180 · Szerokość ramion 45' }).first();
   await expect(nowa.getByText('Typ Mundur · Wzrost 180 · Szerokość ramion 45')).toBeVisible();
 });
 
@@ -279,7 +276,6 @@ test('modal zamówienia: brak wypełnionych atrybutów wymaganych blokuje wysył
 
   await page.getByRole('button', { name: 'Zamów nowy przedmiot' }).click();
   const dialog = page.getByRole('dialog', { name: 'Zamów nowy przedmiot' });
-  await dialog.getByLabel(/Nazwa przedmiotu/).fill('Koszula');
   await dialog.getByLabel(/Typ/).selectOption('UNIFORM');
   await dialog.getByLabel(/Dla kogo/).selectOption('12');
   await dialog.getByLabel(/Zgłasza/).selectOption('11');

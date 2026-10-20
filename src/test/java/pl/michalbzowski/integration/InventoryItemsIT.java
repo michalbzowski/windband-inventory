@@ -269,9 +269,21 @@ class InventoryItemsIT extends AbstractIntegrationTest {
     }
 
     @Test
-    void createRejectsBlankNameByBeanValidation() throws Exception {
-        postJson("/api/inventory/items?bandId=7", "{\"name\":\" \",\"type\":\"OTHER\"}", "tok-admin")
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").value("invalid_request"));
+    void blankNameIsOptionalAndCodeStillAssigned() throws Exception {
+        // Roadmap 2026-10-20 (zad. 1): nazwa jest niewymagana — UI identyfikuje
+        // pozycję typem + kodem, więc pustka przechodzi i kod się nadaje.
+        long itemId = createItem("{\"name\":\" \",\"type\":\"OTHER\"}");
+        mvc.perform(get("/api/inventory/items/{id}", itemId).with(as("tok-member")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.serialNumber").value(org.hamcrest.Matchers.matchesPattern("INN-\\d{4}")));
+    }
+
+    @Test
+    void createWithoutAnyNameSucceeds() throws Exception {
+        long itemId = createItem("{\"type\":\"INSTRUMENT\"}");
+        mvc.perform(get("/api/inventory/items/{id}", itemId).with(as("tok-member")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value(org.hamcrest.Matchers.nullValue()))
+                .andExpect(jsonPath("$.serialNumber").value(org.hamcrest.Matchers.matchesPattern("INS-\\d{4}")));
     }
 }

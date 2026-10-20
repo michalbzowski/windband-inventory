@@ -82,8 +82,8 @@ test('ItemDetail: tryb pracy — bez szyny Tabs, powrót „‹ Wróć do listy�
   await nav(page).getByRole('button', { name: '🎒 Ekwipunek' }).click();
   await expect(page.getByRole('heading', { name: 'Ekwipunek' })).toBeVisible();
 
-  await page.getByRole('button', { name: 'Pozycja Flet koncertowy' }).click();
-  await expect(page.getByRole('heading', { name: /Flet koncertowy/ })).toBeVisible();
+  await page.getByRole('button', { name: /Pozycja FL-1/ }).click();
+  await expect(page.getByRole('heading', { name: /FL-1/ })).toBeVisible();
 
   // konwencja ekranów pracy (jak liczenie): jedyna dolna szyna to akcje pozycji
   await expect(nav(page)).toHaveCount(0);

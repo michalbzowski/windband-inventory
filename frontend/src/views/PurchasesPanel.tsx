@@ -81,7 +81,7 @@ export default function PurchasesPanel({ band, onOpenItem }: Props) {
     setError(null);
     try {
       upsert(await setPurchaseStatus(purchase.id, target, note));
-      flash(`Zamówienie „${purchase.name}”: ${PURCHASE_STATUS_LABEL[target].toLowerCase()} ✓`);
+      flash(`Zamówienie ${purchase.name ?? `(${TYPE_LABEL[purchase.itemType]})`}: ${PURCHASE_STATUS_LABEL[target].toLowerCase()} ✓`);
       return true;
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Zmiana statusu nie powiodła się.');
@@ -126,7 +126,7 @@ export default function PurchasesPanel({ band, onOpenItem }: Props) {
             <li key={p.id}>
               <div className="srow">
                 <span className="sr">
-                  {p.name}{' '}
+                  {p.name ? `${p.name} ` : ''}
                   <span className="badge b-gray">{TYPE_LABEL[p.itemType] ?? p.itemType}</span>{' '}
                   <span className={`badge ${PURCHASE_BADGE_CLASS[p.status]}`}>{PURCHASE_STATUS_LABEL[p.status]}</span>
                   <span className="sm">
@@ -137,7 +137,7 @@ export default function PurchasesPanel({ band, onOpenItem }: Props) {
                     {p.itemId !== null && (
                       <> ·{' '}
                         <button type="button" className="linkbtn" onClick={() => onOpenItem(p.itemId as number)}
-                          aria-label={`Otwórz dostarczoną pozycję ${p.name}`}>
+                          aria-label={`Otwórz dostarczoną pozycję ${p.name ?? ''}`}>
                           pozycja w magazynie{p.itemSerialNumber ? ` (${p.itemSerialNumber})` : ''}
                         </button>
                       </>
@@ -150,17 +150,17 @@ export default function PurchasesPanel({ band, onOpenItem }: Props) {
                       NOTE_REQUIRED_ACTIONS.has(next.to) ? (
                         <button type="button" className="btn sm primary" disabled={busy}
                           onClick={() => setSheet({ mode: 'walk', purchase: p, target: next.to })}
-                          aria-label={`${next.label} — ${p.name}`}>{next.label}</button>
+                          aria-label={`${next.label} — ${p.name ?? 'zamówienie'}`}>{next.label}</button>
                       ) : (
                         <button type="button" className="btn sm primary" disabled={busy}
                           onClick={() => void walk(p, next.to)}
-                          aria-label={`${next.label} — ${p.name}`}>{next.label}</button>
+                          aria-label={`${next.label} — ${p.name ?? 'zamówienie'}`}>{next.label}</button>
                       )
                     )}{' '}
                     {canCancel(p.status) && (
                       <button type="button" className="btn sm ghost" disabled={busy}
                         onClick={() => setSheet({ mode: 'walk', purchase: p, target: 'CANCELLED' })}
-                        aria-label={`Anuluj zamówienie ${p.name}`}>Anuluj</button>
+                        aria-label={`Anuluj zamówienie ${p.name ?? ''}`}>Anuluj</button>
                     )}
                   </span>
                 )}
@@ -202,7 +202,7 @@ export default function PurchasesPanel({ band, onOpenItem }: Props) {
           onCreated={(p) => {
             setSheet(null);
             upsert(p);
-            flash(`Zamówienie „${p.name}” zgłoszone ✓`);
+            flash(`Zamówienie ${p.name ?? `(${TYPE_LABEL[p.itemType]})`} zgłoszone ✓`);
           }}
         />
       )}
@@ -229,7 +229,7 @@ function WalkSheet({ purchase, target, busy, onClose, onSubmit }: {
   const next = PURCHASE_NEXT[purchase.status];
   const label = target === 'CANCELLED' ? 'Anuluj' : (next?.label ?? PURCHASE_STATUS_LABEL[target]);
   return (
-    <Sheet title={`${WALK_TITLE[target] ?? PURCHASE_STATUS_LABEL[target]}: ${purchase.name}`} onClose={onClose}>
+    <Sheet title={`${WALK_TITLE[target] ?? PURCHASE_STATUS_LABEL[target]}: ${purchase.name ?? TYPE_LABEL[purchase.itemType]}`} onClose={onClose}>
       {target === 'RECEIVED' && (
         <p className="hint">Odebranie przypisze pozycję osobie <b>{purchase.requestedForName}</b> — trafi do niej
           w Ekwipunku jako przydzielona.</p>
@@ -270,7 +270,6 @@ function CreatePurchaseSheet({ band, onClose, onCreated }: {
 }) {
   const PURCHASEABLE_TYPES: ItemType[] = ['INSTRUMENT', 'UNIFORM', 'EQUIPMENT', 'SHEET_MUSIC', 'AWARD', 'CONSUMABLE', 'DOCUMENT'];
   const [members, setMembers] = useState<BandMember[]>([]);
-  const [name, setName] = useState('');
   const [itemType, setItemType] = useState<ItemType>('INSTRUMENT');
   const [forWhom, setForWhom] = useState('');
   const [byWhom, setByWhom] = useState('');
@@ -303,7 +302,6 @@ function CreatePurchaseSheet({ band, onClose, onCreated }: {
 
   const submit = async () => {
     const next: typeof errors = {};
-    if (!name.trim()) next.name = 'Podaj nazwę przedmiotu';
     if (!forWhom) next.forWhom = 'Wskaż, dla kogo kupujemy';
     if (!byWhom) next.byWhom = 'Wskaż, kto zgłasza';
     const attrErrs = validateFields(fields, values);
@@ -316,7 +314,7 @@ function CreatePurchaseSheet({ band, onClose, onCreated }: {
         .map((f) => ({ attributeDefId: f.defId, value: (values[f.defId] ?? '').trim() }))
         .filter((a) => a.value !== '');
       onCreated(await createPurchase(band.bandId, {
-        name: name.trim(),
+        name: null,
         itemType,
         requestedForMemberId: Number(forWhom),
         note: note.trim() || null,
@@ -332,13 +330,8 @@ function CreatePurchaseSheet({ band, onClose, onCreated }: {
   return (
     <Sheet title="Zamów nowy przedmiot" onClose={onClose}>
       <p className="hint">Kupujesz coś, czego nie ma w rejestrze. Po oznaczeniu dostawy pozycja pojawi się
-        w magazynie, a po odbiorze osobistym — jako przydział dla wskazanej osoby.</p>
-
-      <label className="field">Nazwa przedmiotu
-        <input value={name} onChange={(e) => setName(e.target.value)} maxLength={200}
-          placeholder="np. Trąbka Yamaha X-series" />
-      </label>
-      {errors.name && <p className="field-err">{errors.name}</p>}
+        w magazynie, a po odbiorze osobistym — jako przydział dla wskazanej osoby. Nazwy nie wpisujesz —
+        program nada pozycji kod automatycznie.</p>
 
       <label className="field">Typ
         <select value={itemType} onChange={(e) => setItemType(e.target.value as ItemType)}>

@@ -64,7 +64,12 @@ public class InventoryItem {
     @Column(name = "band_id", nullable = false)
     private Long bandId;
 
-    @Column(nullable = false)
+    /**
+     * Optional internal label (legacy data, purchase materialization). The UI
+     * identifies items by type + program-assigned code and never asks for it —
+     * nullable since V16 (roadmap 2026-10-20, task 1).
+     */
+    @Column(length = 255)
     private String name;
 
     @Enumerated(EnumType.STRING)
@@ -121,11 +126,10 @@ public class InventoryItem {
     public static InventoryItem create(Long bandId, String name, ItemType type, WarehouseType warehouse,
             String serialNumber, String description, String notes) {
         Objects.requireNonNull(bandId, "bandId required");
-        Objects.requireNonNull(name, "name required");
         Objects.requireNonNull(type, "type required");
         InventoryItem item = new InventoryItem();
         item.bandId = bandId;
-        item.name = requireNotBlank(name, "name required");
+        item.name = blankToNull(name);
         item.type = type;
         item.warehouse = warehouse != null ? warehouse : WarehouseType.MAIN;
         item.lifecycleStatus = ItemLifecycleStatus.AVAILABLE;
@@ -145,7 +149,7 @@ public class InventoryItem {
      * NOT part of the update surface at all.
      */
     public void replaceDetails(String name, WarehouseType warehouse, String description, String notes) {
-        this.name = requireNotBlank(name, "name required");
+        this.name = blankToNull(name);
         if (warehouse != null && warehouse != this.warehouse) {
             throw new IllegalArgumentException(
                     "Magazynu nie zmienia się edycją pozycji — wykonaj transfer (POST /items/{id}/transfers)");
@@ -284,13 +288,6 @@ public class InventoryItem {
     @PreUpdate
     void onUpdate() {
         updatedAt = LocalDateTime.now();
-    }
-
-    private static String requireNotBlank(String value, String message) {
-        if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException(message);
-        }
-        return value.trim();
     }
 
     private static String blankToNull(String value) {

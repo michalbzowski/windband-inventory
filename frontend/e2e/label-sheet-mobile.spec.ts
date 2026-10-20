@@ -35,8 +35,8 @@ test('etykieta na mobile: otwiera się w granicach widoku bez scrollowania', asy
   const nav = page.getByRole('navigation', { name: 'Nawigacja główna' });
   await nav.getByRole('button', { name: '🎒 Ekwipunek' }).click();
   await expect(page.getByRole('heading', { name: 'Ekwipunek' })).toBeVisible();
-  await page.getByRole('button', { name: 'Pozycja Flet koncertowy' }).click();
-  await expect(page.getByRole('heading', { name: /Flet koncertowy/ })).toBeVisible();
+  await page.getByRole('button', { name: /Pozycja FL-1/ }).click();
+  await expect(page.getByRole('heading', { name: /FL-1/ })).toBeVisible();
 
   // użytkownik czyta dół strony (content scrolluje wewnętrznie — shell mobile),
   // potem klika 🏷 (przycisk wraca w widok)

@@ -188,8 +188,9 @@ async function mockInventory(route: Route, st: State): Promise<void> {
   if (idMatch && m === 'GET' && !idMatch[2] && item) return json(route, detail(item));
   if (idMatch && m === 'PUT' && item) {
     st.updated.push(structuredClone(item));
+    // BE: kod (serialNumber) nie należy do powierzchni edycji — program go nadaje,
+    // edycja pozycji go NIE czyści (InventoryItem.replaceDetails nie dotyka serialNumber).
     item.name = body.name as string;
-    item.serialNumber = (body.serialNumber as string) || null;
     item.description = (body.description as string) || null;
     item.notes = (body.notes as string) || null;
     const attrs: Record<number, string> = {};
@@ -330,13 +331,13 @@ async function openEkwipunek(page: Page): Promise<void> {
 test('P0 §3.1 list filters: typ, status, osoba, atrybut (wartość case-insensitive)', async ({ page }) => {
   await seed(page);
   await openEkwipunek(page);
-  await expect(page.getByRole('button', { name: 'Pozycja Flet' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Pozycja FL-01/ })).toBeVisible();
   await expect(page.getByText('3 pozycji')).toBeVisible();
 
   await page.getByRole('button', { name: /Typ ▾/ }).click();
   await page.getByRole('button', { name: /👕 Umundrowanie/ }).click();
   await expect(page.getByText('2 pozycji · filtr: Typ = Umundrowanie')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Pozycja Flet' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /Pozycja FL-01/ })).toHaveCount(0);
 
   await page.getByRole('button', { name: /Status ▾/ }).click();
   await page.getByRole('button', { name: 'Przypisany', exact: true }).click();
@@ -398,7 +399,7 @@ test('F4 serwis: lista „do serwisu”, wysłanie, zamknięcie z terminem i pla
   await page.getByRole('button', { name: 'Status ▾' }).click();
   await page.getByRole('button', { name: '🔧 Do serwisu (minął termin)' }).click();
   await expect(page.getByText('filtr: do serwisu (termin)')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Pozycja Flet' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Pozycja FL-01/ })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Pozycja Spodnie' })).toHaveCount(0);
 
   await page.getByRole('button', { name: 'Wyczyść filtry' }).click();
@@ -431,7 +432,7 @@ test('F4 serwis: lista „do serwisu”, wysłanie, zamknięcie z terminem i pla
   await page.getByRole('button', { name: 'Wróć do listy' }).click();
   await page.getByRole('button', { name: 'Status ▾' }).click();
   await page.getByRole('button', { name: '🔧 Do serwisu (minął termin)' }).click();
-  await expect(page.getByRole('button', { name: 'Pozycja Flet' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Pozycja FL-01/ })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Pozycja Spodnie' })).toHaveCount(0);
 });
 
@@ -439,7 +440,7 @@ test('assign → zwrot ze stanem → transfer + historia przydziałów (05/17)',
   const st = await seed(page);
   await openEkwipunek(page);
 
-  await page.getByRole('button', { name: 'Pozycja Flet' }).click();
+  await page.getByRole('button', { name: /Pozycja FL-01/ }).click();
   await page.getByRole('button', { name: /Przypisz… ↦/ }).click();
   await page.getByRole('button', { name: /👤 Bartosz Kowal/ }).click();
   await page.getByLabel(/Notatka/).fill('na koncert');
@@ -481,17 +482,14 @@ test('two-step create: walidacja inline + payload z atrybutami; MEMBER read-only
   await expect(page.getByLabel(/^Kolor \*/)).toBeVisible();
 
   await page.getByRole('button', { name: 'Zapisz pozycję' }).click();
-  await expect(page.getByText('Nazwa jest wymagana')).toBeVisible();
   await expect(page.getByText('„Kolor" jest wymagany')).toBeVisible();
-
-  await page.getByLabel(/Nazwa/).fill('Czapko-czaszka');
   await page.getByLabel(/^Kolor \*/).fill('Granatowy');
   await page.getByRole('button', { name: 'L', exact: true }).click();
   await page.getByRole('button', { name: '✓ TAK' }).click();
   await page.getByRole('button', { name: 'Zapisz pozycję' }).click();
 
   await expect(page.getByText('4 pozycji · bez filtrów')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Pozycja Flet' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Pozycja FL-01/ })).toBeVisible();
   await expect.poll(() => st.created.length).toBe(1);
   expect(st.created[0].attributes).toEqual([
     { attributeDefId: 1, value: 'Granatowy' },
@@ -515,7 +513,7 @@ test('B14 deklaracje: MEMBER składa prywatną, ADMIN odwołuje, ASSIGNED odpada
   await openEkwipunek(page);
 
   // MEMBER ma dostęp do deklarowania (B14) — Flet jest AVAILABLE
-  await page.getByRole('button', { name: 'Pozycja Flet' }).click();
+  await page.getByRole('button', { name: /Pozycja FL-01/ }).click();
   await expect(page.getByText('Posiadanie poza magazynem')).toBeVisible();
   await page.getByRole('button', { name: /Deklaruj posiadanie 🏠/ }).click();
   await page.getByRole('button', { name: /🧳 zewnętrzne/ }).click();
@@ -570,24 +568,23 @@ test('flow v1.x: lista → szczegóły → ✎ edycja wpisu → „Zapisz zmiany
   const st = await seed(page);
   await openEkwipunek(page);
 
-  await page.getByRole('button', { name: 'Pozycja Flet' }).click();
+  await page.getByRole('button', { name: /Pozycja FL-01/ }).click();
   await page.getByRole('button', { name: 'Edytuj pozycję' }).click();
   await expect(page.getByRole('button', { name: 'Zapisz zmiany' })).toBeVisible();
 
-  await page.getByLabel(/Nazwa/).fill('Flet piccolo');
   await page.getByLabel(/Liczba zaworów/).fill('16');
   await page.getByRole('button', { name: 'Zapisz zmiany' }).click();
 
-  // powrót do szczegółów z nowymi danymi (reload po onDone)
-  await expect(page.getByRole('heading', { name: /Flet piccolo/ })).toBeVisible();
+  // powrót do szczegółów z nowymi danymi (reload po onDone) — tożsamość = kod FL-01
+  await expect(page.getByRole('heading', { name: /FL-01/ })).toBeVisible();
 
   // zapis poszedł PUT-em na serwer: snapshot PRZED edycją + nowy stan mocka
   await expect.poll(() => st.updated.length).toBe(1);
   expect(st.updated[0].name).toBe('Flet');
   expect(st.updated[0].attrs[4]).toBe('3');
-  expect(st.items[0].name).toBe('Flet piccolo');
+  expect(st.items[0].attrs).toEqual({ 4: '16' });
 
-  // i widać to na liście wpisów
+  // i widać to na liście — tożsamość wiersza = kod FL-01 (nazwa wtórna)
   await page.getByRole('button', { name: 'Wróć do listy' }).click();
-  await expect(page.getByRole('button', { name: 'Pozycja Flet piccolo' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Pozycja FL-01/ })).toBeVisible();
 });

@@ -119,8 +119,8 @@ export default function StocktakeReport({ band, identity, stocktakeId, onExit }:
   const row = (l: StocktakeLineView, action?: ReactNode) => (
     <div className="srow" key={l.id}>
       <b>
-        {l.name}
-        <span className="muted">{l.serialNumber ? ` · SN ${l.serialNumber}` : ''}{l.assignedMemberName ? ` · ${l.assignedMemberName}` : ''}</span>
+        {[l.serialNumber, l.name].filter(Boolean).join(' · ') || 'Pozycja'}
+        <span className="muted">{l.assignedMemberName ? ` · ${l.assignedMemberName}` : ''}</span>
         {l.note && <span className="note-q"> „{l.note}”</span>}
       </b>
       <span className="muted">{l.countedByMemberName ?? ''}</span>
@@ -268,8 +268,8 @@ export default function StocktakeReport({ band, identity, stocktakeId, onExit }:
           {needs.map((n) => (
             <div className="srow" key={n.id}>
               <b>
-                {n.name} ×{n.quantity}
-                <span className="muted">{n.serialNumber ? ` · SN ${n.serialNumber}` : ''}{n.createdMemberName ? ` · 👤 ${n.createdMemberName}` : ''}</span>
+                {[n.serialNumber, n.name].filter(Boolean).join(' · ') || 'Pozycja'} ×{n.quantity}
+                <span className="muted">{n.createdMemberName ? ` · 👤 ${n.createdMemberName}` : ''}</span>
                 {n.note && <span className="note-q"> „{n.note}”</span>}
               </b>
               <span className={`badge ${NEED_BADGE_CLASS[n.status]}`}>{NEED_STATUS_LABEL[n.status]}</span>

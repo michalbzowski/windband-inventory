@@ -169,7 +169,6 @@ test('formularz pozycji: tylko widoczne atrybuty, ukryte nie lecą w payloadzie'
   await expect(page.getByText('Obwód ramion')).toHaveCount(0);
   await expect(page.getByLabel('Wzrost *')).toHaveValue('178');
 
-  await page.getByLabel(/Nazwa \*/).fill('Koszula koncertowa');
   await page.getByRole('button', { name: 'Zapisz pozycję' }).click();
 
   await expect.poll(() => captured.createBodies.length).toBe(1);

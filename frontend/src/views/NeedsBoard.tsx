@@ -84,7 +84,7 @@ export default function NeedsBoard({ band, onBack, onTab, onOpenItem }: Props) {
     setError(null);
     try {
       upsert(await setNeedStatus(need.id, target, note));
-      flash(`Potrzeba „${need.name}”: ${NEED_STATUS_LABEL[target].toLowerCase()} ✓`);
+      flash(`Potrzeba ${need.serialNumber || need.name || 'pozycja'}: ${NEED_STATUS_LABEL[target].toLowerCase()} ✓`);
       return true;
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Zmiana statusu nie powiodła się.');
@@ -147,8 +147,7 @@ export default function NeedsBoard({ band, onBack, onTab, onOpenItem }: Props) {
             <li key={n.id}>
               <div className="srow">
                 <span className="sr">
-                  {n.name}
-                  {n.serialNumber && <> · {n.serialNumber}</>}{' '}
+                  {[n.serialNumber, n.name].filter(Boolean).join(' · ') || 'Pozycja'}{' '}
                   <span className="badge b-gray">×{n.quantity}</span>{' '}
                   <span className={`badge ${NEED_BADGE_CLASS[n.status]}`}>{NEED_STATUS_LABEL[n.status]}</span>
                   <span className="sm">
@@ -161,15 +160,15 @@ export default function NeedsBoard({ band, onBack, onTab, onOpenItem }: Props) {
                   <span className="sa">
                     {canOrder(n) && (
                       <button type="button" className="btn sm" onClick={() => void walk(n, 'ORDERED')} disabled={busy}
-                        aria-label={`Zamów ${n.name}`}>Zamów</button>
+                        aria-label={`Zamów ${n.serialNumber || n.name || 'pozycję'}`}>Zamów</button>
                     )}{' '}
                     {canReceive(n) && (
                       <button type="button" className="btn sm ghost" onClick={() => setSheet({ mode: 'resolve', need: n, target: 'RECEIVED' })}
-                        aria-label={`Dostarcz ${n.name}`}>Dostarcz</button>
+                        aria-label={`Dostarcz ${n.serialNumber || n.name || 'pozycję'}`}>Dostarcz</button>
                     )}{' '}
                     {canCancel(n) && (
                       <button type="button" className="btn sm ghost" onClick={() => setSheet({ mode: 'resolve', need: n, target: 'CANCELLED' })}
-                        aria-label={`Anuluj potrzebę ${n.name}`}>Anuluj</button>
+                        aria-label={`Anuluj potrzebę ${n.serialNumber || n.name || ''}`}>Anuluj</button>
                     )}
                   </span>
                 )}
@@ -231,7 +230,7 @@ function ResolveSheet({ need, target, busy, onClose, onSubmit }: {
 }) {
   const [note, setNote] = useState('');
   return (
-    <Sheet title={`${NEED_STATUS_LABEL[target]}: ${need.name}`} onClose={onClose}>
+    <Sheet title={`${NEED_STATUS_LABEL[target]}: ${need.serialNumber || need.name || 'pozycja'}`} onClose={onClose}>
       <label className="field">Notatka (opcjonalna)
         <textarea value={note} onChange={(e) => setNote(e.target.value)} maxLength={2000}
           placeholder={target === 'RECEIVED' ? 'np. dostarczone 12.11, nr faktury' : 'np. znaleziona na próbie'} />
@@ -264,7 +263,7 @@ function CreateSheet({ band, onClose, onCreated }: {
   useEffect(() => {
     const ac = new AbortController();
     listItems(band.bandId, {}, ac.signal)
-      .then((l) => setItems([...l].sort((a, b) => a.name.localeCompare(b.name, 'pl'))))
+      .then((l) => setItems([...l].sort((a, b) => (a.serialNumber ?? a.name ?? '').localeCompare(b.serialNumber ?? b.name ?? '', 'pl'))))
       .catch(() => setItems([]));
     listBandMembers(band.bandId, ac.signal).then(setMembers).catch(() => setMembers([]));
     return () => ac.abort();
@@ -298,7 +297,7 @@ function CreateSheet({ band, onClose, onCreated }: {
         <select value={itemId} onChange={(e) => setItemId(e.target.value)}>
           <option value="">— wybierz —</option>
           {(items ?? []).map((it) => (
-            <option key={it.id} value={String(it.id)}>{it.name}{it.serialNumber ? ` (${it.serialNumber})` : ''}</option>
+            <option key={it.id} value={String(it.id)}>{[it.serialNumber, it.name].filter(Boolean).join(' · ') || 'Pozycja'}</option>
           ))}
         </select>
       </label>

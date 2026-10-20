@@ -45,7 +45,7 @@ test('skaner: ręczny kod WI-1-1 otwiera pozycję', async ({ page }) => {
   await page.getByLabel('Kod etykiety lub link do pozycji').fill('WI-1-1');
   await page.getByRole('button', { name: 'Otwórz pozycję' }).click();
 
-  await expect(page.getByRole('heading', { name: /Flet koncertowy/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /FL-1/ })).toBeVisible();
 });
 
 test('skaner: link do pozycji z parametrem band także otwiera', async ({ page }) => {
@@ -54,7 +54,7 @@ test('skaner: link do pozycji z parametrem band także otwiera', async ({ page }
   await page.getByLabel('Kod etykiety lub link do pozycji')
     .fill('https://inventory.bandmanager.pl/items/1?band=1');
   await page.getByRole('button', { name: 'Otwórz pozycję' }).click();
-  await expect(page.getByRole('heading', { name: /Flet koncertowy/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /FL-1/ })).toBeVisible();
 });
 
 test('skaner: kod z innego zespołu jest twardo odrzucony', async ({ page }) => {
@@ -83,8 +83,8 @@ test('skaner: nieznany kształt kodu → komunikat, pozostajemy na miejscu', asy
 
 test('etykieta: ADMIN widzi QR + kod i może zamknąć sheet', async ({ page }) => {
   await openEkwipunek(page);
-  await page.getByRole('button', { name: 'Pozycja Flet koncertowy' }).click();
-  await expect(page.getByRole('heading', { name: /Flet koncertowy/ })).toBeVisible();
+  await page.getByRole('button', { name: /Pozycja FL-1/ }).click();
+  await expect(page.getByRole('heading', { name: /FL-1/ })).toBeVisible();
 
   await page.getByRole('button', { name: 'Etykieta pozycji — wydrukuj kod QR' }).click();
   const dialog = page.getByRole('dialog', { name: 'Etykieta pozycji' });
@@ -104,8 +104,8 @@ test('etykieta: MEMBER nie ma przycisku wydruku (strefa akcyjna ADMIN)', async (
   const nav = page.getByRole('navigation', { name: 'Nawigacja główna' });
   await nav.getByRole('button', { name: '🎒 Ekwipunek' }).click();
   await expect(page.getByRole('heading', { name: 'Ekwipunek' })).toBeVisible();
-  await page.getByRole('button', { name: /Flet koncertowy/ }).click();
-  await expect(page.getByRole('heading', { name: /Flet koncertowy/ })).toBeVisible();
+  await page.getByRole('button', { name: /FL-1/ }).click();
+  await expect(page.getByRole('heading', { name: /FL-1/ })).toBeVisible();
 
   // etykieta (strefa akcyjna) jest ukryta dla MEMBER; dane nadal czytelne
   expect(await page.getByRole('button', { name: /Etykieta pozycji/ }).count()).toBe(0);

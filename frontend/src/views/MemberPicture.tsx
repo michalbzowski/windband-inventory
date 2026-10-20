@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ApiError } from '../api/client';
 import { getMemberPicture, type MemberPictureView } from '../api/inventory';
-import { STATUS_BADGE, STATUS_LABEL, TYPE_ICON, WAREHOUSE_LABEL } from '../ekwipunek/filters';
+import { STATUS_BADGE, STATUS_LABEL, TYPE_ICON, TYPE_LABEL, WAREHOUSE_LABEL } from '../ekwipunek/filters';
 import { fmtDateTime } from '../ekwipunek/format';
 import AppFrame from '../ui/AppFrame';
 
@@ -70,7 +70,7 @@ export default function MemberPicture({ bandId, memberId, onBack, onOpenItem }: 
                       <b>{e.satisfied ? '✓' : '✗'} {e.instrument}</b>
                       <span className="muted">
                         {' '}{e.primary ? 'główny' : 'drugorzędny'}
-                        {held ? ` · ${TYPE_ICON[held.type]} ${held.name}` : ''}
+                        {held ? ` · ${TYPE_ICON[held.type]} ${held.serialNumber || held.name || TYPE_LABEL[held.type]}` : ''}
                       </span>
                     </span>
                     <span className={`badge ${e.satisfied ? 'b-ok' : 'b-danger'}`}>
@@ -85,9 +85,9 @@ export default function MemberPicture({ bandId, memberId, onBack, onOpenItem }: 
               <h4>Faktycznie przechowywane ({pic.actual.length})</h4>
               {pic.actual.length === 0 && <p className="hint">Nic nie jest obecnie przypisane do tej osoby.</p>}
               {pic.actual.map((i) => (
-                <button type="button" className="srow" key={i.id} onClick={() => onOpenItem(i.id)} aria-label={`Pozycja ${i.name}`}>
+                <button type="button" className="srow" key={i.id} onClick={() => onOpenItem(i.id)} aria-label={`Pozycja ${[i.serialNumber ?? '', i.name ?? ''].filter(Boolean).join(' · ') || TYPE_LABEL[i.type]}`}>
                   <span>
-                    <b>{TYPE_ICON[i.type]} {i.name}</b>
+                    <b>{TYPE_ICON[i.type]} {i.serialNumber || i.name || TYPE_LABEL[i.type]}</b>
                     <span className="muted">
                       {' '}{i.serialNumber ? `SN ${i.serialNumber} · ` : ''}{WAREHOUSE_LABEL[i.warehouse]}
                     </span>

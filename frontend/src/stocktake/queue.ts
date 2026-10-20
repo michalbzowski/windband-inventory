@@ -20,7 +20,7 @@ export interface PendingDecision {
   readonly lineId: number | null;
   readonly itemId: number;
   /** display-only fields captured at tap time (card may flush later) */
-  readonly name: string;
+  readonly name: string | null;
   readonly foundState: FoundState;
   readonly note: string;
   readonly countedMemberId: number;

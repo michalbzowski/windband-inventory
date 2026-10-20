@@ -166,7 +166,7 @@ export default function ItemDetail({ band, itemId, focusForm = false, onBack }: 
     <AppFrame>
       <header className="appbar">
         <button type="button" className="back" onClick={onBack} aria-label="Wróć do listy">‹</button>
-        <h3>{TYPE_ICON[item.type]} {item.name}</h3>
+        <h3>{TYPE_ICON[item.type]} {item.serialNumber || item.name || TYPE_LABEL[item.type]}</h3>
         {isAdmin ? (
           <>
             <button type="button" className="ic" onClick={() => setEditing(true)} aria-label="Edytuj pozycję">✎</button>
@@ -188,7 +188,7 @@ export default function ItemDetail({ band, itemId, focusForm = false, onBack }: 
         <div className="panel">
           <h4>Atrybuty</h4>
           <div className="kv">
-            {item.serialNumber && <div><dt>Nr seryjny</dt><dd>{item.serialNumber}</dd></div>}
+            {item.serialNumber && <div><dt>Kod pozycji</dt><dd>{item.serialNumber}</dd></div>}
             {item.description && <div><dt>Opis</dt><dd>{item.description}</dd></div>}
             {item.attributes.map((a) => (
               <div key={a.attributeDefId}>
@@ -351,7 +351,7 @@ export default function ItemDetail({ band, itemId, focusForm = false, onBack }: 
       {confirmDelete && (
         <div className="dim center" role="dialog" aria-label="Potwierdź usunięcie">
           <div className="modal">
-            <b>Usunąć „{item.name}"?</b>
+            <b>Usunąć pozycję {item.serialNumber || item.name || TYPE_LABEL[item.type]}?</b>
             <span>Pozycja bez historii jest usuwana trwale. Pozycje z historią są nieusuwalne (dowody F3).</span>
             <div className="row">
               <button type="button" className="btn sm ghost" onClick={() => setConfirmDelete(false)}>Anuluj</button>
@@ -413,9 +413,8 @@ function LabelSheet({ band, item, onClose }: {
     <Sheet title="Etykieta pozycji" onClose={onClose}>
       <div className="label-card">
         <div className="label-head">
-          <b>{TYPE_ICON[item.type]} {item.name}</b>
-          <span>{TYPE_LABEL[item.type]}{item.serialNumber ? ` · s/n ${item.serialNumber}` : ''}</span>
-          <span className="muted">Zespół: {band.name}</span>
+          <b>{TYPE_ICON[item.type]} {item.serialNumber || item.name || TYPE_LABEL[item.type]}</b>
+          <span className="muted">{item.serialNumber && item.name ? `· ${item.name}` : ''} Zespół: {band.name}</span>
         </div>
         {qr && <img className="label-qr" src={qr} alt={`Kod QR etykiety ${code}`} width={172} height={172} />}
         {failed && <p className="hint err">Nie udało się wygenerować QR — użyj wartości kodu poniżej.</p>}
@@ -523,7 +522,7 @@ function UnassignSheet({ item, onClose, onDone }: { item: ItemView; onClose: () 
   };
 
   return (
-    <Sheet title={`Zwrot: ${item.name}`} onClose={onClose}>
+    <Sheet title={`Zwrot: ${item.serialNumber || item.name || TYPE_LABEL[item.type]}`} onClose={onClose}>
       <p className="hint">{item.serialNumber ? `SN ${item.serialNumber} · ` : ''}przydział zakończy się natychmiast po zapisie.</p>
       {error && <p className="field-err">{error}</p>}
       <div className="chips">
@@ -565,7 +564,7 @@ function TransferSheet({ item, onClose, onDone }: { item: ItemView; onClose: () 
   };
 
   return (
-    <Sheet title={`Transfer: ${item.name}`} onClose={onClose}>
+    <Sheet title={`Transfer: ${item.serialNumber || item.name || TYPE_LABEL[item.type]}`} onClose={onClose}>
       <p className="hint">Obecnie 🏬 {WAREHOUSE_LABEL[item.warehouse]} — wybierz magazyn docelowy.</p>
       {error && <p className="field-err">{error}</p>}
       <div className="chips">
@@ -604,7 +603,7 @@ function ServiceSheet({ item, onClose, onDone }: { item: ItemView; onClose: () =
   };
 
   return (
-    <Sheet title={`Do serwisu: ${item.name}`} onClose={onClose}>
+    <Sheet title={`Do serwisu: ${item.serialNumber || item.name || TYPE_LABEL[item.type]}`} onClose={onClose}>
       <p className="hint">Pozycja trafi do statusu „W serwisie” — powrót przez „Zakończ serwis”.</p>
       {error && <p className="field-err">{error}</p>}
       <label className="field">Usterka / zlecenie (opcjonalne)
@@ -644,7 +643,7 @@ function ServiceCompleteSheet({ item, onClose, onDone }: { item: ItemView; onClo
   };
 
   return (
-    <Sheet title={`Zakończ serwis: ${item.name}`} onClose={onClose}>
+    <Sheet title={`Zakończ serwis: ${item.serialNumber || item.name || TYPE_LABEL[item.type]}`} onClose={onClose}>
       <p className="hint">Powrót do statusu „W magazynie”. Opcjonalnie wyznacz kolejny termin serwisu.</p>
       {error && <p className="field-err">{error}</p>}
       <label className="field">Co zrobiono (opcjonalne)
@@ -723,7 +722,7 @@ function DeclarationSheet({ band, item, onClose, onDone }: {
   return (
     <Sheet title="Deklaracja posiadania" onClose={onClose}>
       <p className="hint">
-        {item.name} — fakt terenowy, bez zmiany magazynu ani statusu (B14). Deklarację może złożyć każdy członek.
+        Pozycja {item.serialNumber || item.name || TYPE_LABEL[item.type]} — fakt terenowy, bez zmiany magazynu ani statusu (B14). Deklarację może złożyć każdy członek.
       </p>
       {error && <p className="field-err">{error}</p>}
       <div className="chips" aria-label="Rodzaj deklaracji">

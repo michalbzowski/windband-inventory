@@ -1,6 +1,6 @@
 package pl.michalbzowski.inventory.adapter.in.rest.dto;
 
-import jakarta.validation.constraints.NotBlank;
+
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.util.List;
@@ -10,7 +10,7 @@ import pl.michalbzowski.inventory.domain.inventory.WarehouseType;
 
 /** POST body of an inventory item. */
 public record ItemCreateRequest(
-        @NotBlank(message = "name jest wymagane") @Size(max = 255) String name,
+        @Size(max = 255) String name,
         @NotNull(message = "type jest wymagane") ItemType type,
         WarehouseType warehouse,
         @Size(max = 255) String serialNumber,

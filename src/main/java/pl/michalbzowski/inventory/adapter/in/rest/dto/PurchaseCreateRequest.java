@@ -18,7 +18,7 @@ import pl.michalbzowski.inventory.domain.inventory.ItemType;
  * in the new-item form.
  */
 public record PurchaseCreateRequest(
-        @NotNull(message = "name jest wymagane") @Size(max = 200, message = "nazwa jest za długa") String name,
+        @Size(max = 200, message = "nazwa jest za długa") String name,
         @NotNull(message = "itemType jest wymagane") ItemType itemType,
         @NotNull(message = "requestedForMemberId jest wymagane") Long requestedForMemberId,
         @Size(max = 2000, message = "notatka jest za długa") String note,
