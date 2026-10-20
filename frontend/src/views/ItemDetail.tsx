@@ -38,7 +38,6 @@ import {
 import { fmtAttrValue, fmtDate, fmtDateTime } from '../ekwipunek/format';
 import AppFrame from '../ui/AppFrame';
 import Sheet from '../ui/Sheet';
-import { Tabs } from './LiczenieTab';
 import ItemForm from './ItemForm';
 
 interface Props {
@@ -46,7 +45,6 @@ interface Props {
   itemId: number;
   focusForm?: boolean;
   onBack: () => void;
-  onTab?: (t: 'pulpit' | 'ekwipunek' | 'liczenie' | 'moje') => void;
 }
 
 type SheetKind = 'assign' | 'unassign' | 'transfer' | 'service' | 'serviceComplete' | 'declare' | 'label' | null;
@@ -57,7 +55,7 @@ type SheetKind = 'assign' | 'unassign' | 'transfer' | 'service' | 'serviceComple
  * action zone with assign (05), unassign (17) and transfer sheets. MEMBER
  * sees the same data with no write affordances (B8, server-enforced too).
  */
-export default function ItemDetail({ band, itemId, focusForm = false, onBack, onTab }: Props) {
+export default function ItemDetail({ band, itemId, focusForm = false, onBack }: Props) {
   const [item, setItem] = useState<ItemView | null>(null);
   const [assignments, setAssignments] = useState<AssignmentView[]>([]);
   const [transfers, setTransfers] = useState<WarehouseTransferView[]>([]);
@@ -98,7 +96,6 @@ export default function ItemDetail({ band, itemId, focusForm = false, onBack, on
           reload();
         }}
         onCancel={() => setEditing(false)}
-        onTab={onTab}
       />
     );
   }
@@ -113,7 +110,6 @@ export default function ItemDetail({ band, itemId, focusForm = false, onBack, on
         <section className="content">
           <div className="state"><span className="state-ico">⚠</span><b>Nie udało się wczytać</b><span>{error}</span></div>
         </section>
-        <Tabs active="ekwipunek" onPulpit={() => (onTab ? onTab('pulpit') : onBack())} onEkwipunek={onBack} onLiczenie={() => onTab?.('liczenie')} onMoje={() => onTab?.('moje')} />
       </AppFrame>
     );
   }
@@ -369,7 +365,8 @@ export default function ItemDetail({ band, itemId, focusForm = false, onBack, on
         <div className="toast" role="status">{toast}<button type="button" onClick={() => setToast(null)}>✕</button></div>
       )}
 
-      <Tabs active="ekwipunek" onPulpit={() => (onTab ? onTab('pulpit') : onBack())} onEkwipunek={onBack} onLiczenie={() => onTab?.('liczenie')} onMoje={() => onTab?.('moje')} />
+      {/* tryb pracy: pojedyncza dolna szyna = akcje pozycji (konwencja jak przy liczeniu);
+          powrót przyciskiem „‹” w appbarze */}
     </AppFrame>
   );
 }
