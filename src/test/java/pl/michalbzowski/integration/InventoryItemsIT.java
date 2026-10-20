@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.ResultActions;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.willThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -59,7 +60,8 @@ class InventoryItemsIT extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.attributes", org.hamcrest.Matchers.hasSize(2)))
                 .andExpect(jsonPath("$.attributes[0].value").value("M"));
 
-        // Update: replace name + attribute values wholesale.
+        // Update: replace name + attribute values wholesale. The program-assigned
+        // code survives — it is never an edit surface (roadmap 2026-10-20, zad. 2).
         mvc.perform(put("/api/inventory/items/{id}", itemId)
                         .contentType("application/json")
                         .content("""
@@ -70,6 +72,7 @@ class InventoryItemsIT extends AbstractIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("Marynarka wizytowa"))
                 .andExpect(jsonPath("$.warehouse").value("MAIN"))
+                .andExpect(jsonPath("$.serialNumber").value("UNI-001"))
                 .andExpect(jsonPath("$.attributes", org.hamcrest.Matchers.hasSize(1)));
 
         // Warehouse changes go through the transfer endpoint (B6: history = fact).
@@ -158,6 +161,30 @@ class InventoryItemsIT extends AbstractIntegrationTest {
                 "{\"name\":\"B\",\"type\":\"OTHER\",\"serialNumber\":\"SN-1\"}")
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("zajęty")));
+    }
+
+    @Test
+    void autoCodeIsAssignedPerTypeAndIncrementsWithinBand() throws Exception {
+        long firstInstrument = createItem("{\"name\":\"Trąbka\",\"type\":\"INSTRUMENT\"}");
+        long secondInstrument = createItem("{\"name\":\"Puzon\",\"type\":\"INSTRUMENT\"}");
+        long uniform = createItem("{\"name\":\"Spornia\",\"type\":\"UNIFORM\"}");
+
+        codeMatches(firstInstrument, "INS-\\d{4}");
+        codeMatches(secondInstrument, "INS-\\d{4}");
+        codeMatches(uniform, "UNI-\\d{4}");
+
+        // Each add bumps the per-(band,type) counter: codes within a type are unique.
+        assertThat(codeOf(firstInstrument)).isNotEqualTo(codeOf(secondInstrument));
+    }
+
+    private void codeMatches(long itemId, String pattern) throws Exception {
+        assertThat(codeOf(itemId)).matches(pattern);
+    }
+
+    private String codeOf(long itemId) throws Exception {
+        String body = mvc.perform(get("/api/inventory/items/{id}", itemId).with(as("tok-admin")))
+                .andReturn().getResponse().getContentAsString();
+        return MAPPER.readTree(body).get("serialNumber").asText();
     }
 
     @Test

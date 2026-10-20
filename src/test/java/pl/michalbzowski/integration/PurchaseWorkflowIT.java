@@ -80,6 +80,10 @@ class PurchaseWorkflowIT extends AbstractIntegrationTest {
         org.junit.jupiter.api.Assertions.assertEquals("AVAILABLE", item.get("lifecycleStatus").asText());
         org.junit.jupiter.api.Assertions.assertEquals("MAIN", item.get("warehouse").asText());
         org.junit.jupiter.api.Assertions.assertTrue(item.get("assignedMemberName").isNull());
+        // Program-assigned code: INSTRUMENT purchases materialise as INS-nnnn (roadmap zad. 2).
+        org.junit.jupiter.api.Assertions.assertTrue(
+                item.get("serialNumber").asText().matches("INS-\\d{4}"),
+                "expected INS-nnnn, got " + item.get("serialNumber"));
 
         postJson("/api/inventory/purchases/" + id + "/status", "{\"status\":\"READY_FOR_PICKUP\"}")
                 .andExpect(status().isOk());

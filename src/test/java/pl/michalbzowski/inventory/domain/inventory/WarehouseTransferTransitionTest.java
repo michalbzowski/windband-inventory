@@ -138,7 +138,7 @@ class WarehouseTransferTransitionTest {
         InventoryItem item = availableItem();
 
         assertThatThrownBy(() -> item.replaceDetails("Fagot II", WarehouseType.ARCHIVE,
-                "SER-9", null, null))
+                null, null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("transfer");
         assertThat(item.getWarehouse()).isEqualTo(WarehouseType.MAIN);
@@ -148,8 +148,8 @@ class WarehouseTransferTransitionTest {
     void replaceDetailsAcceptsUnchangedOrAbsentWarehouse() {
         InventoryItem item = availableItem();
 
-        item.replaceDetails("Fagot II", WarehouseType.MAIN, "SER-9", null, null);
-        item.replaceDetails("Fagot III", null, "SER-9", "opis", "notka");
+        item.replaceDetails("Fagot II", WarehouseType.MAIN, null, null);
+        item.replaceDetails("Fagot III", null, "opis", "notka");
 
         assertThat(item.getName()).isEqualTo("Fagot III");
         assertThat(item.getWarehouse()).isEqualTo(WarehouseType.MAIN);
