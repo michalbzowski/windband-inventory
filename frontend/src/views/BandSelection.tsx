@@ -68,15 +68,6 @@ export default function BandSelection({ bands, memberCounts, onSelect }: Props) 
             })}
           </ul>
         )}
-
-        <div className="banner b-warn hint-return" role="note">
-          <span aria-hidden>🔗</span>
-          <span>
-            Po wybraniu zespołu otworzy się jego ekran startowy. Wrócić do listy możesz
-            przyciskiem „Wstecz” w pasku tytułu. Logowanie jest jednostronne: konto nadaje
-            windband-manager (SSO), a dostęp do zespołów wymusza windband-manager po stronie serwera.
-          </span>
-        </div>
       </section>
 
       <nav className="tabs" aria-label="Nawigacja główna">

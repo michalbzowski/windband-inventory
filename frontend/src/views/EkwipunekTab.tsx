@@ -81,7 +81,6 @@ export default function EkwipunekTab({
         itemId={screen.itemId}
         focusForm={screen.focusForm === true}
         onBack={() => setScreen({ kind: 'list' })}
-        onTab={onTab}
       />
     );
   }
@@ -91,7 +90,6 @@ export default function EkwipunekTab({
         band={band}
         onDone={() => setScreen({ kind: 'list' })}
         onCancel={() => setScreen({ kind: 'list' })}
-        onTab={onTab}
       />
     );
   }

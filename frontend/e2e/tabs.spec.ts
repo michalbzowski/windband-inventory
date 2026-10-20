@@ -75,7 +75,7 @@ test('cykl przez wszystkie zakładki — z Liczenia też da się wyjść', async
   await expect(page.getByRole('heading', { name: 'Orkiestra' })).toBeVisible();
 });
 
-test('ItemDetail: Pulpit w nawigacji prowadzi do pulpitu, nie do listy pozycji', async ({ page }) => {
+test('ItemDetail: tryb pracy — bez szyny Tabs, powrót „‹ Wróć do listy”, nawigacja z listy', async ({ page }) => {
   await mockBase(page);
   await page.goto('/');
 
@@ -85,10 +85,15 @@ test('ItemDetail: Pulpit w nawigacji prowadzi do pulpitu, nie do listy pozycji',
   await page.getByRole('button', { name: 'Pozycja Flet koncertowy' }).click();
   await expect(page.getByRole('heading', { name: /Flet koncertowy/ })).toBeVisible();
 
+  // konwencja ekranów pracy (jak liczenie): jedyna dolna szyna to akcje pozycji
+  await expect(nav(page)).toHaveCount(0);
+  await expect(page.getByRole('toolbar', { name: 'Akcje pozycji' })).toBeVisible();
+
+  await page.getByRole('button', { name: /Wróć do listy/ }).click();
+  await expect(page.getByRole('heading', { name: 'Ekwipunek' })).toBeVisible();
+  await expect(nav(page)).toBeVisible();
+
+  // dalej do pulpitu z listy (nie z drill-down)
   await nav(page).getByRole('button', { name: '📋 Pulpit' }).click();
   await expect(page.getByRole('heading', { name: 'Orkiestra' })).toBeVisible();
-
-  // powrót na Ekwipunek i dalej do Liczenia z pozycji drill-down
-  await nav(page).getByRole('button', { name: '🎒 Ekwipunek' }).click();
-  await expect(page.getByRole('heading', { name: 'Ekwipunek' })).toBeVisible();
 });

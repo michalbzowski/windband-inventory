@@ -21,7 +21,6 @@ import {
 } from '../ekwipunek/form';
 import AttributeField from '../ekwipunek/AttributeField';
 import AppFrame from '../ui/AppFrame';
-import { Tabs } from './LiczenieTab';
 
 interface Props {
   band: BandView;
@@ -29,7 +28,6 @@ interface Props {
   editId?: number;
   onDone: (item: ItemView) => void;
   onCancel: () => void;
-  onTab?: (t: 'pulpit' | 'ekwipunek' | 'liczenie' | 'moje') => void;
 }
 
 /**
@@ -38,7 +36,7 @@ interface Props {
  * renders basic fields + the attribute form generated from defs per band+type
  * (B6), with inline validation mirroring server rules.
  */
-export default function ItemForm({ band, editId, onDone, onCancel, onTab }: Props) {
+export default function ItemForm({ band, editId, onDone, onCancel }: Props) {
   const isEdit = editId !== undefined;
   const [step, setStep] = useState<1 | 2>(isEdit ? 2 : 1);
   const [type, setType] = useState<ItemType | null>(isEdit ? null : null);
@@ -211,7 +209,7 @@ export default function ItemForm({ band, editId, onDone, onCancel, onTab }: Prop
         </div>
       )}
 
-      <Tabs active="ekwipunek" onPulpit={() => (onTab ? onTab('pulpit') : onCancel())} onEkwipunek={onCancel} onLiczenie={() => onTab?.('liczenie')} onMoje={() => onTab?.('moje')} />
+      {/* tryb pracy (formularz): bez szyny Tabs — powrót „‹” / Anuluj */}
     </AppFrame>
   );
 }
