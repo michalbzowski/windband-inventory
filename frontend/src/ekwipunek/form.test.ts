@@ -28,6 +28,35 @@ describe('toFields — generator from defs (B6)', () => {
     ]);
     expect(fields.map((f) => f.name)).toEqual(['Rozmiar', 'Kolor', 'Kupiono']);
   });
+
+  it('master zawsze idzie nad zależnymi atrybutami, nawet gdy te mają mniejszy displayOrder (zgłoszony bug UX)', () => {
+    // Typ (master) order=2, a „Rozmiar kołnierzyka” (slave, zależy od Typa) order=1
+    const fields = toFields([
+      def({ id: 703, name: 'Rozmiar kołnierzyka', displayOrder: 1, dependsOnDefId: 700, dependsOnValues: ['Koszula'] }),
+      def({ id: 700, name: 'Typ', displayOrder: 2, options: ['Mundur', 'Koszula'], dataType: 'SELECT' }),
+    ]);
+    expect(fields.map((f) => f.name)).toEqual(['Typ', 'Rozmiar kołnierzyka']);
+  });
+
+  it('bloki zależności trzymają względną pozycję; dzieci idą po displayOrder', () => {
+    const fields = toFields([
+      def({ id: 1, name: 'A-master', displayOrder: 3 }),
+      def({ id: 2, name: 'A-child-2', displayOrder: 9, dependsOnDefId: 1 }),
+      def({ id: 3, name: 'B-master', displayOrder: 5 }),
+      def({ id: 4, name: 'A-child-1', displayOrder: 8, dependsOnDefId: 1 }),
+      def({ id: 5, name: 'B-child', displayOrder: 7, dependsOnDefId: 3 }),
+    ]);
+    // bloki według anchor (min order): A=[3,9,8] → 3, B=[5,7] → 5
+    expect(fields.map((f) => f.name)).toEqual(['A-master', 'A-child-1', 'A-child-2', 'B-master', 'B-child']);
+  });
+
+  it('rodzic nieaktywny → dziecko staje się masterem własnego bloku (bez zawieszania)', () => {
+    const fields = toFields([
+      def({ id: 1, name: 'Dziecko', displayOrder: 1, dependsOnDefId: 9 }),
+      def({ id: 9, name: 'Rodzic', active: false, displayOrder: 0 }),
+    ]);
+    expect(fields.map((f) => f.name)).toEqual(['Dziecko']);
+  });
 });
 
 describe('validateField — mirrors AttributeValueFormat.java', () => {
