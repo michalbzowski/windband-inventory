@@ -237,7 +237,7 @@ function CreateSheet({ band, openJobs, onClose, onCreated }: {
           <option value="" disabled>{items === null ? 'Wczytywanie…' : '— wybierz pozycję —'}</option>
           {(items ?? []).map((i) => (
             <option key={i.id} value={i.id} disabled={busyItemIds.has(i.id)}>
-              {i.name}{i.serialNumber ? ` · ${i.serialNumber}` : ''}{busyItemIds.has(i.id) ? ' — otwarty serwis' : ''}
+              {[i.serialNumber, i.name].filter(Boolean).join(' · ') || 'Pozycja'}{busyItemIds.has(i.id) ? ' — otwarty serwis' : ''}
             </option>
           ))}
         </select>

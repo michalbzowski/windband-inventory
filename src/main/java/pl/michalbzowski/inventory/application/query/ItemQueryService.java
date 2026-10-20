@@ -104,7 +104,12 @@ public class ItemQueryService {
             return cb.and(predicates.toArray(Predicate[]::new));
         };
         return items.findAll(spec).stream()
-                .sorted(Comparator.comparing(InventoryItem::getName, String.CASE_INSENSITIVE_ORDER))
+                // Identyfikator UI = typ + kod programu; nazwa jest opcjonalna
+                // (V16), więc sortownik musi tolerować null — kod najpierw, nazwa ostatnio.
+                .sorted(Comparator.comparing(InventoryItem::getSerialNumber,
+                                Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER))
+                        .thenComparing(InventoryItem::getName,
+                                Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)))
                 .map(ItemQueryService::summary)
                 .toList();
     }

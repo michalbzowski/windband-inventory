@@ -93,7 +93,7 @@ test('ADMIN przeprowadza potrzebę OPEN → ORDERED → RECEIVED z notką', asyn
 
   const row = page.locator('li', { hasText: 'Trąbka Jupiter 1100' }).first();
   await expect(row.getByText('Zgłoszona')).toBeVisible();
-  await row.getByRole('button', { name: 'Zamów Trąbka Jupiter 1100' }).click();
+  await row.getByRole('button', { name: 'Zamów TR-11' }).click();
   await expect(row.getByText('Zamówiona')).toBeVisible();
   expect(captured.statusBodies[0]).toEqual({ status: 'ORDERED', note: null });
 

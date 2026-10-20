@@ -49,7 +49,7 @@ export const listPurchases = (bandId: number, status?: PurchaseStatus, signal?: 
 
 /** ADMIN zamawia nowy przedmiot dla wskazanego aktywnego członka. */
 export const createPurchase = (bandId: number, req: {
-  name: string;
+  name?: string | null;
   itemType: ItemType;
   requestedForMemberId: number;
   note?: string | null;

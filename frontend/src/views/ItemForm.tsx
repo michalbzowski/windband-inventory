@@ -80,7 +80,6 @@ export default function ItemForm({ band, editId, onDone, onCancel }: Props) {
   const submit = async () => {
     if (!type) return;
     const next: Record<string, string> = {};
-    if (!basics.name.trim()) next.name = 'Nazwa jest wymagana';
     for (const [defId, msg] of Object.entries(validateFields(fields, values))) next[`a${defId}`] = msg;
     setErrors(next);
     if (Object.keys(next).length > 0) {
@@ -141,18 +140,6 @@ export default function ItemForm({ band, editId, onDone, onCancel }: Props) {
 
         {(step === 2 || isEdit) && (
           <>
-            <label className="field">
-              Nazwa *
-              <input
-                ref={(el) => { fieldRefs.current.name = el; }}
-                value={basics.name}
-                maxLength={255}
-                onChange={(e) => setBasics((b) => ({ ...b, name: e.target.value }))}
-                aria-invalid={!!errors.name}
-              />
-              {errors.name && <span className="field-err">{errors.name}</span>}
-            </label>
-
             {isEdit ? (
               <p className="hint">
                 Kod pozycji: <b>{item?.serialNumber ?? '—'}</b> — nadany przez program, nie podlega edycji.

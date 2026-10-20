@@ -256,12 +256,12 @@ function ItemList({
 
         <div className="panel" style={{ padding: '2px 14px' }}>
           {rows.map((it) => (
-            <button type="button" className="srow" key={it.id} onClick={() => onOpen(it.id)} aria-label={`Pozycja ${it.name}`}>
+            <button type="button" className="srow" key={it.id} onClick={() => onOpen(it.id)} aria-label={`Pozycja ${[it.serialNumber ?? '', it.name ?? ''].filter(Boolean).join(' · ') || TYPE_LABEL[it.type]}`}>
               <span>
-                <b>{TYPE_ICON[it.type]} {it.name}</b>
+                <b>{TYPE_ICON[it.type]} {it.serialNumber || it.name || TYPE_LABEL[it.type]}</b>
+                {it.serialNumber && it.name ? <span className="muted">{` · ${it.name}`}</span> : ''}
                 <span className="muted">
                   {' '}
-                  {it.serialNumber ? `SN ${it.serialNumber} · ` : ''}
                   {it.assignedMemberName ? `👤 ${it.assignedMemberName} · ` : ''}
                   {WAREHOUSE_LABEL[it.warehouse]}
                 </span>

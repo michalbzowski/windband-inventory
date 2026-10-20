@@ -19,6 +19,7 @@ import { CountQueue, countKey, extraKey, type PendingDecision } from '../stockta
 import { createNeed, listNeeds, sendItemToService, type NeedView } from '../api/inventory';
 import NeedSheet from '../needs/NeedSheet';
 import { NEED_STATUS_LABEL, openNeedFor } from '../needs/model';
+import { TYPE_ICON, TYPE_LABEL } from '../ekwipunek/filters';
 import { deriveProgress } from '../stocktake/progress';
 import type { CounterIdentity } from '../stocktake/identity';
 
@@ -141,7 +142,7 @@ export default function Counting({ band, identity, stocktakeId, onExit }: Props)
             // Line/item vanished server-side — drop this one decision, keep the rest.
             queue.remove(d.key);
             setPending(queue.forStocktake(stocktakeId));
-            showToast({ msg: `Pominięto „${d.name}” — nie ma jej już w spisie.`, tone: 'danger' });
+            showToast({ msg: `Pominięto ${d.name ?? 'pozycję'} — nie ma jej już w spisie.`, tone: 'danger' });
             continue;
           }
           if (e instanceof ApiError) {
@@ -245,7 +246,7 @@ export default function Counting({ band, identity, stocktakeId, onExit }: Props)
     queue.put(d);
     setPending(queue.forStocktake(stocktakeId));
     setShowExtras(false);
-    showToast({ msg: `＋ Nadwyżka: ${item.name}`, tone: 'info', undoKey: d.key });
+    showToast({ msg: `＋ Nadwyżka: ${item.name ?? item.serialNumber ?? 'pozycja'}`, tone: 'info', undoKey: d.key });
   };
 
   /* ---------- stocktake controls ---------- */
@@ -412,7 +413,7 @@ export default function Counting({ band, identity, stocktakeId, onExit }: Props)
 
             <div className={`count-card${cardState && cardState !== 'OK' ? ' flagged' : ''}${cardState ? ` st-${cardState.toLowerCase()}` : ''}`}>
               <span className="cc-ico" aria-hidden>{cardLine.assignedMemberName ? '🎺' : '📦'}</span>
-              <b>{cardLine.name}</b>
+              <b>{cardLine.serialNumber || cardLine.name || 'Pozycja'}</b>
               <div className="sn">{cardLine.serialNumber ?? 'SN nieuzupełniony'}</div>
               {cardLine.assignedMemberName && (
                 <div className="who">👤 {cardLine.assignedMemberName} · przydział</div>
@@ -470,13 +471,13 @@ export default function Counting({ band, identity, stocktakeId, onExit }: Props)
             <h4>Rozbieżności — akcje <span className="badge b-warn">{divergent.length}</span></h4>
             {divergent.map((l) => (
               <div className="srow" key={l.id}>
-                <span>{l.name}{l.serialNumber ? ` · ${l.serialNumber}` : ''}</span>
+                <span>{[l.serialNumber, l.name].filter(Boolean).join(' · ') || 'Pozycja'}</span>
                 <span className={`badge ${l.foundState === 'MISSING' ? 'b-danger' : 'b-warn'}`}>{STATE_LABEL[l.foundState ?? '']}</span>
                 <span className="row-actions">
                   {l.foundState === 'MISSING' && (openNeedFor(needs, l.itemId) ? (
                     <span className="badge b-primary">📦 {NEED_STATUS_LABEL[openNeedFor(needs, l.itemId)!.status]}</span>
                   ) : (
-                    <button type="button" className="btn sm ghost" disabled={!online} onClick={() => setNeedSheet({ itemId: l.itemId, name: l.name })}>
+                    <button type="button" className="btn sm ghost" disabled={!online} onClick={() => setNeedSheet({ itemId: l.itemId, name: l.serialNumber || l.name || 'pozycja' })}>
                       → Potrzeba
                     </button>
                   ))}
@@ -525,12 +526,13 @@ export default function Counting({ band, identity, stocktakeId, onExit }: Props)
           <div className="sheet" onClick={(e) => e.stopPropagation()}>
             <span className="grab" />
             <h4>Dopisz nadwyżkę — fizyczna sztuka spoza snapshotu</h4>
-            <input className="search" placeholder="szukaj po nazwie…" value={extraSearch} onChange={(e) => setExtraSearch(e.target.value)} />
+            <input className="search" placeholder="szukaj po kodzie lub nazwie…" value={extraSearch} onChange={(e) => setExtraSearch(e.target.value)} />
             <div className="sheetlist">
               {items === null && <p className="hint">Ładowanie ekwipunku…</p>}
               {items !== null && filteredExtras(items, lines, pending, extraSearch).slice(0, 30).map((it) => (
                 <button type="button" className="srow" key={it.id} onClick={() => addExtra(it)}>
-                  <b>{it.name}</b><span className="muted">{it.serialNumber ?? ''}</span>
+                  <b>{TYPE_ICON[it.type]} {it.serialNumber || it.name || TYPE_LABEL[it.type]}</b>
+                  {it.serialNumber && it.name ? <span className="muted">{` · ${it.name}`}</span> : ''}
                 </button>
               ))}
               {items !== null && filteredExtras(items, lines, pending, extraSearch).length === 0 && (
@@ -549,7 +551,7 @@ export default function Counting({ band, identity, stocktakeId, onExit }: Props)
             {pending.length === 0 && <p className="hint">Pusta — wszystko wysłane ✓</p>}
             {pending.map((d) => (
               <div className="srow" key={d.key}>
-                <span>{STATE_LABEL[d.foundState]} · {d.name}{d.note ? ` — „${d.note}”` : ''}</span>
+                <span>{STATE_LABEL[d.foundState]} · {d.name || 'Pozycja'}{d.note ? ` — „${d.note}”` : ''}</span>
                 <span className="muted">{new Date(d.queuedAt).toLocaleTimeString('pl-PL')}</span>
               </div>
             ))}
@@ -605,5 +607,5 @@ function filteredExtras(
   const s = search.trim().toLowerCase();
   return items
     .filter((it) => !inStocktake.has(it.id))
-    .filter((it) => !s || it.name.toLowerCase().includes(s) || (it.serialNumber ?? '').toLowerCase().includes(s));
+    .filter((it) => !s || (it.name ?? '').toLowerCase().includes(s) || (it.serialNumber ?? '').toLowerCase().includes(s));
 }
