@@ -1,4 +1,4 @@
-import { getSession, beginLogin } from '../auth/oidc';
+import { beginLogin, ensureSession, refreshSession } from '../auth/oidc';
 
 /**
  * Two same-origin API bases (the proxy contract, see vite.config.ts and
@@ -31,10 +31,12 @@ async function request<T>(
   init: RequestInit,
   opts: RequestOptions = {},
 ): Promise<T> {
-  const session = getSession();
+  // ensureSession: świeży token od ręki, w marginesie/po wygaśnięciu — cicha
+  // wymiana refresh_tokenem. Dopiero bez nadziei odsyłamy do silent re-auth.
+  const session = await ensureSession();
   if (!session) {
-    window.location.assign('/'); // App will redirect to login on boot.
-    throw new Error('Not authenticated');
+    await beginLogin('none');
+    throw new ApiError(401, 'Sesja wygasła — trwamy ponowne logowanie');
   }
   const res = await fetch(base + path, {
     ...init,
@@ -44,8 +46,11 @@ async function request<T>(
     },
   });
 
-  // Expired/invalid token → one silent re-auth, then retry the call.
+  // Serwer odrzucił token mimo świeżości (np. wygasł w trakcie): jedna
+  // wymuszona rotacja + retry; dalej dopiero silent re-auth.
   if (res.status === 401 && !opts.reauth) {
+    const rotated = await refreshSession();
+    if (rotated) return request<T>(base, path, init, { ...opts, reauth: true });
     await beginLogin('none');
     throw new ApiError(401, 'Sesja wygasła — trwamy ponowne logowanie');
   }

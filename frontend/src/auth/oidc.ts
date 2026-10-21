@@ -5,9 +5,25 @@
  * PKCE verifier is kept only as long as the login round-trip lasts and then
  * dropped. The session lives in sessionStorage (cleared on tab close) so a
  * stale token cannot outlive the user's browser session.
+ *
+ * Session longevity (fix 2026-10-21, „wylogowanie po ~5 min"): every stored
+ * session carries the Keycloak refresh token and is ROTATED on use;
+ * ensureSession()/startSessionKeepAlive() renew the access token BEFORE it
+ * expires, so active use (and an open tab) no longer ends in a forced logout.
+ * A rejected refresh clears the session and the caller falls back to
+ * beginLogin('none') — silent SSO when Keycloak still trusts the browser.
  */
 
 import { getAuthIssuer, getClientId } from '../config/env';
+import {
+  SESSION_KEY,
+  expiresAtFrom,
+  needsRefresh,
+  performRefresh,
+  readRawSession,
+  type RefreshDeps,
+  type StoredSession,
+} from './sessionRefresh';
 
 export interface AuthUser {
   sub: string;
@@ -17,13 +33,7 @@ export interface AuthUser {
   lastName?: string;
 }
 
-export interface Session {
-  accessToken: string;
-  idToken: string;
-  /** epoch ms after which the access token must be considered expired */
-  expiresAt: number;
-  user: AuthUser;
-}
+export type Session = StoredSession;
 
 /** Where Keycloak sends the browser back after login. The exact origin comes
  * from wherever the SPA is served — that URL must be on the client's Valid
@@ -35,7 +45,6 @@ const PKCE_KEY = 'wi.pkce.flow';
 
 /** ISSUER / CLIENT_ID are runtime env (see src/config/env.ts), loaded before
  * first render — identical code in dev, local docker and production. */
-const SESSION_KEY = 'wi.session';
 
 interface PkceFlow {
   verifier: string;
@@ -70,6 +79,17 @@ function str(v: unknown): string | undefined {
   return typeof v === 'string' && v.length > 0 ? v : undefined;
 }
 
+/** Wyciąga profil użytkownika z claimów id_token (używane przy loginie i przy rotacji). */
+function userFromClaims(claims: Record<string, unknown>): AuthUser {
+  return {
+    sub: str(claims.sub) ?? '',
+    username: str(claims.preferred_username),
+    email: str(claims.email),
+    firstName: str(claims.given_name),
+    lastName: str(claims.family_name),
+  };
+}
+
 /** True when the current page is the POST-login redirect (has ?code). */
 export function isCallbackPage(search: string = window.location.search): boolean {
   return new URLSearchParams(search).get('code') !== null;
@@ -91,26 +111,24 @@ async function exchangeCode(code: string, flow: PkceFlow): Promise<Session> {
     body,
   });
   if (!res.ok) throw new Error(`Token exchange failed (${res.status})`);
-  const tok = (await res.json()) as { access_token: string; id_token: string; expires_in: number };
+  const tok = (await res.json()) as {
+    access_token: string; id_token: string; expires_in: number; refresh_token?: string;
+  };
 
   const claims = decodeJwtPayload(tok.id_token);
   if (claims.iss !== ISSUER) throw new Error('id_token issuer mismatch');
   const aud = Array.isArray(claims.aud) ? (claims.aud as unknown[]) : [claims.aud];
   if (!aud.includes(CLIENT_ID)) throw new Error('id_token audience mismatch');
 
-  // Refresh margin: treat as expired 30s early to avoid borderline calls.
+  // expiresAtFrom bierze 30s zapasu; refresh_token zostawiamy w sesji — to on
+  // pozwala wymieniać access token bez udziału użytkownika (utrzymanie sesji).
   const nowSec = Math.floor(Date.now() / 1000);
   sessionStorage.setItem(SESSION_KEY, JSON.stringify({
     accessToken: tok.access_token,
     idToken: tok.id_token,
-    expiresAt: Date.now() + (tok.expires_in ?? Math.max(0, (claims.exp as number) - nowSec) - 30) * 1000,
-    user: {
-      sub: str(claims.sub) ?? '',
-      username: str(claims.preferred_username),
-      email: str(claims.email),
-      firstName: str(claims.given_name),
-      lastName: str(claims.family_name),
-    },
+    expiresAt: expiresAtFrom(tok.expires_in ?? Math.max(0, (claims.exp as number) - nowSec), Date.now()),
+    user: userFromClaims(claims),
+    refreshToken: tok.refresh_token ?? null,
   } satisfies Session) as string);
   return getSession()!;
 }
@@ -145,7 +163,14 @@ export async function finishLogin(search: string = window.location.search): Prom
   const code = sp.get('code');
   if (!code) throw new Error('Missing authorization code');
   const err = sp.get('error');
-  if (err) throw new Error(`Keycloak error: ${sp.get('error_description') ?? err}`);
+  if (err) {
+    // login_required po prompt=none = Keycloak nie ma już aktywnej sesji SSO.
+    // Wskakujemy od razu do pełnego logowania zamiast pokazywać ekran błędu.
+    if (err === 'login_required' || err === 'interaction_required') {
+      void beginLogin('login');
+    }
+    throw new Error(`Keycloak error: ${sp.get('error_description') ?? err}`);
+  }
 
   const raw = sessionStorage.getItem(PKCE_KEY);
   sessionStorage.removeItem(PKCE_KEY);
@@ -162,15 +187,66 @@ export function getSession(): Session | null {
   if (!raw) return null;
   try {
     const s = JSON.parse(raw) as Session;
-    if (Date.now() >= s.expiresAt) {
-      clearSession();
-      return null;
-    }
+    // Wygasły access token NIE kasuje zapisu: w magazynie siedzi wciąż
+    // refresh token do wymiany. Nieaktualność sygnalizujemy zwróceniem null.
+    if (Date.now() >= s.expiresAt) return null;
     return s;
   } catch {
     clearSession();
     return null;
   }
+}
+
+/**
+ * Jednorazowa (single-flight) wymiana refresh_token na nową sesję. Równoległe
+ * wołania dzielą jeden request — Keycloak rotuje token jednorazowo, druga
+ * próba tym samym starym tokenem dostałaby 400 i wylogowałaby użytkownika.
+ */
+let refreshInFlight: Promise<Session | null> | null = null;
+
+export function refreshSession(): Promise<Session | null> {
+  if (!refreshInFlight) {
+    const deps: RefreshDeps = {
+      store: sessionStorage,
+      fetchFn: (url, init) => fetch(url, init),
+      issuer: getAuthIssuer(),
+      clientId: getClientId(),
+      now: () => Date.now(),
+      decodeUser: (idToken) => userFromClaims(decodeJwtPayload(idToken)),
+    };
+    refreshInFlight = performRefresh(deps).finally(() => { refreshInFlight = null; });
+  }
+  return refreshInFlight;
+}
+
+/**
+ * Świeża sesja do użycia: ważny token z zapasem → od ręki; w marginesie lub
+ * po wygaśnięciu → próba rotacji. null = brak nadziei, wołający idzie przez
+ * beginLogin('none').
+ */
+export async function ensureSession(): Promise<Session | null> {
+  const s = getSession();
+  if (s && !needsRefresh(s, Date.now())) return s;
+  if (readRawSession(sessionStorage)?.refreshToken) {
+    const rotated = await refreshSession();
+    if (rotated) return rotated;
+  }
+  return s; // wciąż formalnie ważny (tylko blisko krawędzi) — użyj albo zignoruj
+}
+
+/**
+ * Keep-alive sesji: co `intervalMs` sprawdzamy, czy access token wchodzi w
+ * margines odświeżenia, i wymieniamy go w tle. Dzięki temu otwarta karta
+ * (nawet bez klikania) podtrzymuje też idle-timeout po stronie Keycloak.
+ * Zwraca funkcję zatrzymania.
+ */
+export function startSessionKeepAlive(intervalMs = 60_000): () => void {
+  const tick = () => {
+    const raw = readRawSession(sessionStorage);
+    if (raw && raw.refreshToken && needsRefresh(raw, Date.now())) void refreshSession();
+  };
+  const handle = setInterval(tick, intervalMs);
+  return () => clearInterval(handle);
 }
 
 export function clearSession(): void {
