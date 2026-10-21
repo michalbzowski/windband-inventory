@@ -48,6 +48,25 @@ async function boot(page: Page, captured: { itemQueries: string[] }) {
            item(10, 'Czapka', 'ASSIGNED'), item(11, 'Koszula', 'ASSIGNED')];
     return route.fulfill({ json: rows });
   });
+  // B14: licznik „Przydziały i deklaracje” dokłada aktywne deklaracje PRIVATE.
+  const decl = (id: number, type: string, status: string, itemName: string) => ({
+    id, bandId: 7, itemId: id, name: itemName, serialNumber: `INS-000${id}`, type, status,
+    holderMemberId: type === 'PRIVATE' && status === 'ACTIVE' ? 21 : null,
+    holderName: type === 'PRIVATE' && status === 'ACTIVE' ? 'Anna Nowak' : null,
+    locationText: type === 'EXTERNAL' ? 'sala prób' : null, note: null,
+    declaredByMemberId: 21, declaredByName: 'Anna Nowak',
+    createdAt: '2026-10-20T10:00:00Z', revokedAt: null, revokedBy: null, revokedNote: null,
+  });
+  const declRows = [
+    decl(41, 'PRIVATE', 'ACTIVE', 'Klarnet'), decl(42, 'PRIVATE', 'ACTIVE', 'Flet'),
+    decl(43, 'EXTERNAL', 'ACTIVE', 'Standy'), decl(44, 'PRIVATE', 'REVOKED', 'Puzon'),
+  ];
+  await page.route(/\/api\/inventory\/declarations(\?.*)?$/, (route) => {
+    const url = new URL(route.request().url());
+    const type = url.searchParams.get('type');
+    const status = url.searchParams.get('status');
+    return route.fulfill({ json: declRows.filter((r) => (!type || r.type === type) && (!status || r.status === status)) });
+  });
 
   await page.goto('/');
   return captured;
@@ -59,7 +78,8 @@ test('liczniki pokazują prawdziwe liczby zamiast „w budowie”', async ({ pag
   await boot(page, { itemQueries: [] });
   // wartość siedzi w <span> kafelka (ikona), etykieta — za nim; para = jeden kafel
   await expect(counter(page, 'Pokaż wszystkie pozycje').locator('span')).toHaveText('7');
-  await expect(counter(page, 'Pokaż pozycje z aktywnym przydziałem').locator('span')).toHaveText('3');
+  // 3 formalne przydziały + 2 aktywne deklaracje PRIVATE (EXTERNAL i REVOKED nie wchodzą)
+  await expect(counter(page, 'Pokaż pozycje przydzielone lub zdeklarowane u osób').locator('span')).toHaveText('5');
   await expect(counter(page, 'Otwórz planszę zamówień i serwisu').locator('span')).toHaveText('2');
   await expect(counter(page, 'Pokaż pozycje z terminem serwisu').locator('span')).toHaveText('1');
   await expect(page.getByText('w budowie')).toHaveCount(0);
@@ -80,7 +100,7 @@ test('licznik potrzeb prowadzi prosto na planszę Zamówień i serwisu, bez drug
 test('licznik przydziałów wchodzi do Ekwipunku z filtrem ASSIGNED', async ({ page }) => {
   const captured = { itemQueries: [] as string[] };
   await boot(page, captured);
-  await counter(page, 'Pokaż pozycje z aktywnym przydziałem').click();
+  await counter(page, 'Pokaż pozycje przydzielone lub zdeklarowane u osób').click();
   await expect(page.getByText('Mundur galowy')).toBeVisible();
   await expect(page.getByText('Trąbka')).toHaveCount(0);
   expect(captured.itemQueries.some((q) => q.includes('status=ASSIGNED'))).toBe(true);
