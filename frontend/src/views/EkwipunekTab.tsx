@@ -17,6 +17,7 @@ import {
   toQuery,
   type ItemFilterState,
 } from '../ekwipunek/filters';
+import { fmtAttrValue } from '../ekwipunek/format';
 import AppFrame from '../ui/AppFrame';
 import Sheet from '../ui/Sheet';
 import { Tabs } from './LiczenieTab';
@@ -265,6 +266,14 @@ function ItemList({
                   {it.assignedMemberName ? `👤 ${it.assignedMemberName} · ` : ''}
                   {WAREHOUSE_LABEL[it.warehouse]}
                 </span>
+                {(it.listAttributes?.length ?? 0) > 0 && (
+                  // B16: wartości atrybutów oznaczonych „na liście" — serwer
+                  // sortuje je po displayOrder, tu tylko format per typ.
+                  <span className="muted" data-testid="list-attrs">
+                    {' · '}
+                    {it.listAttributes!.map((a) => fmtAttrValue(a.dataType, a.value)).join(' · ')}
+                  </span>
+                )}
               </span>
               <span className={`badge ${it.lifecycleStatus === 'ASSIGNED' ? 'b-primary' : it.lifecycleStatus === 'AVAILABLE' ? 'b-ok' : 'b-gray'}`}>
                 {STATUS_LABEL[it.lifecycleStatus]}

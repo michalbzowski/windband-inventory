@@ -9,7 +9,7 @@ import { test, expect, type Page, type Route } from '@playwright/test';
 
 test.use({ viewport: { width: 360, height: 740 } });
 
-interface Def { id: number; itemType: string; name: string; dataType: string; options: string[]; required: boolean; active: boolean; displayOrder: number }
+interface Def { id: number; itemType: string; name: string; dataType: string; options: string[]; required: boolean; active: boolean; displayOrder: number; displayInList: boolean }
 
 interface MockItem {
   id: number; name: string; type: string; lifecycleStatus: string; warehouse: string;
@@ -22,10 +22,10 @@ interface MockItem {
 }
 
 const DEFS: Def[] = [
-  { id: 1, itemType: 'UNIFORM', name: 'Kolor', dataType: 'TEXT', options: [], required: true, active: true, displayOrder: 1 },
-  { id: 2, itemType: 'UNIFORM', name: 'Rozmiar', dataType: 'SELECT', options: ['S', 'M', 'L'], required: false, active: true, displayOrder: 2 },
-  { id: 3, itemType: 'UNIFORM', name: 'Etui', dataType: 'BOOLEAN', options: [], required: false, active: true, displayOrder: 3 },
-  { id: 4, itemType: 'INSTRUMENT', name: 'Liczba zaworów', dataType: 'NUMBER', options: [], required: false, active: true, displayOrder: 1 },
+  { id: 1, itemType: 'UNIFORM', name: 'Kolor', dataType: 'TEXT', options: [], required: true, active: true, displayOrder: 1, displayInList: false },
+  { id: 2, itemType: 'UNIFORM', name: 'Rozmiar', dataType: 'SELECT', options: ['S', 'M', 'L'], required: false, active: true, displayOrder: 2, displayInList: true },
+  { id: 3, itemType: 'UNIFORM', name: 'Etui', dataType: 'BOOLEAN', options: [], required: false, active: true, displayOrder: 3, displayInList: true },
+  { id: 4, itemType: 'INSTRUMENT', name: 'Liczba zaworów', dataType: 'NUMBER', options: [], required: false, active: true, displayOrder: 1, displayInList: false },
 ];
 
 /** WM roster mock — 1:1 with B10 MemberView record incl. expectedSet (feeds F3). */
@@ -54,7 +54,14 @@ interface DeclarationMock {
 }
 
 function summary(i: MockItem) {
-  return { id: i.id, name: i.name, type: i.type, lifecycleStatus: i.lifecycleStatus, warehouse: i.warehouse, serialNumber: i.serialNumber, assignedMemberId: i.assignedMemberId, assignedMemberName: i.assignedName };
+  // B16 mirror of ItemQueryService.listAttributesFor: active defs of the
+  // item's type marked displayInList, ordered by displayOrder, blank skipped.
+  const listAttributes = DEFS
+    .filter((d) => d.itemType === i.type && d.active && d.displayInList)
+    .sort((a, b) => a.displayOrder - b.displayOrder)
+    .map((d) => ({ attributeDefId: d.id, name: d.name, dataType: d.dataType, value: i.attrs[d.id] ?? null }))
+    .filter((v) => v.value !== null && v.value !== '');
+  return { id: i.id, name: i.name, type: i.type, lifecycleStatus: i.lifecycleStatus, warehouse: i.warehouse, serialNumber: i.serialNumber, assignedMemberId: i.assignedMemberId, assignedMemberName: i.assignedName, listAttributes };
 }
 
 function detail(i: MockItem) {
@@ -365,6 +372,25 @@ test('P0 §3.1 list filters: typ, status, osoba, atrybut (wartość case-insensi
   await page.getByRole('button', { name: /👤 Anna Nowak/ }).click();
   await expect(page.getByText('filtr: Osoba = Anna Nowak')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Pozycja Marynarka' })).toBeVisible();
+});
+
+test('B16 „na liście”: oznaczone wartości atrybutów w wierszu listy, reszta ukryta', async ({ page }) => {
+  await seed(page);
+  await openEkwipunek(page);
+
+  // Rozmiar (order 2, SELECT) + Etui (order 3, BOOLEAN) z flagą → wiersz pokazuje je po displayOrder.
+  const marynarka = page.getByRole('button', { name: 'Pozycja Marynarka' });
+  await expect(marynarka).toContainText(' · M · ✓ tak');
+  await expect(marynarka).not.toContainText('Zielony'); // Kolor bez flagi — nigdy nie wchodzi do wiersza
+
+  // opcjonalny atrybut bez wartości nie dokłada nic (Spodnie nie mają Etui) → tylko Rozmiar.
+  const spodnie = page.getByRole('button', { name: 'Pozycja Spodnie' });
+  await expect(spodnie).toContainText('· S');
+  await expect(spodnie).not.toContainText('czarny');
+
+  // INSTRUMENT: jedyna def bez flagi → wiersz bez wartości atrybutów.
+  const flet = page.getByRole('button', { name: /Pozycja FL-01/ });
+  await expect(flet).not.toContainText(' · 3');
 });
 
 test('F3 pełny obraz: oczekiwane vs faktyczne, luki i historia widokowa', async ({ page }) => {
