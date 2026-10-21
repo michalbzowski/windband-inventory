@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { listItems, listNeeds, listStocktakes, type StocktakeView } from '../api/inventory';
+import { listDeclarations, listItems, listNeeds, listStocktakes, type StocktakeView } from '../api/inventory';
 import type { BandView } from '../api/bands';
 import { loadIdentity } from '../stocktake/identity';
 import { CountQueue } from '../stocktake/queue';
@@ -71,7 +71,13 @@ function HomeTabs({ band, tab, setTab, goEkw }: { band: BandView; tab: TabKey; s
     listStocktakes(band.bandId).then(setStocktakes).catch(() => setStocktakes([]));
     const bump = (k: CounterKey) => (v: number | null) => setCounters((c) => ({ ...c, [k]: v }));
     listItems(band.bandId).then((l) => bump('items')(l.length)).catch(() => bump('items')(null));
-    listItems(band.bandId, { status: 'ASSIGNED' }).then((l) => bump('assigned')(l.length)).catch(() => bump('assigned')(null));
+    // Kafel „przydziałów”: formalny przydział (status ASSIGNED) + aktywne deklaracje
+    // PRIVATE (B14: bez nich licznik jest ślepy na „w rękach ludzi” — pozycja
+    // trzymana prywatnie ma status AVAILABLE i nigdy nie wchodził do liczby).
+    Promise.all([
+      listItems(band.bandId, { status: 'ASSIGNED' }),
+      listDeclarations(band.bandId, { status: 'ACTIVE', type: 'PRIVATE' }),
+    ]).then(([a, d]) => bump('assigned')(a.length + d.length)).catch(() => bump('assigned')(null));
     listItems(band.bandId, { serviceDue: true }).then((l) => bump('serviceDue')(l.length)).catch(() => bump('serviceDue')(null));
     listNeeds(band.bandId).then((l) => bump('needs')(openNeedCount(l))).catch(() => bump('needs')(null));
   }, [band.bandId]);
