@@ -140,12 +140,18 @@ const doSwitch = async (page: Page) => {
   await expect(page.getByRole('group', { name: 'Filtry statusów zamówień' })).toBeVisible();
 };
 
-test('podpowiedź serwisowa w formularzu potrzeby', async ({ page }) => {
+test('plansza „Zamówienia i serwis”: dwa segmenty — podmenu „Potrzeby” ukryte (regresja 2026-10-21)', async ({ page }) => {
   await mockApi(page, seed(), { statusBodies: [], createBodies: [] });
-  await page.getByRole('button', { name: 'Zgłoś potrzebę' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Nowa potrzeba' });
-  await expect(dialog.getByText(/traktuj ją jak/)).toBeVisible();
-  await expect(dialog.getByText(/segmentu „Zamówienia”/)).toBeVisible();
+  const tabs = page.getByRole('tablist', { name: 'Część deski' }).getByRole('tab');
+  await expect(tabs).toHaveCount(2);
+  await expect(tabs.nth(0)).toHaveText('Zamówienia');
+  await expect(tabs.nth(1)).toHaveText('Serwis');
+  await expect(page.getByRole('tab', { name: 'Potrzeby' })).toHaveCount(0);
+  // domyślnie wchodzi się na Zamówienia: panel z FAB-em ADMIN-a jest widoczny od razu,
+  await expect(page.getByRole('button', { name: 'Zamów nowy przedmiot' })).toBeVisible();
+  // a dawne UI potrzeb (FAB zgłoszenia, filtry statusów) nie istnieje,
+  await expect(page.getByRole('button', { name: 'Zgłoś potrzebę' })).toHaveCount(0);
+  await expect(page.getByRole('group', { name: 'Filtry statusów potrzeb' })).toHaveCount(0);
 });
 
 test('ADMIN przeprowadza zamówienie od zgłoszenia do odbioru', async ({ page }) => {
