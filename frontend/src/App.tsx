@@ -65,6 +65,7 @@ export default function App() {
 
   useEffect(() => {
     let cancelled = false;
+    let stopKeepAlive: (() => void) | null = null;
 
     const boot = async () => {
       const session = oidc.getSession();
@@ -81,12 +82,16 @@ export default function App() {
         return; // navigating away — do not render more
       }
       if (cancelled) return;
+      // Keep-alive: obrót refresh tokenem w tle, zanim access token wygaśnie —
+      // to naprawa „wylogowania po ~5 minutach" przy klikanej/otwartej karcie.
+      stopKeepAlive = oidc.startSessionKeepAlive();
       await loadBands();
     };
 
     void boot();
     return () => {
       cancelled = true;
+      stopKeepAlive?.();
     };
   }, [loadBands]);
 
