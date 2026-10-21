@@ -320,7 +320,7 @@ export default function StocktakeReport({ band, identity, stocktakeId, onExit }:
         </div>
       )}
       {needSheet && (
-        <NeedSheet itemName={needSheet.name} busy={needBusy} onClose={() => setNeedSheet(null)} onSubmit={submitNeed} />
+        <NeedSheet itemName={needSheet.name ?? needSheet.serialNumber ?? 'pozycja'} busy={needBusy} onClose={() => setNeedSheet(null)} onSubmit={submitNeed} />
       )}
       {toast && (
         <div className="toast" role="status">{toast}<button type="button" onClick={() => setToast(null)}>✕</button></div>

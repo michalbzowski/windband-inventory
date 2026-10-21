@@ -44,7 +44,7 @@ public class InventoryNeed {
     @JoinColumn(name = "item_id", nullable = false)
     private InventoryItem item;
 
-    @Column(name = "name", nullable = false, length = 200)
+    @Column(name = "name", length = 200)
     private String name;
 
     @Column(name = "serial_number", length = 120)

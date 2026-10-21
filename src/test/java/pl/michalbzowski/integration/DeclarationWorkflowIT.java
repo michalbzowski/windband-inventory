@@ -44,6 +44,24 @@ class DeclarationWorkflowIT extends AbstractIntegrationTest {
     }
 
     @Test
+    void namelessItemIsDeclarableAndEvidenceCarriesSerialOnly() throws Exception {
+        // Regresja V18: od V16 nazwa pozycji jest opcjonalna (identyfikatorem jest
+        // kod INS-...), a kolumna name w evidence była NOT NULL — deklaracja
+        // instrumentu bez nazwy crashowała na 23502 (raport produkcyjny 2026-10-21).
+        String body = postJson("/api/inventory/items?bandId=7", "{\"type\":\"INSTRUMENT\"}")
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        long item = MAPPER.readTree(body).get("id").longValue();
+
+        long id = createDeclaration(privateBody(item, 12), "tok-member");
+        mvc.perform(get("/api/inventory/declarations/" + id).with(as("tok-member")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").isEmpty())
+                .andExpect(jsonPath("$.serialNumber").isNotEmpty())
+                .andExpect(jsonPath("$.status").value("ACTIVE"));
+    }
+
+    @Test
     void memberDeclaresPrivateThenAdminRevokesAndRetakeIsPossible() throws Exception {
         long item = createItem("Tuba");
 

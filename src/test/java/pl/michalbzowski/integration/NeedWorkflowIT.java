@@ -40,6 +40,22 @@ class NeedWorkflowIT extends AbstractIntegrationTest {
     }
 
     @Test
+    void needFromNamelessItemSnapshotsSerialNotName() throws Exception {
+        // Regresja V18: potrzeba tworzona z pozycji bez nazwy nie może wywalać
+        // NOT NULL na migrodze name (V16 uczynił nazwę opcjonalną).
+        String body = postJson("/api/inventory/items?bandId=7", "{\"type\":\"INSTRUMENT\"}")
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        long item = MAPPER.readTree(body).get("id").longValue();
+
+        long need = createNeed(item, createBody(item, 1, "pozycja bez nazwy"));
+        mvc.perform(get("/api/inventory/needs/" + need).with(as("tok-member")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").isEmpty())
+                .andExpect(jsonPath("$.serialNumber").isNotEmpty());
+    }
+
+    @Test
     void happyPathOpenOrderReceive() throws Exception {
         long item = createItem("Tub");
         long need = createNeed(item, createBody(item, 1, "zniknął z magazynu"));

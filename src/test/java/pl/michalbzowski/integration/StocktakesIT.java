@@ -60,6 +60,31 @@ class StocktakesIT extends AbstractIntegrationTest {
         return startInstrumentStocktake("{}");
     }
 
+    @Test
+    void stocktakeLineForNamelessItemSnapshotsSerialOnly() throws Exception {
+        // Regresja V18: start spisu tworzy wiersze-evidence dla wszystkich pozycji —
+        // pozycja bez nazwy nie może zablokować całego spisu na NOT NULL name.
+        String body = postJson("/api/inventory/items?bandId=7", "{\"type\":\"INSTRUMENT\"}")
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        long item = MAPPER.readTree(body).get("id").longValue();
+
+        long stocktake = startAllStocktake();
+        String lines = mvc.perform(get("/api/inventory/stocktakes/" + stocktake + "/lines")
+                        .with(as("tok-member")))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+        com.fasterxml.jackson.databind.JsonNode line = null;
+        for (com.fasterxml.jackson.databind.JsonNode n : MAPPER.readTree(lines)) {
+            if (n.get("itemId").asLong() == item) {
+                line = n;
+            }
+        }
+        org.junit.jupiter.api.Assertions.assertNotNull(line, "wiersz spisu dla pozycji bez nazwy");
+        org.junit.jupiter.api.Assertions.assertTrue(line.get("name").isNull());
+        org.junit.jupiter.api.Assertions.assertFalse(line.get("serialNumber").isNull());
+    }
+
     private Map<String, Long> lineIds(long stocktakeId) throws Exception {
         String body = mvc.perform(get("/api/inventory/stocktakes/{id}/lines", stocktakeId)
                         .with(as("tok-member")))
