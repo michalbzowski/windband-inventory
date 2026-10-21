@@ -9,10 +9,11 @@ import pl.michalbzowski.inventory.domain.inventory.ItemType;
 import pl.michalbzowski.inventory.domain.inventory.WarehouseType;
 
 /**
- * Read models for the items REST API. Summary rows carry no attribute values
- * (band lists stay light; attribute filtering joins come with the filter
- * slice). {@code serialNumber} is shown because the stocktake card design
- * (B7) reads name + serial + assignee.
+ * Read models for the items REST API. Summary rows carry only the attribute
+ * values of active definitions marked {@code displayInList} (B16 — the list
+ * must stay scannable without loading the full value set; the detail view
+ * still owns every value). {@code serialNumber} is shown because the stocktake
+ * card design (B7) reads name + serial + assignee.
  */
 public final class ItemViews {
 
@@ -26,7 +27,9 @@ public final class ItemViews {
     public record ItemSummaryView(long id, String name, ItemType type,
                                   ItemLifecycleStatus lifecycleStatus, WarehouseType warehouse,
                                   String serialNumber, Long assignedMemberId,
-                                  String assignedMemberName) {
+                                  String assignedMemberName,
+                                  /** B16: values of active defs marked displayInList, by displayOrder. */
+                                  List<AttributeValueView> listAttributes) {
     }
 
     public record ItemView(long id, long bandId, String name, ItemType type,

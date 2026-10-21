@@ -260,6 +260,66 @@ class InventoryItemsIT extends AbstractIntegrationTest {
     }
 
     @Test
+    void listRowsCarryValuesOfDisplayInListAttributes() throws Exception {
+        // B16: flaga displayInList decyduje, które wartości jadą na wiersz listy,
+        // w kolejności displayOrder, tylko aktywne definicje tego typu pozycji.
+        long colorDef = createDef("""
+                {"name":"Kolor","itemType":"UNIFORM","dataType":"TEXT","displayOrder":1}""");
+        long typeDef = createDef("""
+                {"name":"Typ","itemType":"UNIFORM","dataType":"SELECT",
+                 "displayOrder":2,"options":["Mundur","Garnitur"],"displayInList":true}""");
+        long sizeDef = createDef("""
+                {"name":"Rozmiar","itemType":"UNIFORM","dataType":"SELECT",
+                 "displayOrder":3,"options":["S","M"],"displayInList":true}""");
+        long marynarkaId = createItem("""
+                {"name":"Marynarka","type":"UNIFORM","attributes":[
+                 {"attributeDefId":%d,"value":"Zielony"},
+                 {"attributeDefId":%d,"value":"Mundur"},
+                 {"attributeDefId":%d,"value":"M"}]}"""
+                .formatted(colorDef, typeDef, sizeDef));
+        long spodnieId = createItem("""
+                {"name":"Spodnie","type":"UNIFORM","attributes":[
+                 {"attributeDefId":%d,"value":"Garnitur"}]}""".formatted(typeDef));
+        long fletId = createItem("{\"name\":\"Flet\",\"type\":\"INSTRUMENT\"}");
+
+        var rows = listRows();
+        var marynarka = rowOf(rows, marynarkaId);
+        assertThat(marynarka.get("listAttributes")).hasSize(2);
+        assertThat(marynarka.get("listAttributes").get(0).get("attributeDefId").asLong()).isEqualTo(typeDef);
+        assertThat(marynarka.get("listAttributes").get(0).get("name").asText()).isEqualTo("Typ");
+        assertThat(marynarka.get("listAttributes").get(0).get("value").asText()).isEqualTo("Mundur");
+        assertThat(marynarka.get("listAttributes").get(1).get("name").asText()).isEqualTo("Rozmiar");
+
+        // Oznaczony, ale bez wartości u danej pozycji → nic nie dokłada wiersza.
+        assertThat(rowOf(rows, spodnieId).get("listAttributes")).hasSize(1);
+        // Inny typ pozycji = inna pula definicji; brak flagowanych → pusta lista.
+        assertThat(rowOf(rows, fletId).get("listAttributes")).isEmpty();
+
+        // Mechanizm jest dynamiczny: deaktywacja definicji natychmiast znosi ją z wierszy.
+        mvc.perform(delete("/api/inventory/attribute-defs/{id}", typeDef).with(as("tok-admin")))
+                .andExpect(status().isNoContent());
+        var after = listRows();
+        assertThat(rowOf(after, marynarkaId).get("listAttributes")).hasSize(1);
+        assertThat(rowOf(after, marynarkaId).get("listAttributes").get(0).get("name").asText()).isEqualTo("Rozmiar");
+        assertThat(rowOf(after, spodnieId).get("listAttributes")).isEmpty();
+    }
+
+    private com.fasterxml.jackson.databind.JsonNode listRows() throws Exception {
+        return MAPPER.readTree(mvc.perform(get("/api/inventory/items?bandId=7").with(as("tok-member")))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8));
+    }
+
+    private static com.fasterxml.jackson.databind.JsonNode rowOf(com.fasterxml.jackson.databind.JsonNode rows, long id) {
+        for (var row : rows) {
+            if (row.get("id").asLong() == id) {
+                return row;
+            }
+        }
+        throw new AssertionError("brak wiersza o id=" + id + " w odpowiedzi listy");
+    }
+
+    @Test
     void wmOutageSurfacesAsServiceUnavailable() throws Exception {
         willThrow(new WmUnavailableException("awaria testowa"))
                 .given(bandDirectory).myBands("tok-admin");

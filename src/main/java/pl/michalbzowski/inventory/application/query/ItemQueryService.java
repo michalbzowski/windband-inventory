@@ -4,8 +4,10 @@ import jakarta.persistence.criteria.Predicate;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.Locale;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -20,7 +22,10 @@ import pl.michalbzowski.inventory.application.query.ItemViews.WarehouseTransferV
 import pl.michalbzowski.inventory.domain.inventory.InventoryItem;
 import pl.michalbzowski.inventory.domain.inventory.InventoryItemRepository;
 import pl.michalbzowski.inventory.domain.inventory.ItemAssignmentRepository;
+import pl.michalbzowski.inventory.domain.inventory.ItemAttributeDef;
+import pl.michalbzowski.inventory.domain.inventory.ItemAttributeDefRepository;
 import pl.michalbzowski.inventory.domain.inventory.ItemAttributeValue;
+import pl.michalbzowski.inventory.domain.inventory.ItemAttributeValueRepository;
 import pl.michalbzowski.inventory.domain.inventory.ItemLifecycleStatus;
 import pl.michalbzowski.inventory.domain.inventory.ItemServiceEventRepository;
 import pl.michalbzowski.inventory.domain.inventory.ItemType;
@@ -40,6 +45,8 @@ public class ItemQueryService {
     private final ItemAssignmentRepository assignments;
     private final ItemServiceEventRepository serviceEvents;
     private final WarehouseTransferRepository warehouseTransfers;
+    private final ItemAttributeDefRepository attributeDefs;
+    private final ItemAttributeValueRepository attributeValues;
 
     /** Band of an existing item — lets the REST layer guard BEFORE mutation. */
     public long bandOf(long id) {
@@ -103,15 +110,49 @@ public class ItemQueryService {
             }
             return cb.and(predicates.toArray(Predicate[]::new));
         };
-        return items.findAll(spec).stream()
+        List<InventoryItem> found = items.findAll(spec).stream()
                 // Identyfikator UI = typ + kod programu; nazwa jest opcjonalna
                 // (V16), więc sortownik musi tolerować null — kod najpierw, nazwa ostatnio.
                 .sorted(Comparator.comparing(InventoryItem::getSerialNumber,
                                 Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER))
                         .thenComparing(InventoryItem::getName,
                                 Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)))
-                .map(ItemQueryService::summary)
                 .toList();
+        Map<Long, List<AttributeValueView>> listAttrs = listAttributesFor(bandId, found);
+        return found.stream()
+                .map(item -> summary(item, listAttrs.getOrDefault(item.getId(), List.of())))
+                .toList();
+    }
+
+    /**
+     * B16: values of the band's ACTIVE definitions marked {@code displayInList},
+     * batched into one read for the whole page and grouped per item, each group
+     * ordered by the definition's displayOrder (then name). Blank values are
+     * skipped — an unset optional attribute contributes nothing to the row.
+     */
+    private Map<Long, List<AttributeValueView>> listAttributesFor(long bandId, List<InventoryItem> found) {
+        if (found.isEmpty()) {
+            return Map.of();
+        }
+        List<Long> defIds = attributeDefs
+                .findByBandIdAndActiveTrueOrderByItemTypeAscDisplayOrderAscNameAsc(bandId).stream()
+                .filter(ItemAttributeDef::isDisplayInList)
+                .map(ItemAttributeDef::getId)
+                .toList();
+        if (defIds.isEmpty()) {
+            return Map.of();
+        }
+        List<Long> itemIds = found.stream().map(InventoryItem::getId).toList();
+        Map<Long, List<AttributeValueView>> grouped = new HashMap<>();
+        attributeValues.findByItem_IdInAndAttributeDef_IdIn(itemIds, defIds).stream()
+                .filter(v -> v.getValueText() != null && !v.getValueText().isBlank())
+                .sorted(Comparator.comparing((ItemAttributeValue v) -> v.getAttributeDef().getDisplayOrder())
+                        .thenComparing(v -> v.getAttributeDef().getName()))
+                .forEach(v -> grouped.computeIfAbsent(v.getItem().getId(), k -> new ArrayList<>())
+                        .add(new AttributeValueView(v.getAttributeDef().getId(),
+                                v.getAttributeDef().getName(), v.getAttributeDef().getDataType(),
+                                v.getValueText())));
+        return grouped;
     }
 
     public ItemView detail(long id) {
@@ -164,9 +205,9 @@ public class ItemQueryService {
                 .toList();
     }
 
-    private static ItemSummaryView summary(InventoryItem item) {
+    private static ItemSummaryView summary(InventoryItem item, List<AttributeValueView> listAttributes) {
         return new ItemSummaryView(item.getId(), item.getName(), item.getType(),
                 item.getLifecycleStatus(), item.getWarehouse(), item.getSerialNumber(),
-                item.getAssignedMemberId(), item.getAssignedMemberName());
+                item.getAssignedMemberId(), item.getAssignedMemberName(), listAttributes);
     }
 }

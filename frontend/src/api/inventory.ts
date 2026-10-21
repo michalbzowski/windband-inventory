@@ -65,6 +65,9 @@ export interface ItemSummaryView {
   serialNumber: string | null;
   assignedMemberId: number | null;
   assignedMemberName: string | null;
+  /** B16: wartości aktywnych definicji oznaczonych „na liście", w kolejności displayOrder.
+   *  Serwer wysyła zawsze (może być []); starsze fixture e2e mogą pola nie mieć. */
+  listAttributes?: AttributeValueView[];
 }
 
 export interface StartRequest {
