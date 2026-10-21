@@ -44,7 +44,8 @@ export interface StocktakeSummaryView {
 export interface StocktakeLineView {
   id: number;
   itemId: number;
-  name: string;
+  /** snapshot nazwy; null gdy pozycja jej nie ma (V16/V18) — czytnikiem serialNumber */
+  name: string | null;
   serialNumber: string | null;
   assignedMemberName: string | null;
   expectedStatus: ItemLifecycleStatus | null;
@@ -277,7 +278,8 @@ export interface NeedView {
   id: number;
   bandId: number;
   itemId: number;
-  name: string;
+  /** snapshot nazwy; null gdy pozycja jej nie ma (V16/V18) — czytnikiem serialNumber */
+  name: string | null;
   serialNumber: string | null;
   quantity: number;
   status: NeedStatus;
@@ -384,7 +386,8 @@ export interface DeclarationView {
   id: number;
   bandId: number;
   itemId: number;
-  name: string;
+  /** snapshot nazwy; null gdy pozycja jej nie ma (V16/V18) — czytnikiem serialNumber */
+  name: string | null;
   serialNumber: string | null;
   type: DeclarationType;
   status: DeclarationStatus;

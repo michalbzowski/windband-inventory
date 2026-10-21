@@ -59,7 +59,8 @@ public class StocktakeLine {
     @JoinColumn(name = "item_id", nullable = false)
     private InventoryItem item;
 
-    @Column(nullable = false)
+    /** Snapshot from inventory_items; nullable since V18 (serial is the identifier). */
+    @Column
     private String name;
 
     @Column(name = "serial_number")

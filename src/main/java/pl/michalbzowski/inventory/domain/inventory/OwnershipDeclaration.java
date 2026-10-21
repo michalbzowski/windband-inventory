@@ -46,7 +46,9 @@ public class OwnershipDeclaration {
     @JoinColumn(name = "item_id", nullable = false)
     private InventoryItem item;
 
-    @Column(name = "name", nullable = false, length = 200)
+    /** Snapshot from inventory_items at declaration time; nullable since V18
+     *  (V16 made the item name optional — the serial is the identifier). */
+    @Column(name = "name", length = 200)
     private String name;
 
     @Column(name = "serial_number", length = 120)
