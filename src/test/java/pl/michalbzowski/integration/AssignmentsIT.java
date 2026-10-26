@@ -90,6 +90,29 @@ class AssignmentsIT extends AbstractIntegrationTest {
     }
 
     @Test
+    void dashboardCounterUsesStatusAssignedFilter() throws Exception {
+        // The Pulpit "Aktywne przydziały" tile counts GET /items?status=ASSIGNED —
+        // never covered by an IT; regression guard for the 2026-10-21 report.
+        long assigned = createInstrument("Kontra basowa");
+        long spare = createInstrument("Trąbka");
+        postJson("/api/inventory/items/" + assigned + "/assign", "{\"memberId\":11}", "tok-admin")
+                .andExpect(status().isOk());
+
+        mvc.perform(get("/api/inventory/items").param("bandId", "7")
+                        .param("status", "ASSIGNED").with(as("tok-member")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].id").value(assigned))
+                .andExpect(jsonPath("$[0].assignedMemberName").value("Jan Kowalski"));
+
+        mvc.perform(get("/api/inventory/items").param("bandId", "7")
+                        .param("status", "AVAILABLE").with(as("tok-member")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.id == " + spare + ")]", hasSize(1)))
+                .andExpect(jsonPath("$[?(@.id == " + assigned + ")]", hasSize(0)));
+    }
+
+    @Test
     void secondAssignWithoutReturnIsAConflict() throws Exception {
         long id = createInstrument("Klarnet");
         postJson("/api/inventory/items/" + id + "/assign", "{\"memberId\":11}", "tok-admin")
