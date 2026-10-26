@@ -42,7 +42,7 @@ function makeItems(): MockItem[] {
   ];
 }
 
-interface State { items: MockItem[]; created: { name: string; attributes: { attributeDefId: number; value: string }[] }[]; updated: MockItem[]; lastWrite: unknown; decls: DeclarationMock[]; role: 'ADMIN' | 'MEMBER' }
+interface State { items: MockItem[]; created: { name: string; attributes: { attributeDefId: number; value: string }[] }[]; updated: MockItem[]; lastWrite: unknown; decls: DeclarationMock[]; seq: Record<string, number>; role: 'ADMIN' | 'MEMBER' }
 
 /** 1:1 pola DeclarationView (backend) — lustrzane semantycznie, B14. */
 interface DeclarationMock {
@@ -51,6 +51,29 @@ interface DeclarationMock {
   holderMemberId: number | null; holderName: string | null; locationText: string | null; note: string | null;
   declaredByMemberId: number; declaredByName: string;
   createdAt: string; revokedAt: string | null; revokedBy: string | null; revokedNote: string | null;
+}
+
+const SERIAL_PREFIX: Record<string, string> = {
+  INSTRUMENT: 'INS', UNIFORM: 'UNI', AWARD: 'ODZ', SHEET_MUSIC: 'NUT',
+  EQUIPMENT: 'SPR', CONSUMABLE: 'MEK', DOCUMENT: 'DOC', OTHER: 'INN',
+};
+
+/** B17 mirror of ItemSerialAllocator.peekNext: next free PREFIX-nnnn, counter NOT moved. */
+function peekSerial(st: State, type: string): string {
+  const prefix = SERIAL_PREFIX[type] ?? 'INN';
+  let v = st.seq[type] ?? 0;
+  for (;;) {
+    v++;
+    const code = `${prefix}-${String(v).padStart(4, '0')}`;
+    if (!st.items.some((i) => i.serialNumber === code)) return code;
+  }
+}
+
+/** B17 mirror of ensureSerial: consumes the peeked value (collisions included). */
+function takeSerial(st: State, type: string): string {
+  const code = peekSerial(st, type);
+  st.seq[type] = Number(code.slice(code.lastIndexOf('-') + 1));
+  return code;
 }
 
 function summary(i: MockItem) {
@@ -184,12 +207,20 @@ async function mockInventory(route: Route, st: State): Promise<void> {
     const created: MockItem = {
       id: Math.max(...st.items.map((i) => i.id)) + 1, name: body.name as string, type: body.type as string,
       lifecycleStatus: 'AVAILABLE', warehouse: (body.warehouse as string) ?? 'MAIN',
-      serialNumber: (body.serialNumber as string) ?? null, description: (body.description as string) ?? null, notes: (body.notes as string) ?? null,
+      // B17: BE nadaje kod PREFIX-nnnn gdy payload go nie ma (ItemSerialAllocator);
+      // lustrzane liczniki per typ z pomijaniem kodów zajętych ręcznie.
+      serialNumber: (body.serialNumber as string) ?? takeSerial(st, body.type as string), description: (body.description as string) ?? null, notes: (body.notes as string) ?? null,
       attrs, assignedMemberId: null, assignedName: null, nextServiceDate: null, assignments: [], transfers: [], services: [],
     };
     st.items.push(created);
     st.created.push({ name: created.name, attributes: (body.attributes ?? []) as never });
     return json(route, detail(created), 201);
+  }
+
+  if (p === '/items/next-code' && m === 'GET') {
+    // B17 mirror: odczyt podglądu BEZ konsumpcji licznika; ADMIN jak create.
+    if (st.role !== 'ADMIN') return json(route, { error: 'forbidden', message: 'Podgląd kodu wymaga administratora' }, 403);
+    return json(route, { code: peekSerial(st, url.searchParams.get('type') ?? 'OTHER') });
   }
 
   if (idMatch && m === 'GET' && !idMatch[2] && item) return json(route, detail(item));
@@ -316,7 +347,7 @@ async function mockInventory(route: Route, st: State): Promise<void> {
 }
 
 async function seed(page: Page, role: 'ADMIN' | 'MEMBER' = 'ADMIN'): Promise<State> {
-  const st: State = { items: makeItems(), created: [], updated: [], lastWrite: null, decls: [], role };
+  const st: State = { items: makeItems(), created: [], updated: [], lastWrite: null, decls: [], seq: {}, role };
   await page.addInitScript(() => {
     sessionStorage.setItem('wi.session', JSON.stringify({
       accessToken: 'test-token', idToken: 'x', expiresAt: Date.now() + 3_600_000,
@@ -531,6 +562,9 @@ test('zapisz i dodaj kolejny: czyszczenie formularza, kontynuacja bez powrotu na
   await page.locator('.fab').click();
   await page.getByRole('button', { name: /👕 Umundrowanie/ }).click();
 
+  // B17: żywy podgląd z licznika serwera, nie statyczny przykład
+  await expect(page.getByText(/kolejny kod: UNI-0001/)).toBeVisible();
+
   // walidacja inline działa tak samo dla drugiego przycisku
   await page.getByRole('button', { name: 'Zapisz i dodaj kolejny' }).click();
   await expect(page.getByText('„Kolor" jest wymagany')).toBeVisible();
@@ -540,11 +574,14 @@ test('zapisz i dodaj kolejny: czyszczenie formularza, kontynuacja bez powrotu na
   await page.getByRole('button', { name: 'Zapisz i dodaj kolejny' }).click();
 
   // potwierdzenie + zostajemy na formularzu, pola wyczyszczone
-  await expect(page.getByRole('status')).toContainText('Zapisano ✓');
+  await expect(page.getByRole('status')).toContainText('Zapisano ✓ UNI-0001');
   await expect(page.getByRole('heading', { name: 'Nowa pozycja' })).toBeVisible();
   await expect.poll(() => st.created.length).toBe(1);
   await expect(page.getByLabel(/^Kolor \*/)).toHaveValue('');
   await expect(page.getByRole('button', { name: 'M', exact: true })).toHaveAttribute('aria-pressed', 'false');
+  // serwer zużył 0001 przez ten zapis → podgląd odświeżony na miejscu, bez powrotu na listę
+  expect(st.items[3].serialNumber).toBe('UNI-0001');
+  await expect(page.getByText(/kolejny kod: UNI-0002/)).toBeVisible();
 
   // desktop ≥1200: wszystkie akcje w jednym rzędzie, szyna pod treścią (nie u góry)
   await page.setViewportSize({ width: 1280, height: 800 });
@@ -565,6 +602,7 @@ test('zapisz i dodaj kolejny: czyszczenie formularza, kontynuacja bez powrotu na
   await expect.poll(() => st.created.length).toBe(2);
   expect(st.created[1].attributes).toEqual([{ attributeDefId: 1, value: 'Czarny' }]);
   expect(st.items.map((i) => i.id)).toEqual([1, 2, 3, 4, 5]);
+  expect(st.items[4].serialNumber).toBe('UNI-0002');
   await expect(page.getByText('5 pozycji · bez filtrów')).toBeVisible();
 
   // strażnik: tryb EDYCJI nie pokazuje „dodaj kolejny”

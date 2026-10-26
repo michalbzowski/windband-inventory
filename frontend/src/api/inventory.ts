@@ -219,6 +219,10 @@ export const getItem = (id: number): Promise<ItemView> => invGet(`/items/${id}`)
 export const createItem = (bandId: number, payload: ItemWritePayload): Promise<ItemView> =>
   invSend('POST', `/items${qs({ bandId })}`, { ...payload });
 
+/** B17: podgląd kodu, który nada następny zapis (odczyt licznika, bez konsumpcji; ADMIN). */
+export const nextItemCode = (bandId: number, type: ItemType): Promise<string> =>
+  invGet<{ code: string }>(`/items/next-code${qs({ bandId, type })}`).then((r) => r.code);
+
 export const updateItem = (id: number, payload: ItemWritePayload): Promise<ItemView> =>
   invSend('PUT', `/items/${id}`, { ...payload });
 
