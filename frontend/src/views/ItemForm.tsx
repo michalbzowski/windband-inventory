@@ -46,6 +46,7 @@ export default function ItemForm({ band, editId, onDone, onCancel }: Props) {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
   const [item, setItem] = useState<ItemView | null>(null);
   const fieldRefs = useRef<Record<string, HTMLElement | null>>({});
 
@@ -77,7 +78,7 @@ export default function ItemForm({ band, editId, onDone, onCancel }: Props) {
       .catch(() => setDefs([]));
   };
 
-  const submit = async () => {
+  const submit = async (addAnother = false) => {
     if (!type) return;
     const next: Record<string, string> = {};
     for (const [defId, msg] of Object.entries(validateFields(fields, values))) next[`a${defId}`] = msg;
@@ -97,6 +98,17 @@ export default function ItemForm({ band, editId, onDone, onCancel }: Props) {
         values,
       );
       const view = isEdit && item ? await updateItem(item.id, payload) : await createItem(band.bandId, payload);
+      if (!isEdit && addAnother) {
+        // „Zapisz i dodaj kolejny”: czysty formularz nowego tworzenia w tym samym
+        // typie; kolejny identyfikator nada serwer przy następnym POST (SerialSequence).
+        setBasics({ name: '', description: '', notes: '', warehouse: 'MAIN' });
+        setValues({});
+        setErrors({});
+        setBusy(false);
+        setToast(`Zapisano ✓${view.serialNumber ? ` ${view.serialNumber}` : ''} — dodaj kolejną pozycję`);
+        window.setTimeout(() => setToast(null), 3500);
+        return;
+      }
       onDone(view);
     } catch (e) {
       setServerError(e instanceof ApiError ? e.message : 'Zapis nie powiódł się.');
@@ -190,12 +202,21 @@ export default function ItemForm({ band, editId, onDone, onCancel }: Props) {
       </section>
 
       {(step === 2 || isEdit) && (
-        <div className="actionbar" role="toolbar" aria-label="Akcje formularza">
+        <div className="actionbar wrap" role="toolbar" aria-label="Akcje formularza">
           {!isEdit && <button type="button" className="btn ghost" onClick={() => setStep(1)} disabled={busy}>Wstecz</button>}
-          <button type="button" className="btn primary block" onClick={submit} disabled={busy}>
+          {!isEdit && (
+            <button type="button" className="btn" onClick={() => submit(true)} disabled={busy}>
+              Zapisz i dodaj kolejny
+            </button>
+          )}
+          <button type="button" className="btn primary" onClick={() => submit()} disabled={busy}>
             {busy ? 'Zapisywanie…' : isEdit ? 'Zapisz zmiany' : 'Zapisz pozycję'}
           </button>
         </div>
+      )}
+
+      {toast && (
+        <div className="toast form" role="status">{toast}<button type="button" onClick={() => setToast(null)}>✕</button></div>
       )}
 
       {/* tryb pracy (formularz): bez szyny Tabs — powrót „‹” / Anuluj */}

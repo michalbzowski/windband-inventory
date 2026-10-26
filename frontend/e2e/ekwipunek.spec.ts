@@ -524,6 +524,56 @@ test('two-step create: walidacja inline + payload z atrybutami; MEMBER read-only
   ]);
 });
 
+test('zapisz i dodaj kolejny: czyszczenie formularza, kontynuacja bez powrotu na listę', async ({ page }) => {
+  const st = await seed(page);
+  await openEkwipunek(page);
+
+  await page.locator('.fab').click();
+  await page.getByRole('button', { name: /👕 Umundrowanie/ }).click();
+
+  // walidacja inline działa tak samo dla drugiego przycisku
+  await page.getByRole('button', { name: 'Zapisz i dodaj kolejny' }).click();
+  await expect(page.getByText('„Kolor" jest wymagany')).toBeVisible();
+
+  await page.getByLabel(/^Kolor \*/).fill('Granatowy');
+  await page.getByRole('button', { name: 'M', exact: true }).click();
+  await page.getByRole('button', { name: 'Zapisz i dodaj kolejny' }).click();
+
+  // potwierdzenie + zostajemy na formularzu, pola wyczyszczone
+  await expect(page.getByRole('status')).toContainText('Zapisano ✓');
+  await expect(page.getByRole('heading', { name: 'Nowa pozycja' })).toBeVisible();
+  await expect.poll(() => st.created.length).toBe(1);
+  await expect(page.getByLabel(/^Kolor \*/)).toHaveValue('');
+  await expect(page.getByRole('button', { name: 'M', exact: true })).toHaveAttribute('aria-pressed', 'false');
+
+  // desktop ≥1200: wszystkie akcje w jednym rzędzie, szyna pod treścią (nie u góry)
+  await page.setViewportSize({ width: 1280, height: 800 });
+  const bar = page.locator('.actionbar');
+  const secondary = await bar.getByRole('button', { name: 'Zapisz i dodaj kolejny' }).boundingBox();
+  const primary = await bar.getByRole('button', { name: 'Zapisz pozycję' }).boundingBox();
+  expect(secondary).not.toBeNull();
+  expect(primary).not.toBeNull();
+  expect(secondary!.y).toBeCloseTo(primary!.y, 0);
+  const content = await page.locator('.content').boundingBox();
+  expect(bar).not.toBeNull();
+  expect((await bar.boundingBox())!.y).toBeGreaterThan(content!.y);
+  await page.setViewportSize({ width: 360, height: 740 });
+
+  // kolejna pozycja: nowy wpis bez wyjścia na listę, serwer nadał kolejny identyfikator
+  await page.getByLabel(/^Kolor \*/).fill('Czarny');
+  await page.getByRole('button', { name: 'Zapisz pozycję' }).click();
+  await expect.poll(() => st.created.length).toBe(2);
+  expect(st.created[1].attributes).toEqual([{ attributeDefId: 1, value: 'Czarny' }]);
+  expect(st.items.map((i) => i.id)).toEqual([1, 2, 3, 4, 5]);
+  await expect(page.getByText('5 pozycji · bez filtrów')).toBeVisible();
+
+  // strażnik: tryb EDYCJI nie pokazuje „dodaj kolejny”
+  await page.getByRole('button', { name: 'Pozycja Marynarka' }).click();
+  await page.getByRole('button', { name: 'Edytuj pozycję' }).click();
+  await expect(page.getByRole('button', { name: 'Zapisz i dodaj kolejny' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Zapisz zmiany' })).toBeVisible();
+});
+
 test('MEMBER: lista bez FAB i bez strefy akcji na szczegółach', async ({ page }) => {
   await seed(page, 'MEMBER');
   await openEkwipunek(page);

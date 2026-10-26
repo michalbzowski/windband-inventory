@@ -367,6 +367,9 @@ button { font: inherit; }
 
 .toast { position: absolute; left: 14px; right: 14px; bottom: 86px; background: var(--ink); color: #fff; border-radius: 12px; padding: 10px 14px; font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: space-between; gap: 10px; z-index: 6; box-shadow: 0 8px 24px rgba(0, 0, 0, .30); }
 .toast button { background: none; border: 1px solid #6B7280; color: #C7D2FE; border-radius: 8px; min-height: 38px; padding: 6px 12px; font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }
+/* formularz tworzenia: szyna akcji ma dwa rzędy — toast musi je omijać,
+   bo przysłania „Zapisz i dodaj kolejny" dokładnie w chwili, gdy jest pod ręką */
+.toast.form { bottom: 150px; }
 
 /* lists / report */
 .srow { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; color: var(--muted); padding: 10px 2px; border-bottom: 1px dashed var(--line); width: 100%; text-align: left; background: none; border-left: 0; border-right: 0; border-top: 0; font: inherit; font-size: 12.5px; cursor: pointer; }
@@ -420,6 +423,10 @@ button { font: inherit; }
 .fab:active { transform: scale(.95); }
 .actionbar { display: flex; gap: 10px; padding: 10px 16px max(18px, calc(10px + env(safe-area-inset-bottom))); border-top: 1px solid var(--line); background: var(--surface); flex: none; }
 .actionbar .btn { flex: 1; }
+/* formularz tworzenia: trzy akcje — naturalne zawijanie (360 px: primary w drugim
+   rzędzie na całą szerokość; ≥768 px: jeden rząd, bo mieszczą się co do szerokości) */
+.actionbar.wrap { flex-wrap: wrap; }
+.actionbar.wrap .btn { flex: 1 1 auto; }
 .field-err { font-size: 11.5px; color: var(--danger); font-weight: 700; }
 .stepper .st-on { color: var(--primary); }
 .stepper .st-done { color: var(--ok); }
@@ -491,6 +498,9 @@ button { font: inherit; }
   .tabs .t .ti { font-size: 16px; }
   .content { order: 2; padding: 26px 28px 34px; gap: 16px; }
   .abar { order: 3; padding: 14px 28px; }
+  /* szyna akcji formularzy (ItemForm/ItemDetail) też pod treścią — bez tego
+     desktop dostawał przyciski nad treścią (order:0 vs content order:2) */
+  .actionbar { order: 3; padding: 14px 28px; }
 
   .panel { padding: 18px 22px; }
   .kv > div { grid-template-columns: minmax(160px, 240px) 1fr; font-size: 13.5px; padding: 11px 0; }
