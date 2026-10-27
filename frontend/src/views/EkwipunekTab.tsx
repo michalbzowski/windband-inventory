@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { listBandMembers, type BandMember, type BandView } from '../api/bands';
 import {
   listAttributeDefs,
@@ -18,6 +18,13 @@ import {
   type ItemFilterState,
 } from '../ekwipunek/filters';
 import { fmtAttrValue } from '../ekwipunek/format';
+import {
+  clampPage,
+  pageCount,
+  pageWindow,
+  rangeOf,
+  slicePage,
+} from '../ekwipunek/pagination';
 import AppFrame from '../ui/AppFrame';
 import Sheet from '../ui/Sheet';
 import { Tabs } from './LiczenieTab';
@@ -173,8 +180,12 @@ function ItemList({
   const [error, setError] = useState<string | null>(null);
   const [members, setMembers] = useState<BandMember[]>([]);
   const [defs, setDefs] = useState<AttributeDefView[]>([]);
+  // B18: strona listy (1-based). Reset do 1 przy każdej zmianie filtrów/wyszukiwania.
+  const [page, setPage] = useState(1);
+  const contentRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
+    setPage(1);
     const ac = new AbortController();
     listItems(band.bandId, toQuery(filters), ac.signal)
       .then((rows) => {
@@ -208,6 +219,20 @@ function ItemList({
 
   const active = activeChipCount(filters);
   const rows = items ?? [];
+  // B18: lista filtrowana po stronie serwera jest dzielona po stronie klienta
+  // na strony po PAGE_SIZE (model czysty: ekwipunek/pagination.ts, testy vitest).
+  const pages = pageCount(rows.length);
+  const current = clampPage(page, rows.length);
+  const range = rangeOf(current, rows.length);
+  const pageRows = slicePage(rows, current);
+
+  const gotoPage = (n: number) => {
+    setPage(clampPage(n, rows.length));
+    // Po skoku na inną stronę wracamy na jej szczyt: scrolluje .content (mobile
+    // shell), a na desktopie ≥1200 dokument — stąd oba.
+    contentRef.current?.scrollTo(0, 0);
+    window.scrollTo(0, 0);
+  };
 
   return (
     <AppFrame>
@@ -222,7 +247,7 @@ function ItemList({
         )}
       </header>
 
-      <section className="content">
+      <section className="content" ref={contentRef}>
         <input
           className="search"
           type="search"
@@ -256,7 +281,7 @@ function ItemList({
         )}
 
         <div className="panel" style={{ padding: '2px 14px' }}>
-          {rows.map((it) => (
+          {pageRows.map((it) => (
             <button type="button" className="srow" key={it.id} onClick={() => onOpen(it.id)} aria-label={`Pozycja ${[it.serialNumber ?? '', it.name ?? ''].filter(Boolean).join(' · ') || TYPE_LABEL[it.type]}`}>
               <span>
                 <b>{TYPE_ICON[it.type]} {it.serialNumber || it.name || TYPE_LABEL[it.type]}</b>
@@ -281,6 +306,34 @@ function ItemList({
             </button>
           ))}
         </div>
+
+        {items && pages > 1 && (
+          <>
+            <nav className="pager" aria-label="Stronicowanie listy">
+              <button type="button" className="pbtn" aria-label="Poprzednia strona" disabled={current === 1} onClick={() => gotoPage(current - 1)}>‹</button>
+              {pageWindow(current, pages).map((slot, i) => (
+                slot === 'gap'
+                  ? <span key={`gap-${i}`} className="pgap" aria-hidden>…</span>
+                  : (
+                    <button
+                      type="button"
+                      key={slot}
+                      className={`pbtn${slot === current ? ' on' : ''}`}
+                      aria-label={`Strona ${slot}`}
+                      aria-current={slot === current ? 'page' : undefined}
+                      onClick={() => gotoPage(slot)}
+                    >
+                      {slot}
+                    </button>
+                  )
+              ))}
+              <button type="button" className="pbtn" aria-label="Następna strona" disabled={current === pages} onClick={() => gotoPage(current + 1)}>›</button>
+            </nav>
+            <p className="pager-info" aria-live="polite">
+              Pozycje {range.from}–{range.to} z {rows.length} · strona {current} z {pages}
+            </p>
+          </>
+        )}
       </section>
 
       {isAdmin && (
