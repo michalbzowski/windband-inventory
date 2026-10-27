@@ -98,4 +98,37 @@ class ItemSerialAllocatorTest {
         assertThat(item.getSerialNumber()).isEqualTo("INS-0002");
         assertThat(existing.getLastValue()).isEqualTo(2L);
     }
+
+    @Test
+    void peekShowsNextCodeWithoutConsumingCounter() {
+        SerialSequence existing = sequence(7L, "UNIFORM", 41L);
+        when(sequences.findByBandIdAndItemType(7L, "UNIFORM")).thenReturn(Optional.of(existing));
+        when(items.findByBandIdAndSerialNumber(7L, "UNI-0042")).thenReturn(Optional.empty());
+
+        assertThat(allocator.peekNext(7L, ItemType.UNIFORM)).isEqualTo("UNI-0042");
+        assertThat(existing.getLastValue()).isEqualTo(41L);
+        verify(sequences, never()).save(any(SerialSequence.class));
+    }
+
+    @Test
+    void peekSkipsLegacyTakenCode() {
+        SerialSequence existing = sequence(7L, "INSTRUMENT", 0L);
+        InventoryItem occupant = InventoryItem.create(7L, "Zajęta", ItemType.INSTRUMENT, WarehouseType.MAIN,
+                "INS-0001", null, null);
+        when(sequences.findByBandIdAndItemType(7L, "INSTRUMENT")).thenReturn(Optional.of(existing));
+        when(items.findByBandIdAndSerialNumber(7L, "INS-0001")).thenReturn(Optional.of(occupant));
+        when(items.findByBandIdAndSerialNumber(7L, "INS-0002")).thenReturn(Optional.empty());
+
+        assertThat(allocator.peekNext(7L, ItemType.INSTRUMENT)).isEqualTo("INS-0002");
+        verify(sequences, never()).save(any(SerialSequence.class));
+    }
+
+    @Test
+    void peekStartsAtOneWhenCounterRowMissing() {
+        when(sequences.findByBandIdAndItemType(7L, "AWARD")).thenReturn(Optional.empty());
+        when(items.findByBandIdAndSerialNumber(7L, "ODZ-0001")).thenReturn(Optional.empty());
+
+        assertThat(allocator.peekNext(7L, ItemType.AWARD)).isEqualTo("ODZ-0001");
+        verify(sequences, never()).save(any(SerialSequence.class));
+    }
 }

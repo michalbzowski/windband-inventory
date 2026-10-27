@@ -36,6 +36,49 @@ class InventoryItemsIT extends AbstractIntegrationTest {
         return MAPPER.readTree(body).get("id").longValue();
     }
 
+    /**
+     * B17: the create form must show the REAL upcoming code, not a static example.
+     * Peek = same prefix + collision rules as the allocator, without consuming —
+     * the advance comes only from a real save.
+     */
+    @Test
+    void nextCodePeekDoesNotConsumeAndAdvancesOnlyAfterRealAssignment() throws Exception {
+        mvc.perform(get("/api/inventory/items/next-code").param("bandId", "7").param("type", "UNIFORM")
+                        .with(as("tok-admin")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("UNI-0001"));
+
+        // dwa podglady z rzedu nie przesuwają licznika
+        mvc.perform(get("/api/inventory/items/next-code").param("bandId", "7").param("type", "UNIFORM")
+                        .with(as("tok-admin")))
+                .andExpect(jsonPath("$.code").value("UNI-0001"));
+
+        // ręczny kod zajmujący slot (dziedzictwo sprzed auto-nadawań) — podgląd go pomija
+        createItem("""
+                {"name":"Garnitur wizytowy","type":"UNIFORM","serialNumber":"UNI-0002","attributes":[]}""");
+        mvc.perform(get("/api/inventory/items/next-code").param("bandId", "7").param("type", "UNIFORM")
+                        .with(as("tok-admin")))
+                .andExpect(jsonPath("$.code").value("UNI-0001"));
+
+        long autoId = createItem("""
+                {"name":"Spodnie galowe","type":"UNIFORM","attributes":[]}""");
+        mvc.perform(get("/api/inventory/items/{id}", autoId).with(as("tok-admin")))
+                .andExpect(jsonPath("$.serialNumber").value("UNI-0001"));
+
+        // licznik ruszył tylko przez zapis; UNI-0002 zajęty ręcznie → przeskok
+        mvc.perform(get("/api/inventory/items/next-code").param("bandId", "7").param("type", "UNIFORM")
+                        .with(as("tok-admin")))
+                .andExpect(jsonPath("$.code").value("UNI-0003"));
+
+        // uprawnienia lustrzane create (B8): podgląd jest częścią ścieżki tworzenia
+        mvc.perform(get("/api/inventory/items/next-code").param("bandId", "7").param("type", "UNIFORM")
+                        .with(as("tok-member")))
+                .andExpect(status().isForbidden());
+        mvc.perform(get("/api/inventory/items/next-code").param("bandId", "7").param("type", "UNIFORM")
+                        .with(as("tok-outsider")))
+                .andExpect(status().isForbidden());
+    }
+
     @Test
     void fullLifecycleCreateReadUpdateDelete() throws Exception {
         long sizeDefId = createDef("""

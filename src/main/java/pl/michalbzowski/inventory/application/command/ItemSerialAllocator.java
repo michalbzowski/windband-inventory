@@ -83,6 +83,30 @@ public class ItemSerialAllocator {
     }
 
     /**
+     * B17 preview for the create form: the code the next {@link #ensureSerial} would
+     * assign in this (band, type) — a read-only peek that does NOT consume the counter.
+     * Same prefix map and legacy-collision skip as the real assignment; a concurrent
+     * save may still shift the value between the peek and the user's own save, so the
+     * create response remains the only source of truth for the code actually assigned.
+     */
+    @Transactional(readOnly = true)
+    public String peekNext(long bandId, ItemType type) {
+        long value = sequences.findByBandIdAndItemType(bandId, type.name())
+                .map(SerialSequence::getLastValue)
+                .orElse(0L);
+        String prefix = PREFIX.getOrDefault(type, "INN");
+        for (int candidate = 0; candidate < MAX_CANDIDATES; candidate++) {
+            value++;
+            String code = prefix + "-" + String.format("%04d", value);
+            if (items.findByBandIdAndSerialNumber(bandId, code).isEmpty()) {
+                return code;
+            }
+        }
+        throw new IllegalStateException(
+                "Brak wolnych kodów seryjnych dla zespołu " + bandId + " — skontaktuj się z administratorem");
+    }
+
+    /**
      * Domain rule: (band, serial) must stay unique. A candidate collides unless the
      * holding row IS this item — impossible here for a fresh code, so in practice
      * "no holder" is the only free outcome. Null-safe for unsaved units in tests.

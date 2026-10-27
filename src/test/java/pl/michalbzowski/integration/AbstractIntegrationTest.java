@@ -101,6 +101,8 @@ public abstract class AbstractIntegrationTest {
     @Autowired
     protected InventoryItemRepository items;
     @Autowired
+    protected pl.michalbzowski.inventory.domain.inventory.SerialSequenceRepository serialSequences;
+    @Autowired
     protected ItemAssignmentRepository assignments;
 
     @Autowired
@@ -148,6 +150,9 @@ public abstract class AbstractIntegrationTest {
         warehouseTransfers.deleteAll();
         assignments.deleteAll();
         items.deleteAll();
+        // Liczniki kodów (B17) muszą startować z testem — inaczej podgląd „kolejnego kodu"
+        // dziedziczy stan po IT-ach, które tworzyły pozycje z auto-przypadkiem.
+        serialSequences.deleteAll();
         attributeDefs.deleteAll();
     }
 

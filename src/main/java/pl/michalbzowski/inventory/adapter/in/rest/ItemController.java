@@ -26,6 +26,7 @@ import pl.michalbzowski.inventory.adapter.in.security.BearerTokens;
 import pl.michalbzowski.inventory.application.authz.BandAccessGuard;
 import pl.michalbzowski.inventory.application.command.AssignCommandService;
 import pl.michalbzowski.inventory.application.command.ItemCommandService;
+import pl.michalbzowski.inventory.application.command.ItemSerialAllocator;
 import pl.michalbzowski.inventory.application.command.ServiceCommandService;
 import pl.michalbzowski.inventory.application.command.TransferCommandService;
 import pl.michalbzowski.inventory.application.query.ItemQueryService;
@@ -54,6 +55,7 @@ public class ItemController {
 
     private final ItemQueryService queries;
     private final ItemCommandService commands;
+    private final ItemSerialAllocator serials;
     private final AssignCommandService assignments;
     private final TransferCommandService transfers;
     private final ServiceCommandService services;
@@ -89,6 +91,21 @@ public class ItemController {
         guard.requireAdmin(bandId, BearerTokens.require());
         InventoryItem item = commands.create(bandId, request.toCommand());
         return queries.detail(item.getId());
+    }
+
+    /**
+     * B17: preview of the code the NEXT save would assign this band+type (counter read,
+     * not consumed). ADMIN because it exists solely for the create form; the actual
+     * assignment is always authoritative in the create response.
+     */
+    @GetMapping("/next-code")
+    public NextCodeView nextCode(@RequestParam("bandId") long bandId, @RequestParam ItemType type) {
+        guard.requireAdmin(bandId, BearerTokens.require());
+        return new NextCodeView(serials.peekNext(bandId, type));
+    }
+
+    /** Response for the next-code peek. */
+    public record NextCodeView(String code) {
     }
 
     @PutMapping("/{id}")

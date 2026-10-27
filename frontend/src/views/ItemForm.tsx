@@ -5,6 +5,7 @@ import {
   createItem,
   getItem,
   listAttributeDefs,
+  nextItemCode,
   updateItem,
   type AttributeDefView,
   type ItemView,
@@ -48,6 +49,10 @@ export default function ItemForm({ band, editId, onDone, onCancel }: Props) {
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [item, setItem] = useState<ItemView | null>(null);
+  // B17: podgląd kolejnego kodu z serwera (licznik per band+typ); null = pobierany
+  // albo endpoint niedostępny → hint wraca do statycznego przykładu.
+  const [nextCode, setNextCode] = useState<string | null>(null);
+  const codeSeq = useRef(0);
   const fieldRefs = useRef<Record<string, HTMLElement | null>>({});
 
   const fields: FieldSpec[] = useMemo(() => visibleFields(defs, values), [defs, values]);
@@ -69,10 +74,24 @@ export default function ItemForm({ band, editId, onDone, onCancel }: Props) {
     }).catch((e) => setServerError((e as Error).message));
   }, [isEdit, editId, band.bandId]);
 
+  // Strażnik kolejności: szybkie Wstecz→inny typ nie może nadpisać młodszego wyniku.
+  const refreshNextCode = (t: ItemType) => {
+    const seq = ++codeSeq.current;
+    nextItemCode(band.bandId, t)
+      .then((c) => {
+        if (codeSeq.current === seq) setNextCode(c);
+      })
+      .catch(() => {
+        if (codeSeq.current === seq) setNextCode(null);
+      });
+  };
+
   const goAttributes = (t: ItemType) => {
     setType(t);
     setStep(2);
     setServerError(null);
+    setNextCode(null);
+    refreshNextCode(t);
     listAttributeDefs(band.bandId, t)
       .then((d) => setDefs(d.filter((x) => x.active)))
       .catch(() => setDefs([]));
@@ -100,11 +119,13 @@ export default function ItemForm({ band, editId, onDone, onCancel }: Props) {
       const view = isEdit && item ? await updateItem(item.id, payload) : await createItem(band.bandId, payload);
       if (!isEdit && addAnother) {
         // „Zapisz i dodaj kolejny”: czysty formularz nowego tworzenia w tym samym
-        // typie; kolejny identyfikator nada serwer przy następnym POST (SerialSequence).
+        // typie; odświeżamy podgląd — licznik przesunął się przez ten zapis (B17).
         setBasics({ name: '', description: '', notes: '', warehouse: 'MAIN' });
         setValues({});
         setErrors({});
         setBusy(false);
+        setNextCode(null);
+        refreshNextCode(type);
         setToast(`Zapisano ✓${view.serialNumber ? ` ${view.serialNumber}` : ''} — dodaj kolejną pozycję`);
         window.setTimeout(() => setToast(null), 3500);
         return;
@@ -157,7 +178,10 @@ export default function ItemForm({ band, editId, onDone, onCancel }: Props) {
                 Kod pozycji: <b>{item?.serialNumber ?? '—'}</b> — nadany przez program, nie podlega edycji.
               </p>
             ) : (
-              <p className="hint">Kodu nie podajesz — po zapisaniu program nada go automatycznie (np. <b>INS-0042</b>).</p>
+              <p className="hint" aria-live="polite">
+                Kodu nie podajesz — po zapisaniu program nada go automatycznie
+                {nextCode ? <> — kolejny kod: <b>{nextCode}</b></> : <> (np. <b>INS-0042</b>)</>}.
+              </p>
             )}
 
             {!isEdit && (
