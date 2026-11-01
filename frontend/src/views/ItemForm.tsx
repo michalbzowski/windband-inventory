@@ -64,7 +64,9 @@ export default function ItemForm({ band, editId, onDone, onCancel }: Props) {
       setItem(v);
       setType(v.type);
       setBasics({
-        name: v.name,
+        // V16: serwer zwraca name=null dla pozycji bez nazwy (każda stworzona w SPA) —
+        // bez ??: null w state rozbijał buildPayload (name.trim()) przy ZAPISIE.
+        name: v.name ?? '',
         description: v.description ?? '',
         notes: v.notes ?? '',
         warehouse: v.warehouse,
