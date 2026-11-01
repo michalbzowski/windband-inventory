@@ -12,7 +12,8 @@ test.use({ viewport: { width: 360, height: 740 } });
 interface Def { id: number; itemType: string; name: string; dataType: string; options: string[]; required: boolean; active: boolean; displayOrder: number; displayInList: boolean }
 
 interface MockItem {
-  id: number; name: string; type: string; lifecycleStatus: string; warehouse: string;
+  /** V16: nazwa jest opcjonalna — SPA tworzy pozycje bez niej, serwer zapisuje null. */
+  id: number; name: string | null; type: string; lifecycleStatus: string; warehouse: string;
   serialNumber: string | null; description: string | null; notes: string | null;
   attrs: Record<number, string>; assignedMemberId: number | null; assignedName: string | null;
   nextServiceDate: string | null;
@@ -42,11 +43,11 @@ function makeItems(): MockItem[] {
   ];
 }
 
-interface State { items: MockItem[]; created: { name: string; attributes: { attributeDefId: number; value: string }[] }[]; updated: MockItem[]; lastWrite: unknown; decls: DeclarationMock[]; seq: Record<string, number>; role: 'ADMIN' | 'MEMBER' }
+interface State { items: MockItem[]; created: { name: string | null; attributes: { attributeDefId: number; value: string }[] }[]; updated: MockItem[]; lastWrite: unknown; decls: DeclarationMock[]; seq: Record<string, number>; role: 'ADMIN' | 'MEMBER' }
 
 /** 1:1 pola DeclarationView (backend) — lustrzane semantycznie, B14. */
 interface DeclarationMock {
-  id: number; bandId: number; itemId: number; name: string; serialNumber: string | null;
+  id: number; bandId: number; itemId: number; name: string | null; serialNumber: string | null;
   type: string; status: string;
   holderMemberId: number | null; holderName: string | null; locationText: string | null; note: string | null;
   declaredByMemberId: number; declaredByName: string;
@@ -188,7 +189,7 @@ async function mockInventory(route: Route, st: State): Promise<void> {
     if (q.get('assignedMemberId')) rows = rows.filter((i) => i.assignedMemberId === Number(q.get('assignedMemberId')));
     if (q.get('search')) {
       const s = (q.get('search') as string).toLowerCase();
-      rows = rows.filter((i) => i.name.toLowerCase().includes(s) || (i.serialNumber ?? '').toLowerCase().includes(s));
+      rows = rows.filter((i) => (i.name ?? '').toLowerCase().includes(s) || (i.serialNumber ?? '').toLowerCase().includes(s));
     }
     if (defId) {
       const d = Number(defId);
@@ -205,7 +206,8 @@ async function mockInventory(route: Route, st: State): Promise<void> {
       if (def && a.value) attrs[def.id] = normValue(def, a.value);
     }
     const created: MockItem = {
-      id: Math.max(...st.items.map((i) => i.id)) + 1, name: body.name as string, type: body.type as string,
+      // BE: blank/absent name → null (replaceDetails blankToNull) — lustrzanie.
+      id: Math.max(...st.items.map((i) => i.id)) + 1, name: ((body.name as string) ?? '').trim() || null, type: body.type as string,
       lifecycleStatus: 'AVAILABLE', warehouse: (body.warehouse as string) ?? 'MAIN',
       // B17: BE nadaje kod PREFIX-nnnn gdy payload go nie ma (ItemSerialAllocator);
       // lustrzane liczniki per typ z pomijaniem kodów zajętych ręcznie.
@@ -228,7 +230,7 @@ async function mockInventory(route: Route, st: State): Promise<void> {
     st.updated.push(structuredClone(item));
     // BE: kod (serialNumber) nie należy do powierzchni edycji — program go nadaje,
     // edycja pozycji go NIE czyści (InventoryItem.replaceDetails nie dotyka serialNumber).
-    item.name = body.name as string;
+    item.name = ((body.name as string) ?? '').trim() || null;
     item.description = (body.description as string) || null;
     item.notes = (body.notes as string) || null;
     const attrs: Record<number, string> = {};
@@ -324,7 +326,7 @@ async function mockInventory(route: Route, st: State): Promise<void> {
     const expected = member.expectedSet.map((e) => {
       const want = norm(e.instrument);
       const matched = actual
-        .filter((i) => { const have = norm(i.name); return have === want || have.startsWith(want + ' '); })
+        .filter((i) => { const have = norm(i.name ?? ''); return have === want || have.startsWith(want + ' '); })
         .map((i) => i.id);
       return { instrument: e.instrument, primary: e.primary, satisfied: matched.length > 0, matchedItemIds: matched };
     });
@@ -718,4 +720,35 @@ test('flow v1.x: lista → szczegóły → ✎ edycja wpisu → „Zapisz zmiany
   // i widać to na liście — tożsamość wiersza = kod FL-01 (nazwa wtórna)
   await page.getByRole('button', { name: 'Wróć do listy' }).click();
   await expect(page.getByRole('button', { name: /Pozycja FL-01/ })).toBeVisible();
+});
+
+test('regresja: edycja pozycji BEZ nazwy (null, stworzona przez SPA) zapisuje się normalnie', async ({ page }) => {
+  const st = await seed(page);
+  // Lustrzane dane produkcyjne: formularz SPA nie ma pola nazwy, więc serwer
+  // (V16, blankToNull) zapisuje name=null, a identyfikatorem jest kod B17.
+  // ItemForm wcielał nazwę 1:1 → basics.name=null → buildPayload rzucał
+  // TypeError na .trim() → komunikat „Zapis nie powiódł się.” (fallback, nie ApiError).
+  const uniform = st.items.find((i) => i.id === 3)!;
+  uniform.name = null;
+  uniform.serialNumber = 'UNI-0003';
+
+  await openEkwipunek(page);
+  await page.getByRole('button', { name: /Pozycja UNI-0003/ }).click();
+  await expect(page.getByRole('heading', { name: /UNI-0003/ })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Edytuj pozycję' }).click();
+  await expect(page.getByRole('heading', { name: 'Edycja · Umundrowanie' })).toBeVisible();
+
+  await page.getByLabel('Notatki wewnętrzne').fill('pranie 30°C, wzmocniony kołnierz');
+  await page.locator('.field', { hasText: /^Rozmiar/ }).getByRole('button', { name: 'L', exact: true, pressed: false }).click();
+  await page.getByRole('button', { name: 'Zapisz zmiany' }).click();
+
+  // zapis musiał przejść: brak komunikatu błędu i powrót do szczegółów z nowymi danymi
+  await expect(page.locator('.field-err')).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: /UNI-0003/ })).toBeVisible();
+  await expect(page.getByText('pranie 30°C, wzmocniony kołnierz')).toBeVisible();
+  await expect.poll(() => st.updated.length).toBe(1);
+  const saved = st.items.find((i) => i.id === 3)!;
+  expect(saved.notes).toBe('pranie 30°C, wzmocniony kołnierz');
+  expect(saved.attrs).toEqual({ 1: 'czarny', 2: 'L' });
 });

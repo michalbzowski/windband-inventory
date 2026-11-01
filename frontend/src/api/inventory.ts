@@ -59,7 +59,8 @@ export interface StocktakeLineView {
 
 export interface ItemSummaryView {
   id: number;
-  name: string;
+  /** V16: opcjonalna — ten sam kolumnowy null co w ItemView (czytniki używają serialNumber || name). */
+  name: string | null;
   type: ItemType;
   lifecycleStatus: ItemLifecycleStatus;
   warehouse: WarehouseType;
@@ -151,7 +152,8 @@ export interface AttributeValueView {
 export interface ItemView {
   id: number;
   bandId: number;
-  name: string;
+  /** V16: nazwa jest opcjonalna — pozycje tworzone w SPA mają null (czytnik: serialNumber || name). */
+  name: string | null;
   type: ItemType;
   lifecycleStatus: ItemLifecycleStatus;
   warehouse: WarehouseType;
